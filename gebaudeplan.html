@@ -12,6 +12,10 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;colo
 header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
 header h1{font-size:17px;margin:0;font-weight:650}
 header .sub{color:var(--muted);font-size:13px}
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.header-actions select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff}
+.header-actions button{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;cursor:pointer;white-space:nowrap}
+.header-actions button:hover{background:#f1f4f9}
 .layout{flex:1;display:flex;min-height:0}
 aside{width:290px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto;display:flex;flex-direction:column;gap:18px}
 aside h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
@@ -20,6 +24,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .plan-btn{display:block;width:100%;text-align:left;padding:9px 12px;margin-bottom:6px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-size:14px}
 .plan-btn:hover{background:#f6f8fb}
 .plan-btn.active{background:var(--accent-soft);border-color:var(--accent);color:#0b4fbf;font-weight:600}
+.plan-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:6px}
+.plan-row .plan-btn{margin-bottom:0;text-align:center;padding:9px 2px;font-size:13px;overflow-wrap:anywhere;line-height:1.25}
 input[type=search]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
 .hint{font-size:12px;color:var(--muted);margin-top:6px;min-height:16px;line-height:1.5}
 label.chk{display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0}
@@ -45,13 +51,13 @@ svg.hide-labels text:not(.ov){display:none}
 .legend strong{color:var(--text);font-size:12px}
 .legend span{display:flex;align-items:center;gap:7px}
 .legend i.bar{width:22px;height:5px;border-radius:3px;display:inline-block;box-shadow:0 0 0 1px #0004}
-.grid-btns{display:flex;gap:6px}
-.grid-btns button{flex:1;border:1px solid var(--line);border-radius:6px;background:#fff;padding:7px;cursor:pointer}
 .editbar{position:absolute;top:24px;left:24px;right:132px;z-index:3;display:none;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;background:#fffffff5;border:1px solid var(--line);border-radius:9px;box-shadow:0 2px 8px #0002;font-size:13px}
 .editbar.show{display:flex}
 button:disabled{opacity:.45;cursor:not-allowed}
 .editbar button.chosen{background:var(--accent-soft);border-color:var(--accent)}
 .editbar .layer-name{font-weight:650;margin-right:5px}
+.editbar .typebtn i{display:inline-block;width:18px;height:6px;border-radius:3px;margin-right:6px;vertical-align:middle;box-shadow:0 0 0 1px #0004}
+.editbar .typebtn.chosen{font-weight:650;box-shadow:0 0 0 2px var(--accent) inset}
 .prop{font-size:13px}
 .prop label{display:block;margin:7px 0}
 .prop input,.prop select{width:100%;padding:6px;border:1px solid var(--line);border-radius:5px;font:inherit;background:#fff}
@@ -59,7 +65,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .ov{paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
 #drop-cover{display:none;position:absolute;inset:12px;z-index:8;align-items:center;justify-content:center;border:3px dashed var(--accent);border-radius:10px;background:#e6f0fff2;padding:24px;text-align:center;font-size:18px;font-weight:650;pointer-events:none}
 main.file-over #drop-cover{display:flex}
-#import-feedback{padding:10px;border:1px solid var(--line);border-radius:8px;background:#f6f8fb;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+#import-feedback{padding:10px;border:1px solid var(--line);border-radius:8px;background:#f6f8fb;font-size:12px;line-height:1.5;overflow-wrap:anywhere;margin-top:8px}
 #import-feedback[data-kind="success"]{background:#edf9f0;border-color:#8bcd9c}
 #import-feedback[data-kind="error"]{background:#fff0ef;border-color:#e9a3a0}
 #import-feedback[data-kind="pending"]{background:#fff8e8;border-color:#e8c56c}
@@ -67,13 +73,14 @@ main.file-over #drop-cover{display:flex}
 #import-feedback ul{padding-left:18px;margin:8px 0}
 .import-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .import-actions .primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-select#pdf-mode{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:8px;background:#fff}
 #print-root{display:none}
 #data-error{display:none;margin:0;padding:14px 18px;background:#fff0ef;border-bottom:2px solid #d73a49;color:#7a1620;font-size:14px;line-height:1.6}
 @media(max-width:760px){
 .layout{flex-direction:column}
 aside{width:auto;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line);max-height:40vh}
 aside section{min-width:220px;flex:1}
+aside section:first-child{min-width:280px}
+.header-actions{margin-left:0}
 .editbar{left:18px;right:18px;top:18px;max-height:42%;overflow:auto}
 .tools{top:auto;bottom:64px;right:20px;flex-direction:row}
 .tools #zreset{max-width:120px;min-height:38px}
@@ -99,12 +106,20 @@ body>*:not(#print-root){display:none!important}
 <h1>Gebäudeplan – Netzwerk-Viewer</h1>
 <span class="sub" id="title-sub"></span>
 <span id="mode-badge">👁 Ansichtsmodus · nur lesen</span>
+<div class="header-actions">
+<select id="pdf-mode" aria-label="Druckumfang" title="Was soll gedruckt werden?">
+<option value="plan">Aktueller Plan</option>
+<option value="view">Aktueller Ausschnitt (Zoom)</option>
+<option value="all">Alle Pläne (je eine Seite)</option>
+</select>
+<button id="btn-pdf" title="A4 quer · im Druckdialog „Als PDF speichern“ wählen">🖨 Drucken / PDF</button>
+</div>
 </header>
 <div class="layout">
 <aside>
 <section>
 <h2>Hauptgebäude</h2>
-<div id="btns-main"></div>
+<div id="btns-main" class="plan-row"></div>
 <h2 style="margin-top:14px">Separates Gebäude</h2>
 <div id="btns-mlk"></div>
 </section>
@@ -116,33 +131,17 @@ body>*:not(#print-root){display:none!important}
 <section>
 <h2>Anzeige</h2>
 <label class="chk"><input type="checkbox" id="chk-labels" checked> Raumbeschriftungen</label>
+<label class="chk"><input type="checkbox" id="chk-grid"> Planquadrat-Raster</label>
 <div class="hint">100 % Zoom = vollständige Planansicht.</div>
-</section>
-<section>
-<h2>Export</h2>
-<select id="pdf-mode">
-<option value="plan">Aktueller Plan (ganze Ansicht)</option>
-<option value="view">Aktueller Ausschnitt (Zoom)</option>
-<option value="all">Alle Pläne (je eine Seite)</option>
-</select>
-<button class="plan-btn" id="btn-pdf">📄 Als PDF exportieren (A4 quer)</button>
-<div class="hint">Im Druckdialog „Als PDF speichern“ wählen.</div>
-</section>
-<section>
-<h2>Planquadrat-Raster</h2>
-<div class="grid-btns"><button id="grid-on">Einblenden</button><button id="grid-off">Ausblenden</button></div>
 </section>
 <section>
 <h2>Ergänzungsebenen</h2>
 <div id="layer-list"></div>
 <div class="legend" id="legend"></div>
 </section>
-<section>
+<section id="import-section" hidden>
 <h2>Excel-Import</h2>
-<label class="hint" for="import-layer">Zielebene für Datei-Auswahl und Drag-and-drop</label>
-<select id="import-layer" style="width:100%;padding:7px;margin:6px 0;border:1px solid #d9dee6;border-radius:6px"></select>
-<button class="plan-btn" id="btn-import">⬆ Excel-Datei auswählen</button>
-<div class="hint">Oder eine .xlsx- oder .xls-Datei auf die Planfläche ziehen. Der Import ersetzt nach Bestätigung die gewählte Ebene in allen Plänen.</div>
+<div class="hint">Excel-Datei (.xlsx oder .xls) auf die Planfläche ziehen oder in der Werkzeugleiste „⬆ Excel importieren“ wählen. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
 <div id="import-feedback" role="status" aria-live="polite">Noch keine Datei importiert.</div>
 </section>
 <section id="properties" class="prop" hidden></section>
@@ -209,6 +208,8 @@ const LINE_TYPES=[
  {value:'Kupfer',label:'Kupfer',color:'#1f6feb',text:'#0b4fbf'}
 ];
 const DEFAULT_LINE_TYPE='Mono';
+/* Fangradius (in Symbolgrößen) für das Anschließen von Linienenden an Schränke */
+const ATTACH=1.5;
 /* Schreibweisen (auch aus Excel) auf Mono / Multi / Kupfer abbilden; Unbekanntes bleibt unverändert */
 function canonicalLineType(value){
  const raw=String(value??'').trim();
@@ -281,7 +282,7 @@ const historyBy=Object.fromEntries(Object.keys(LAYERS).map(k=>[k,{undo:[],redo:[
 const stage=$('stage');
 let svg,overlay,base,vb,current,active=null,selected=null,tool='select',drawing=[];
 let gridOn=false,gesture=null,lastPointer=null,previewPoint=null,pendingImport=null,importBusy=false;
-let pickerLayer=null,importSerial=0;
+let pickerLayer=null,importSerial=0,drawType=DEFAULT_LINE_TYPE;
 const MIN_ZOOM=2/3,MAX_ZOOM=25;
 function layerState(id){return copy(Object.fromEntries(PLANS.map(p=>[p.id,inventory[p.id][id]])))}
 function recordHistory(id,before){
@@ -308,7 +309,7 @@ function updateStatus(){
  const zoom=base[2]/vb[2]*100;
  const coordinates=lastPointer?'x: '+Math.round(lastPointer.x)+' · y: '+Math.round(lastPointer.y)+' | ':'';
  let instruction=active&&isDrawTool()
- ?(tool==='drawline'?'Klicken: Linienpunkte · Enter: fertig · Esc: abbrechen':'Klicken: Objekt setzen')
+ ?(tool==='drawline'?'Klicken: Linienpunkte (rastet an Schränken ein) · Enter: fertig · Esc: abbrechen':'Klicken: Objekt setzen')
  :'Mausrad: Zoom · Ziehen: Verschieben';
  $('status').textContent=coordinates+'Zoom: '+new Intl.NumberFormat('de-DE',{maximumFractionDigits:1}).format(zoom)+' % | '+instruction;
 }
@@ -335,13 +336,11 @@ function fit(){
 function buildButtons(){
  PLANS.forEach(p=>{
   const b=document.createElement('button');b.className='plan-btn';b.dataset.plan=p.id;
-  b.textContent=p.name+' · '+(p.group==='mlk'?'Gebäude':'Hauptgebäude');
+  /* Hauptgebäude: nur der Name (vier Buttons pro Zeile), voller Name als Tooltip */
+  b.textContent=p.group==='mlk'?p.name+' · Gebäude':p.name;
+  b.title=p.name+(p.sub?' – '+p.sub:'');
   b.onclick=()=>loadPlan(p.id);
   $(p.group==='mlk'?'btns-mlk':'btns-main').append(b);
- });
- Object.values(LAYERS).forEach(l=>{
-  const option=document.createElement('option');option.value=l.id;option.textContent=l.label;
-  $('import-layer').append(option);
  });
  /* Legende der Verbindungstypen */
  const legend=$('legend');legend.replaceChildren();
@@ -375,6 +374,7 @@ function layerList(){
 function mode(){
  $('mode-badge').classList.toggle('edit-mode',!!active);
  $('mode-badge').textContent=active?'✏️ Bearbeitungsmodus: '+LAYERS[active].label:'👁 Ansichtsmodus · nur lesen';
+ $('import-section').hidden=!active;
  stage.classList.toggle('drawing',!!active&&isDrawTool());
  updateStatus();
 }
@@ -391,17 +391,27 @@ function loadPlan(id){
  applyVB();mode();refreshUI();runSearch(false);
  try{history.replaceState(null,'','#'+id)}catch{}
 }
+/* Import-Zustand zurücksetzen (beim Starten/Beenden der Bearbeitung) */
+function resetImport(){
+ pendingImport=null;importSerial++;
+ feedback('','Noch keine Datei importiert.');
+}
 function startEdit(id){
- finishGesture(true);active=id;selected=null;tool='select';drawing=[];previewPoint=null;
- visible[id]=true;$('import-layer').value=id;mode();refreshUI();
+ finishGesture(true);
+ if(active!==id)resetImport();
+ active=id;selected=null;tool='select';drawing=[];previewPoint=null;
+ visible[id]=true;mode();refreshUI();
 }
 function endEdit(){
- finishGesture(true);active=null;selected=null;tool='select';drawing=[];previewPoint=null;
+ finishGesture(true);resetImport();
+ active=null;selected=null;tool='select';drawing=[];previewPoint=null;
+ clearDrop();
  mode();refreshUI();
 }
 function refreshUI(){renderOverlay();layerList();toolbar();properties();updateStatus()}
 
-/* ---------- Zuordnung Schrank ↔ Verbindung (für die Hervorhebung) ---------- */
+/* ---------- Zuordnung Schrank ↔ Verbindung (Hervorhebung, Mitbewegen, Einrasten) ---------- */
+function near(p,cab,size){return Math.hypot(p.x-cab.x,p.y-cab.y)<=size*ATTACH}
 /* Eine Verbindung gehört zu einem Schrank, wenn „Von“ oder „Nach“ dessen Name/ID enthält
    oder wenn Anfangs- bzw. Endpunkt der Linie direkt am Schrank liegt. */
 function refersTo(text,cab){
@@ -409,8 +419,7 @@ function refersTo(text,cab){
  return !!t&&(t===normalized(cab.name)||t===normalized(cab.id));
 }
 function endsAt(line,cab,size){
- const ends=[line.points[0],line.points[line.points.length-1]];
- return ends.some(p=>Math.hypot(p.x-cab.x,p.y-cab.y)<=size*1.2);
+ return near(line.points[0],cab,size)||near(line.points[line.points.length-1],cab,size);
 }
 function lineTouches(line,cab,size){
  return refersTo(line.von,cab)||refersTo(line.nach,cab)||endsAt(line,cab,size);
@@ -425,6 +434,44 @@ function highlightInfo(planId=current){
  const lines=items.filter(o=>isLine(o)&&lineTouches(o,sel,size));
  const partners=items.filter(o=>!isLine(o)&&o.id!==sel.id&&lines.some(l=>lineTouches(l,o,size)));
  return {lines:new Set(lines.map(l=>l.id)),partners:new Set(partners.map(p=>p.id))};
+}
+/* Welche Linienenden hängen an diesem Schrank? Geometrisch (Ende liegt am Schrank);
+   liegt keines der beiden Enden am Schrank, zählt „Von“ = Anfang und „Nach“ = Ende. */
+function cabinetLinks(cab,planId,layerId){
+ const size=planSize(planId);
+ return inventory[planId][layerId].filter(isLine).map(line=>{
+  let start=near(line.points[0],cab,size),end=near(line.points[line.points.length-1],cab,size);
+  if(!start&&!end){
+   if(refersTo(line.von,cab))start=true;
+   if(refersTo(line.nach,cab))end=true;
+  }
+  return {id:line.id,start,end,points:copy(line.points)};
+ }).filter(l=>l.start||l.end);
+}
+/* Verbindungsenden um den Verschiebeweg des Schranks mitbewegen */
+function moveLinks(g){
+ if(!g.links||!g.links.length)return;
+ const mx=g.object.x-g.original.x,my=g.object.y-g.original.y;
+ const items=inventory[g.plan][g.layer];
+ g.links.forEach(l=>{
+  const line=items.find(o=>o.id===l.id);if(!line)return;
+  const pts=copy(l.points),last=pts.length-1;
+  if(l.start)pts[0]=planPoint({x:pts[0].x+mx,y:pts[0].y+my},g.plan);
+  if(l.end)pts[last]=planPoint({x:pts[last].x+mx,y:pts[last].y+my},g.plan);
+  line.points=pts;
+ });
+}
+/* Punkt auf die Mitte eines nahen Schranks einrasten lassen */
+function snapToCabinet(p,planId,layerId){
+ const layer=LAYERS[layerId];
+ if(!layer||layer.kind!=='mixed')return p;
+ let best=null,bestD=planSize(planId)*ATTACH;
+ inventory[planId][layerId].forEach(o=>{
+  if(isLine(o))return;
+  const d=Math.hypot(o.x-p.x,o.y-p.y);
+  if(d<=bestD){best=o;bestD=d}
+ });
+ return best?{x:best.x,y:best.y}:p;
 }
 
 /* ---------- SVG-Ebenen und Raster ---------- */
@@ -541,10 +588,13 @@ function drawPreview(){
  const g=groupOf(svg,'preview');if(!g)return;
  g.replaceChildren();g.setAttribute('pointer-events','none');
  if(!active||tool!=='drawline'||!drawing.length)return;
- const color='#333';
+ const info=lineTypeInfo(drawType);
+ const color=info?info.color:'#333';
  const points=[...drawing,...(previewPoint?[previewPoint]:[])];
- g.append(S('polyline',{points:points.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:color,'stroke-width':base[2]/440,'stroke-dasharray':'8 6'}));
- drawing.forEach(p=>g.append(S('circle',{cx:p.x,cy:p.y,r:base[2]/330,fill:color})));
+ const ps=points.map(p=>p.x+','+p.y).join(' ');
+ g.append(S('polyline',{points:ps,fill:'none',stroke:'#000','stroke-opacity':'.4','stroke-width':base[2]/440+base[2]/1100}));
+ g.append(S('polyline',{points:ps,fill:'none',stroke:color,'stroke-width':base[2]/440,'stroke-dasharray':'8 6'}));
+ drawing.forEach(p=>g.append(S('circle',{cx:p.x,cy:p.y,r:base[2]/330,fill:color,stroke:'#000','stroke-width':base[2]/1100})));
 }
 
 /* ---------- Historie, Eigenschaften und Werkzeuge ---------- */
@@ -575,7 +625,7 @@ function finishLine(){
  if(!active||tool!=='drawline'||drawing.length<2)return;
  snapshot();
  const layer=LAYERS[active];
- const object={id:newId(layer,null,true),points:copy(drawing),name:'VB '+(countOf(inventory[current][active],true)+1),typ:DEFAULT_LINE_TYPE};
+ const object={id:newId(layer,null,true),points:copy(drawing),name:'VB '+(countOf(inventory[current][active],true)+1),typ:drawType};
  inventory[current][active].push(object);selected=object.id;drawing=[];previewPoint=null;changed();
 }
 function toolbar(){
@@ -594,6 +644,29 @@ function toolbar(){
   button('➕ Schrank setzen',()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
   button('➕ Verbindung zeichnen',()=>{tool='drawline';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='drawline');
   if(tool==='drawline')button('✓ Linie fertig',finishLine,drawing.length<2);
+  /* Typ der Verbindung wählen: für neue Verbindungen (Zeichenwerkzeug) oder für die ausgewählte Verbindung */
+  const sel=getObj();
+  const lineSelected=!!sel&&isLine(sel)&&tool==='select';
+  if(tool==='drawline'||lineSelected){
+   const label=document.createElement('span');label.className='layer-name';
+   label.textContent=tool==='drawline'?'Typ neue Verbindung:':'Typ der Verbindung:';
+   bar.append(label);
+   const currentType=tool==='drawline'?canonicalLineType(drawType):(lineTypeInfo(sel.typ)||{}).value;
+   LINE_TYPES.forEach(t=>{
+    const b=document.createElement('button');b.className='typebtn';
+    b.classList.toggle('chosen',currentType===t.value);
+    const chip=document.createElement('i');chip.style.background=t.color;
+    b.append(chip,document.createTextNode(t.label));
+    b.onclick=()=>{
+     if(tool==='drawline'){drawType=t.value;toolbar();drawPreview()}
+     else{
+      const o=getObj();
+      if(o&&isLine(o)&&canonicalLineType(o.typ)!==t.value){snapshot();o.typ=t.value;changed()}
+     }
+    };
+    bar.append(b);
+   });
+  }
  }else{
   button('➕ Neu zeichnen',()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
  }
@@ -610,7 +683,7 @@ function properties(){
  if(!object){
   const text=document.createElement('div');text.className='hint';
   text.textContent=layer.kind==='mixed'
-   ?'Objekt auswählen und ziehen oder mit „Schrank setzen“ bzw. „Verbindung zeichnen“ anlegen. Ein Klick auf einen Schrank hebt seine Verbindungen hervor.'
+   ?'Objekt auswählen und ziehen oder mit „Schrank setzen“ bzw. „Verbindung zeichnen“ anlegen. Ein Klick auf einen Schrank hebt seine Verbindungen hervor; beim Verschieben des Schranks wandern die Verbindungen mit.'
    :'Objekt auswählen und ziehen oder mit „Neu zeichnen“ anlegen.';
   box.append(text);return;
  }
@@ -660,7 +733,7 @@ function properties(){
   const info=highlightInfo();
   const note=document.createElement('div');note.className='hint';
   note.textContent=info&&info.lines.size
-   ?'Hervorgehoben: '+info.lines.size+' Verbindung'+(info.lines.size===1?'':'en')+'.'
+   ?'Hervorgehoben: '+info.lines.size+' Verbindung'+(info.lines.size===1?'':'en')+'. Sie bewegen sich mit, wenn der Schrank verschoben wird.'
    :'Keine Verbindung gefunden. Zuordnung über „Von“/„Nach“ (Name oder ID des Schranks) oder ein Linienende direkt am Schrank.';
   box.append(note);
  }
@@ -684,9 +757,11 @@ function beginObjectGesture(event,object,index=null,insertAfter=null){
   index=insertAfter+1;
   object.points.splice(index,0,{x:Math.round((a.x+b.x)/2),y:Math.round((a.y+b.y)/2)});
  }
+ /* Beim Ziehen eines Schranks: angeschlossene Verbindungsenden merken, damit sie mitwandern */
+ const links=(index===null&&!isLine(object)&&LAYERS[layer].kind==='mixed')?cabinetLinks(object,current,layer):[];
  gesture={
   type:index===null?'object':'vertex',pointerId:event.pointerId,layer,plan:current,
-  object,before,start:toSvg(event.clientX,event.clientY),original:copy(object),index,
+  object,before,start:toSvg(event.clientX,event.clientY),original:copy(object),index,links,
   startX:event.clientX,startY:event.clientY,started:insertAfter!==null
  };
  capturePointer(event);renderOverlay();properties();toolbar();
@@ -714,7 +789,7 @@ stage.addEventListener('pointerdown',event=>{
    const object={id:newId(layer),...planPoint(p),name:layer.idPrefix+' '+(countOf(inventory[current][active],false)+1)};
    inventory[current][active].push(object);selected=object.id;changed();
   }else if(event.detail<2){
-   const q=planPoint(p),last=drawing[drawing.length-1];
+   const q=snapToCabinet(planPoint(p),current,active),last=drawing[drawing.length-1];
    if(!last||last.x!==q.x||last.y!==q.y)drawing.push(q);
    previewPoint=q;drawPreview();toolbar();
   }
@@ -748,8 +823,13 @@ stage.addEventListener('pointermove',event=>{
   }else{
    if(Math.hypot(event.clientX-g.startX,event.clientY-g.startY)>2)g.started=true;
    if(g.started){
-    if(g.type==='vertex')g.object.points[g.index]=planPoint(p,g.plan);
-    else{
+    if(g.type==='vertex'){
+     let q=planPoint(p,g.plan);
+     const last=g.object.points.length-1;
+     /* Anfangs- und Endpunkt einer Verbindung rasten an Schränken ein */
+     if(g.index===0||g.index===last)q=snapToCabinet(q,g.plan,g.layer);
+     g.object.points[g.index]=q;
+    }else{
      const b=PLANS.find(p=>p.id===g.plan).box;
      let dx=Math.round(p.x-g.start.x),dy=Math.round(p.y-g.start.y);
      if(isLine(g.object)){
@@ -759,13 +839,15 @@ stage.addEventListener('pointermove',event=>{
       g.object.points=g.original.points.map(p=>({x:p.x+dx,y:p.y+dy}));
      }else{
       Object.assign(g.object,planPoint({x:g.original.x+dx,y:g.original.y+dy},g.plan));
+      /* angeschlossene Verbindungen mitbewegen */
+      moveLinks(g);
      }
     }
     renderOverlay();
    }
   }
  }else if(active&&tool==='drawline'){
-  previewPoint=planPoint(p);drawPreview();
+  previewPoint=snapToCabinet(planPoint(p),current,active);drawPreview();
  }
  updateStatus();
 });
@@ -796,8 +878,7 @@ $('zin').onclick=()=>zoomCenter(1.4);
 $('zout').onclick=()=>zoomCenter(1/1.4);
 $('zreset').onclick=fit;
 $('chk-labels').onchange=event=>svg.classList.toggle('hide-labels',!event.target.checked);
-$('grid-on').onclick=()=>{gridOn=true;renderOverlay()};
-$('grid-off').onclick=()=>{gridOn=false;renderOverlay()};
+$('chk-grid').onchange=event=>{gridOn=event.target.checked;renderOverlay()};
 
 /* ---------- Suche ---------- */
 function runSearch(jump){
@@ -826,7 +907,7 @@ function runSearch(jump){
 $('search').oninput=()=>runSearch(false);
 $('search').onkeydown=event=>{if(event.key==='Enter')runSearch(true)};
 
-/* ---------- Excel: sichtbare Meldungen und sicherer Import ---------- */
+/* ---------- Excel: sichtbare Meldungen und sicherer Import (nur im Bearbeitungsmodus) ---------- */
 function feedback(kind,title,lines=[],actions=[]){
  const box=$('import-feedback');box.dataset.kind=kind;box.replaceChildren();
  const p=document.createElement('p'),strong=document.createElement('strong');strong.textContent=title;p.append(strong);box.append(p);
@@ -850,14 +931,13 @@ function needXlsx(){
  return false;
 }
 function openPicker(id){
- if(importBusy)return;
- pickerLayer=id||$('import-layer').value;$('xlsx-file').click();
+ if(importBusy||!active)return;
+ pickerLayer=id||active;$('xlsx-file').click();
 }
-$('btn-import').onclick=()=>openPicker($('import-layer').value);
 $('xlsx-file').onchange=event=>{
- const file=event.target.files[0],id=pickerLayer||$('import-layer').value;
+ const file=event.target.files[0],id=pickerLayer||active;
  event.target.value='';pickerLayer=null;
- if(file)prepareImport(file,id);
+ if(file&&id)prepareImport(file,id);
 };
 function normalized(value){return String(value??'').trim().toLowerCase().replace(/\s+/g,'')}
 function numberValue(value){
@@ -977,6 +1057,7 @@ async function prepareImport(file,layerId){
   pendingImport={fileName:file.name,layerId,fresh,ok,bad,adjusted,assigned,issues};
   showImportPreview();
  }catch(error){
+  if(token!==importSerial)return;
   feedback('error','Import fehlgeschlagen',[
    file.name,error.message||'Die Datei konnte nicht gelesen werden.','Bestehende Daten wurden nicht verändert.'
   ]);
@@ -1014,7 +1095,7 @@ function commitImport(){
   'Ebene: '+LAYERS[data.layerId].label,
   data.ok+' Objekte importiert; '+data.bad+' Zeilen übersprungen.',
   data.adjusted+' Objekte mit begrenzten Koordinaten; '+data.assigned+' IDs neu vergeben.',
-  'Zum Rückgängigmachen diese Ebene bearbeiten und „Zurück“ wählen.',
+  'Zum Rückgängigmachen „Zurück“ in der Werkzeugleiste wählen.',
   ...formatIssues(data.issues)
  ]);
 }
@@ -1057,37 +1138,38 @@ function excelExport(id){
  }catch(error){feedback('error','Export fehlgeschlagen',[error.message||'Datei konnte nicht erstellt werden.'])}
 }
 
-/* ---------- Excel-Dateien per Drag-and-drop ---------- */
+/* ---------- Excel-Dateien per Drag-and-drop (nur im Bearbeitungsmodus) ---------- */
 let fileDragDepth=0;
 function isFileDrag(event){return [...(event.dataTransfer?.types||[])].includes('Files')}
 function clearDrop(){fileDragDepth=0;$('main').classList.remove('file-over')}
+/* Dateien, die außerhalb abgelegt werden, sollen nie die Seite ersetzen */
 document.addEventListener('dragover',event=>{if(isFileDrag(event))event.preventDefault()});
 document.addEventListener('drop',event=>{
  if(isFileDrag(event)){event.preventDefault();clearDrop()}
 });
 $('main').addEventListener('dragenter',event=>{
- if(!isFileDrag(event))return;
+ if(!isFileDrag(event)||!active)return;
  event.preventDefault();fileDragDepth++;
  $('main').classList.add('file-over');
- $('drop-cover').textContent='Excel-Datei ablegen → '+LAYERS[$('import-layer').value].label;
+ $('drop-cover').textContent='Excel-Datei ablegen → '+LAYERS[active].label;
 });
 $('main').addEventListener('dragover',event=>{
- if(!isFileDrag(event))return;
+ if(!isFileDrag(event)||!active)return;
  event.preventDefault();event.dataTransfer.dropEffect='copy';
 });
 $('main').addEventListener('dragleave',event=>{
- if(!isFileDrag(event))return;
+ if(!isFileDrag(event)||!active)return;
  fileDragDepth=Math.max(0,fileDragDepth-1);
  if(!fileDragDepth)clearDrop();
 });
 $('main').addEventListener('drop',event=>{
- if(!isFileDrag(event))return;
+ if(!isFileDrag(event)||!active)return;
  event.preventDefault();event.stopPropagation();clearDrop();
  const files=[...event.dataTransfer.files];
  if(files.length!==1){
   feedback('error','Bitte genau eine Excel-Datei ablegen',['Es wurden '+files.length+' Dateien erkannt.']);return;
  }
- prepareImport(files[0],$('import-layer').value);
+ prepareImport(files[0],active);
 });
 window.addEventListener('dragend',clearDrop);
 
@@ -1129,10 +1211,11 @@ async function exportPdf(){
   window.print();
  }catch(error){
   root?.remove();
-  feedback('error','PDF-Druck konnte nicht gestartet werden',[
-   error.message||'Unbekannter Fehler.',
-   'Die heruntergeladene HTML-Datei direkt im Browser öffnen und erneut versuchen.'
-  ]);
+  /* Meldung im Import-Bereich ist nur im Bearbeitungsmodus sichtbar – daher zusätzlich per Hinweis im Kopf */
+  const message='PDF-Druck konnte nicht gestartet werden: '+(error.message||'Unbekannter Fehler.')+' Die HTML-Datei direkt im Browser öffnen und erneut versuchen.';
+  $('btn-pdf').title=message;
+  const err=$('data-error');err.style.display='block';err.textContent=message;
+  setTimeout(()=>{err.style.display='none'},8000);
  }finally{button.disabled=false}
 }
 $('btn-pdf').onclick=exportPdf;
@@ -1149,7 +1232,7 @@ document.addEventListener('keydown',event=>{
  if(active&&['Delete','Backspace'].includes(event.key)){event.preventDefault();deleteSelected();return}
  if(active&&event.key==='Enter'&&tool==='drawline'){event.preventDefault();finishLine();return}
  if(modifier||event.altKey)return;
- if(/^[1-5]$/.test(event.key))loadPlan(PLANS[Number(event.key)-1].id);
+ if(/^[1-5]$/.test(event.key)&&PLANS[Number(event.key)-1])loadPlan(PLANS[Number(event.key)-1].id);
  if(event.key==='+'||event.key==='='){event.preventDefault();zoomCenter(1.4)}
  if(event.key==='-'){event.preventDefault();zoomCenter(1/1.4)}
  if(event.key==='0'){event.preventDefault();fit()}
