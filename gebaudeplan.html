@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gebäudeplan – Netzwerk-Viewer</title>
+<style>
+:root{--bg:#f3f5f8;--panel:#fff;--line:#d9dee6;--text:#1c2430;--muted:#6b7686;--accent:#1f6feb;--accent-soft:#e6f0ff}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--text);background:var(--bg);display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:17px;margin:0;font-weight:650}
+header .sub{color:var(--muted);font-size:13px}
+.layout{flex:1;display:flex;min-height:0}
+aside{width:290px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto;display:flex;flex-direction:column;gap:18px}
+aside h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8bbaff;outline-offset:2px}
+.plan-btn{display:block;width:100%;text-align:left;padding:9px 12px;margin-bottom:6px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-size:14px}
+.plan-btn:hover{background:#f6f8fb}
+.plan-btn.active{background:var(--accent-soft);border-color:var(--accent);color:#0b4fbf;font-weight:600}
+input[type=search]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+.hint{font-size:12px;color:var(--muted);margin-top:6px;min-height:16px;line-height:1.5}
+label.chk{display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+main{flex:1;position:relative;min-width:0;min-height:240px;background:#e9edf3}
+#stage{position:absolute;inset:12px;touch-action:none;cursor:grab;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;user-select:none}
+#stage.dragging{cursor:grabbing}
+#stage.drawing{cursor:crosshair}
+#stage svg{width:100%;height:100%;display:block;user-select:none}
+svg.hide-labels text:not(.ov){display:none}
+.tools{position:absolute;top:24px;right:24px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.tools button{min-width:40px;height:38px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:18px;cursor:pointer;box-shadow:0 1px 3px #0001;padding:0 10px}
+.tools button:hover{background:#f1f4f9}
+.tools #zreset{font-size:12px;max-width:100px;height:auto;min-height:42px}
+.status{position:absolute;left:24px;bottom:24px;background:#fffffff0;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);z-index:2;font-variant-numeric:tabular-nums;pointer-events:none;max-width:calc(100% - 48px)}
+#mode-badge{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2f7;color:#465365;font-weight:600}
+.edit-mode{background:#fff0d8!important;color:#a84c00!important}
+.layer-row{display:grid;grid-template-columns:auto 12px 1fr auto auto;gap:6px;align-items:center;margin:7px 0;font-size:13px}
+.layer-row button,.editbar button,.prop button,.import-actions button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 8px;cursor:pointer}
+.layer-row button:hover,.editbar button:hover{background:#f1f4f9}
+.layer-row b{font-size:11px;color:var(--muted)}
+.grid-btns{display:flex;gap:6px}
+.grid-btns button{flex:1;border:1px solid var(--line);border-radius:6px;background:#fff;padding:7px;cursor:pointer}
+.editbar{position:absolute;top:24px;left:24px;right:132px;z-index:3;display:none;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;background:#fffffff5;border:1px solid var(--line);border-radius:9px;box-shadow:0 2px 8px #0002;font-size:13px}
+.editbar.show{display:flex}
+button:disabled{opacity:.45;cursor:not-allowed}
+.editbar button.chosen{background:var(--accent-soft);border-color:var(--accent)}
+.editbar .layer-name{font-weight:650;margin-right:5px}
+.prop{font-size:13px}
+.prop label{display:block;margin:7px 0}
+.prop input{width:100%;padding:6px;border:1px solid var(--line);border-radius:5px;font:inherit}
+.prop .warning{color:#9a5a00;font-size:12px;line-height:1.5}
+.ov{paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+#drop-cover{display:none;position:absolute;inset:12px;z-index:8;align-items:center;justify-content:center;border:3px dashed var(--accent);border-radius:10px;background:#e6f0fff2;padding:24px;text-align:center;font-size:18px;font-weight:650;pointer-events:none}
+main.file-over #drop-cover{display:flex}
+#import-feedback{padding:10px;border:1px solid var(--line);border-radius:8px;background:#f6f8fb;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+#import-feedback[data-kind="success"]{background:#edf9f0;border-color:#8bcd9c}
+#import-feedback[data-kind="error"]{background:#fff0ef;border-color:#e9a3a0}
+#import-feedback[data-kind="pending"]{background:#fff8e8;border-color:#e8c56c}
+#import-feedback p{margin:0 0 6px}
+#import-feedback ul{padding-left:18px;margin:8px 0}
+.import-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.import-actions .primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+select#pdf-mode{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:8px;background:#fff}
+#print-root{display:none}
+#data-error{display:none;margin:0;padding:14px 18px;background:#fff0ef;border-bottom:2px solid #d73a49;color:#7a1620;font-size:14px;line-height:1.6}
+@media(max-width:760px){
+.layout{flex-direction:column}
+aside{width:auto;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line);max-height:40vh}
+aside section{min-width:220px;flex:1}
+.editbar{left:18px;right:18px;top:18px;max-height:42%;overflow:auto}
+.tools{top:auto;bottom:64px;right:20px;flex-direction:row}
+.tools #zreset{max-width:120px;min-height:38px}
+.status{left:20px;bottom:20px}
+}
+@page{size:A4 landscape;margin:0}
+@media print{
+html,body{height:auto!important;background:#fff!important;display:block!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body>*:not(#print-root){display:none!important}
+#print-root{display:block!important}
+.print-page{width:297mm;height:209mm;padding:10mm;display:flex;flex-direction:column;page-break-after:always;break-after:page;overflow:hidden;font-family:system-ui,Arial,sans-serif}
+.print-page:last-child{page-break-after:auto;break-after:auto}
+.print-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #999;padding-bottom:2mm;margin-bottom:4mm;font-size:12pt}
+.print-head strong{font-size:15pt}
+.print-head span{color:#555;font-size:10pt}
+.print-page img{flex:1;min-height:0;width:100%;object-fit:contain;display:block}
+}
+</style>
+</head>
+<body>
+<div id="data-error" role="alert"></div>
+<header>
+<h1>Gebäudeplan – Netzwerk-Viewer</h1>
+<span class="sub" id="title-sub"></span>
+<span id="mode-badge">👁 Ansichtsmodus · nur lesen</span>
+</header>
+<div class="layout">
+<aside>
+<section>
+<h2>Hauptgebäude</h2>
+<div id="btns-main"></div>
+<h2 style="margin-top:14px">Separates Gebäude</h2>
+<div id="btns-mlk"></div>
+</section>
+<section>
+<h2>Raum suchen</h2>
+<input type="search" id="search" placeholder="z. B. Chemie, U-Raum 3, #12 …">
+<div class="hint" id="search-hint">Enter springt zum ersten Treffer.</div>
+</section>
+<section>
+<h2>Anzeige</h2>
+<label class="chk"><input type="checkbox" id="chk-labels" checked> Raumbeschriftungen</label>
+<div class="hint">100 % Zoom = vollständige Planansicht.</div>
+</section>
+<section>
+<h2>Export</h2>
+<select id="pdf-mode">
+<option value="plan">Aktueller Plan (ganze Ansicht)</option>
+<option value="view">Aktueller Ausschnitt (Zoom)</option>
+<option value="all">Alle Pläne (je eine Seite)</option>
+</select>
+<button class="plan-btn" id="btn-pdf">📄 Als PDF exportieren (A4 quer)</button>
+<div class="hint">Im Druckdialog „Als PDF speichern“ wählen.</div>
+</section>
+<section>
+<h2>Planquadrat-Raster</h2>
+<div class="grid-btns"><button id="grid-on">Einblenden</button><button id="grid-off">Ausblenden</button></div>
+</section>
+<section>
+<h2>Ergänzungsebenen</h2>
+<div id="layer-list"></div>
+</section>
+<section>
+<h2>Excel-Import</h2>
+<label class="hint" for="import-layer">Zielebene für Datei-Auswahl und Drag-and-drop</label>
+<select id="import-layer" style="width:100%;padding:7px;margin:6px 0;border:1px solid #d9dee6;border-radius:6px"></select>
+<button class="plan-btn" id="btn-import">⬆ Excel-Datei auswählen</button>
+<div class="hint">Oder eine .xlsx- oder .xls-Datei auf die Planfläche ziehen. Der Import ersetzt nach Bestätigung die gewählte Ebene in allen Plänen.</div>
+<div id="import-feedback" role="status" aria-live="polite">Noch keine Datei importiert.</div>
+</section>
+<section id="properties" class="prop" hidden></section>
+</aside>
+<main id="main">
+<div id="stage" aria-label="Gebäudeplan"></div>
+<div class="tools">
+<button id="zin" title="Hineinzoomen" aria-label="Hineinzoomen">+</button>
+<button id="zout" title="Herauszoomen" aria-label="Herauszoomen">−</button>
+<button id="zreset" title="Gesamten Plan anzeigen · Taste 0">↺ Zoom zurücksetzen</button>
+</div>
+<div class="editbar" id="editbar"></div>
+<input id="xlsx-file" type="file" accept=".xlsx,.xls" hidden>
+<div class="status" id="status"></div>
+<div id="drop-cover">Excel-Datei hier ablegen</div>
+</main>
+</div>
+
+<!-- Excel-Bibliothek (benötigt Internet) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Gebäudedaten: Datei muss im selben Ordner liegen wie diese HTML-Datei -->
+<script src="gebaeudedaten.js"></script>
+
+<!-- Prüfung, ob die Gebäudedaten geladen wurden -->
+<script>
+if(typeof PLANS==='undefined'||typeof SOURCES==='undefined'||typeof geometry==='undefined'){
+ var err=document.getElementById('data-error');
+ err.style.display='block';
+ err.innerHTML='<strong>Gebäudedaten nicht gefunden.</strong> Die Datei <code>gebaeudedaten.js</code> muss im selben Ordner wie diese HTML-Datei liegen und genau so heißen.';
+}
+</script>
+
+<script>
+'use strict';
+const NS='http://www.w3.org/2000/svg';
+const $=id=>document.getElementById(id);
+const S=(tag,attrs={})=>{
+ const el=document.createElementNS(NS,tag);
+ Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,String(v)));
+ return el;
+};
+const copy=value=>JSON.parse(JSON.stringify(value));
+const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+
+/* PLANS, geometry und SOURCES kommen aus gebaeudedaten.js */
+
+const LAYERS={
+accesspoints:{id:'accesspoints',label:'Accesspoints',color:'#1f6feb',kind:'point',idPrefix:'AP',fields:[['name','Name'],['modell','Modell'],['mac','MAC'],['ip','IP'],['raum','Raum'],['notiz','Notiz']]},
+schraenke:{id:'schraenke',label:'Netzwerkschränke',color:'#d73a49',kind:'point',idPrefix:'SK',fields:[['name','Name'],['typ','Typ'],['raum','Raum'],['notiz','Notiz']]},
+verbindungen:{id:'verbindungen',label:'Verbindungen',color:'#2da44e',kind:'line',idPrefix:'VB',fields:[['name','Name'],['typ','Typ'],['von','Von'],['nach','Nach'],['notiz','Notiz']]},
+fernseher:{id:'fernseher',label:'Fernseher',color:'#e3a008',kind:'point',idPrefix:'TV',fields:[['name','Name'],['modell','Modell'],['zoll','Zoll'],['ip','IP'],['raum','Raum'],['notiz','Notiz']]}
+};
+
+function createPlanSvg(plan){
+  const b=plan.box;
+  const root=S('svg',{xmlns:NS,viewBox:b.join(' '),preserveAspectRatio:'xMidYMid meet'});
+  root.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+  root.append(S('rect',{x:b[0],y:b[1],width:b[2],height:b[3],fill:'#fff'}));
+  const src=SOURCES[plan.id];
+  if(src){
+   const g=S('g',{class:'src src-'+plan.id});
+   if(src.font)g.setAttribute('font-family',src.font);
+   g.innerHTML=src.markup;
+   root.append(g);
+   return root;
+  }
+  const data=geometry[plan.id];
+  function paths(list,width,color='#222',extra={}){
+   const g=S('g',{fill:'none',stroke:color,'stroke-width':width,'stroke-linejoin':'miter','stroke-linecap':'square',...extra});
+   (list||[]).forEach(d=>g.append(S('path',{d})));
+   root.append(g);
+   return g;
+  }
+  const inner=paths(data.inner,data.innerWidth||3);
+  (data.rects||[]).forEach(([x,y,width,height])=>inner.append(S('rect',{x,y,width,height})));
+  paths(data.outer,data.outerWidth||9,'#000');
+  paths(data.stairs,2);
+  paths(data.dashed,3,'#000',{'stroke-dasharray':'14 8'});
+  const names=S('g',{'font-family':'Arial, Helvetica, sans-serif',fill:'#111','text-anchor':'middle'});
+  data.texts.forEach(([x,y,text,size,bold])=>{
+   const t=S('text',{x,y,'font-size':size||data.size,'font-weight':bold||data.bold?'bold':'normal'});
+   t.textContent=text;names.append(t);
+  });
+  root.append(names);
+  return root;
+}
+
+/* ---------- Daten und Zustand ---------- */
+const inventory=Object.fromEntries(PLANS.map(p=>[p.id,Object.fromEntries(Object.keys(LAYERS).map(k=>[k,[]]))]));
+const visible=Object.fromEntries(Object.keys(LAYERS).map(k=>[k,true]));
+const dirty=Object.fromEntries(Object.keys(LAYERS).map(k=>[k,false]));
+const historyBy=Object.fromEntries(Object.keys(LAYERS).map(k=>[k,{undo:[],redo:[]}]));
+const stage=$('stage');
+let svg,overlay,base,vb,current,active=null,selected=null,tool='select',drawing=[];
+let gridOn=false,gesture=null,lastPointer=null,previewPoint=null,pendingImport=null,importBusy=false;
+let pickerLayer=null,importSerial=0;
+const MIN_ZOOM=2/3,MAX_ZOOM=25;
+function layerState(id){return copy(Object.fromEntries(PLANS.map(p=>[p.id,inventory[p.id][id]])))}
+function recordHistory(id,before){
+ const h=historyBy[id];h.undo.push(before);
+ if(h.undo.length>100)h.undo.shift();
+ h.redo=[];
+}
+function snapshot(){if(active)recordHistory(active,layerState(active))}
+function getObj(){return active&&selected?inventory[current][active].find(o=>o.id===selected):null}
+function newId(layer,used){
+ const ids=used||new Set(PLANS.flatMap(p=>inventory[p.id][layer.id].map(o=>o.id)));
+ let n=1,id;
+ do{id=layer.idPrefix+'-'+String(n++).padStart(3,'0')}while(ids.has(id));
+ return id;
+}
+function planPoint(p,planId=current){
+ const b=PLANS.find(p=>p.id===planId).box;
+ return {x:Math.round(clamp(p.x,b[0],b[0]+b[2])),y:Math.round(clamp(p.y,b[1],b[1]+b[3]))};
+}
+function updateStatus(){
+ if(!vb||!base)return;
+ const zoom=base[2]/vb[2]*100;
+ const coordinates=lastPointer?'x: '+Math.round(lastPointer.x)+' · y: '+Math.round(lastPointer.y)+' | ':'';
+ let instruction=active&&tool==='draw'
+ ?(LAYERS[active].kind==='line'?'Klicken: Linienpunkte · Enter: fertig · Esc: abbrechen':'Klicken: Objekt setzen')
+ :'Mausrad: Zoom · Ziehen: Verschieben';
+ $('status').textContent=coordinates+'Zoom: '+new Intl.NumberFormat('de-DE',{maximumFractionDigits:1}).format(zoom)+' % | '+instruction;
+}
+function applyVB(){if(svg&&vb){svg.setAttribute('viewBox',vb.join(' '));updateStatus()}}
+function toSvg(x,y){
+ const matrix=svg?.getScreenCTM();
+ if(!matrix)return {x:0,y:0};
+ const p=svg.createSVGPoint();p.x=x;p.y=y;
+ return p.matrixTransform(matrix.inverse());
+}
+function zoomAt(p,factor){
+ if(gesture||!svg)return;
+ const oldZoom=base[2]/vb[2];
+ const newZoom=clamp(oldZoom*factor,MIN_ZOOM,MAX_ZOOM);
+ const scale=oldZoom/newZoom;
+ vb=[p.x-(p.x-vb[0])*scale,p.y-(p.y-vb[1])*scale,vb[2]*scale,vb[3]*scale];
+ applyVB();
+}
+function zoomCenter(factor){zoomAt({x:vb[0]+vb[2]/2,y:vb[1]+vb[3]/2},factor)}
+function fit(){
+ finishGesture(true);
+ vb=base.slice();lastPointer=null;applyVB();
+}
+function buildButtons(){
+ PLANS.forEach(p=>{
+  const b=document.createElement('button');b.className='plan-btn';b.dataset.plan=p.id;
+  b.textContent=p.name+' · '+(p.group==='mlk'?'Gebäude':'Hauptgebäude');
+  b.onclick=()=>loadPlan(p.id);
+  $(p.group==='mlk'?'btns-mlk':'btns-main').append(b);
+ });
+ Object.values(LAYERS).forEach(l=>{
+  const option=document.createElement('option');option.value=l.id;option.textContent=l.label;
+  $('import-layer').append(option);
+ });
+}
+function layerList(){
+ const box=$('layer-list');box.replaceChildren();
+ Object.values(LAYERS).forEach(l=>{
+  const row=document.createElement('div');row.className='layer-row';
+  const check=document.createElement('input');check.type='checkbox';check.checked=visible[l.id];
+  check.setAttribute('aria-label',l.label+' anzeigen');
+  check.onchange=()=>{visible[l.id]=check.checked;renderOverlay()};
+  const dot=document.createElement('i');dot.className='dot';dot.style.background=l.color;
+  const label=document.createElement('span');label.textContent=l.label;
+  const count=document.createElement('b');count.textContent=inventory[current][l.id].length;
+  const button=document.createElement('button');button.textContent=active===l.id?'✓ Ende':'✏️ Bearbeiten';
+  button.onclick=()=>active===l.id?endEdit():startEdit(l.id);
+  row.append(check,dot,label,count,button);box.append(row);
+ });
+}
+function mode(){
+ $('mode-badge').classList.toggle('edit-mode',!!active);
+ $('mode-badge').textContent=active?'✏️ Bearbeitungsmodus: '+LAYERS[active].label:'👁 Ansichtsmodus · nur lesen';
+ stage.classList.toggle('drawing',!!active&&tool==='draw');
+ updateStatus();
+}
+function loadPlan(id){
+ finishGesture(true);
+ current=id;selected=null;drawing=[];previewPoint=null;lastPointer=null;
+ const p=PLANS.find(p=>p.id===id);
+ base=p.box.slice();vb=base.slice();
+ svg=createPlanSvg(p);overlay=attachOverlay(svg);
+ stage.replaceChildren(svg);
+ svg.classList.toggle('hide-labels',!$('chk-labels').checked);
+ $('title-sub').textContent=p.name+' – '+p.sub;
+ document.querySelectorAll('[data-plan]').forEach(b=>b.classList.toggle('active',b.dataset.plan===id));
+ applyVB();mode();refreshUI();runSearch(false);
+ try{history.replaceState(null,'','#'+id)}catch{}
+}
+function startEdit(id){
+ finishGesture(true);active=id;selected=null;tool='select';drawing=[];previewPoint=null;
+ visible[id]=true;$('import-layer').value=id;mode();refreshUI();
+}
+function endEdit(){
+ finishGesture(true);active=null;selected=null;tool='select';drawing=[];previewPoint=null;
+ mode();refreshUI();
+}
+function refreshUI(){renderOverlay();layerList();toolbar();properties();updateStatus()}
+
+/* ---------- SVG-Ebenen und Raster ---------- */
+function attachOverlay(target){
+ const existing=target.querySelector('[data-overlay]');
+ if(existing)existing.remove();
+ const group=S('g',{'data-overlay':'true'});
+ ['grid','verbindungen','schraenke','accesspoints','fernseher','highlights','preview'].forEach(id=>{
+  group.append(S('g',{'data-layer':id}));
+ });
+ target.append(group);
+ return group;
+}
+function groupOf(target,id){return target.querySelector('[data-layer="'+id+'"]')}
+function drawGrid(target,planId){
+ const g=groupOf(target,'grid');g.replaceChildren();g.setAttribute('pointer-events','none');
+ if(!gridOn)return;
+ const b=PLANS.find(p=>p.id===planId).box,cell=Math.max(b[2],b[3])/10;
+ const nx=Math.ceil(b[2]/cell),ny=Math.ceil(b[3]/cell);
+ const stroke={'stroke':'#d33','stroke-opacity':'.38','stroke-width':Math.max(1,cell/200)};
+ for(let i=0;i<=nx;i++){
+  const x=Math.min(b[0]+i*cell,b[0]+b[2]);
+  g.append(S('line',{x1:x,y1:b[1],x2:x,y2:b[1]+b[3],...stroke}));
+ }
+ for(let j=0;j<=ny;j++){
+  const y=Math.min(b[1]+j*cell,b[1]+b[3]);
+  g.append(S('line',{x1:b[0],y1:y,x2:b[0]+b[2],y2:y,...stroke}));
+ }
+ for(let x=0;x<nx;x++)for(let y=0;y<ny;y++){
+  const t=S('text',{x:b[0]+x*cell+cell*.06,y:b[1]+y*cell+cell*.18,fill:'#c22','font-size':cell*.16,class:'ov'});
+  t.textContent=String.fromCharCode(65+x)+(y+1);g.append(t);
+ }
+}
+function draw(layer,o,size,editing){
+ const g=S('g',{'data-id':o.id});
+ const title=S('title');title.textContent=o.name||o.id;g.append(title);
+ if(layer.kind==='line'){
+  const points=o.points.map(p=>p.x+','+p.y).join(' ');
+  if(editing)g.append(S('polyline',{points,fill:'none',stroke:'transparent','stroke-width':size*1.4,'pointer-events':'stroke'}));
+  g.append(S('polyline',{points,fill:'none',stroke:layer.color,'stroke-width':size/4,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  const p=o.points[0];
+  const text=S('text',{x:p.x+size,y:p.y-size/2,fill:layer.color,'font-size':size*.8,class:'ov'});
+  text.textContent=o.name||o.id;g.append(text);
+ }else{
+  const x=o.x,y=o.y;
+  if(layer.id==='accesspoints'){
+   g.append(S('circle',{cx:x,cy:y,r:size*.65,fill:layer.color,stroke:'#fff','stroke-width':size*.18}));
+   g.append(S('path',{d:`M ${x-size*.3} ${y+size*.1} q ${size*.3} ${-size*.5} ${size*.6} 0 M ${x-size*.43} ${y+size*.33} q ${size*.43} ${-size*.75} ${size*.86} 0`,fill:'none',stroke:'#fff','stroke-width':size*.1}));
+  }else if(layer.id==='schraenke'){
+   g.append(S('rect',{x:x-size*.55,y:y-size*.55,width:size*1.1,height:size*1.1,rx:size*.08,fill:layer.color,stroke:'#fff','stroke-width':size*.15}));
+  }else{
+   g.append(S('rect',{x:x-size*.7,y:y-size*.48,width:size*1.4,height:size*.85,rx:size*.08,fill:layer.color,stroke:'#fff','stroke-width':size*.15}));
+   g.append(S('path',{d:`M ${x-size*.35} ${y+size*.55} h ${size*.7} M ${x} ${y+size*.36} v ${size*.2}`,stroke:layer.color,'stroke-width':size*.15}));
+  }
+  const text=S('text',{x:x+size,y:y-size*.45,fill:layer.color,'font-size':size*.8,class:'ov'});
+  text.textContent=o.name||o.id;g.append(text);
+ }
+ if(editing&&selected===o.id){
+  const p=layer.kind==='line'?o.points[0]:o;
+  g.append(S('circle',{cx:p.x,cy:p.y,r:size*1.05,fill:'none',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15,'data-editor-ui':'true','pointer-events':'none'}));
+ }
+ return g;
+}
+function renderOverlay(target=svg,planId=current,exporting=false){
+ if(!target)return;
+ drawGrid(target,planId);
+ const size=PLANS.find(p=>p.id===planId).box[2]/110;
+ Object.values(LAYERS).forEach(layer=>{
+  const g=groupOf(target,layer.id);g.replaceChildren();
+  g.style.display=visible[layer.id]?'':'none';
+  g.style.opacity=!exporting&&active&&active!==layer.id?'.3':'1';
+  const editing=!exporting&&active===layer.id;
+  g.setAttribute('pointer-events',editing?'all':'none');
+  inventory[planId][layer.id].forEach(o=>g.append(draw(layer,o,size,editing)));
+  if(editing&&selected&&layer.kind==='line')drawHandles(g,size);
+ });
+ if(!exporting)drawPreview();
+}
+function drawHandles(group,size){
+ const object=getObj();if(!object)return;
+ object.points.forEach((p,i)=>group.append(S('circle',{
+  cx:p.x,cy:p.y,r:size*.3,fill:'#fff',stroke:LAYERS[active].color,'stroke-width':size*.1,
+  'data-vertex':i,'data-editor-ui':'true',cursor:'move'
+ })));
+ for(let i=0;i<object.points.length-1;i++){
+  const a=object.points[i],b=object.points[i+1];
+  group.append(S('circle',{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,r:size*.21,fill:LAYERS[active].color,stroke:'#fff','stroke-width':size*.05,'data-midpoint':i,'data-editor-ui':'true',cursor:'copy'}));
+ }
+}
+function drawPreview(){
+ const g=groupOf(svg,'preview');if(!g)return;
+ g.replaceChildren();g.setAttribute('pointer-events','none');
+ if(!active||tool!=='draw'||LAYERS[active].kind!=='line'||!drawing.length)return;
+ const points=[...drawing,...(previewPoint?[previewPoint]:[])];
+ g.append(S('polyline',{points:points.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:LAYERS[active].color,'stroke-width':base[2]/440,'stroke-dasharray':'8 6'}));
+ drawing.forEach(p=>g.append(S('circle',{cx:p.x,cy:p.y,r:base[2]/330,fill:LAYERS[active].color})));
+}
+
+/* ---------- Historie, Eigenschaften und Werkzeuge ---------- */
+function restore(state,id){
+ PLANS.forEach(p=>inventory[p.id][id]=copy(state[p.id]));
+ if(selected&&!getObj())selected=null;
+ dirty[id]=true;refreshUI();
+}
+function undo(){
+ if(!active)return;
+ finishGesture(true);const h=historyBy[active];
+ if(!h.undo.length)return;
+ h.redo.push(layerState(active));restore(h.undo.pop(),active);
+}
+function redo(){
+ if(!active)return;
+ finishGesture(true);const h=historyBy[active];
+ if(!h.redo.length)return;
+ h.undo.push(layerState(active));restore(h.redo.pop(),active);
+}
+function changed(){if(active)dirty[active]=true;refreshUI()}
+function deleteSelected(){
+ if(!getObj())return;
+ snapshot();inventory[current][active]=inventory[current][active].filter(o=>o.id!==selected);
+ selected=null;changed();
+}
+function finishLine(){
+ if(!active||tool!=='draw'||LAYERS[active].kind!=='line'||drawing.length<2)return;
+ snapshot();
+ const layer=LAYERS[active];
+ const object={id:newId(layer),points:copy(drawing),name:'VB '+(inventory[current][active].length+1)};
+ inventory[current][active].push(object);selected=object.id;drawing=[];previewPoint=null;changed();
+}
+function toolbar(){
+ const bar=$('editbar');bar.replaceChildren();bar.classList.toggle('show',!!active);
+ if(!active)return;
+ const layer=LAYERS[active];
+ const title=document.createElement('span');title.className='layer-name';title.textContent=layer.label;bar.append(title);
+ function button(text,handler,disabled=false,chosen=false){
+  const b=document.createElement('button');b.textContent=text;b.disabled=disabled;
+  b.classList.toggle('chosen',chosen);b.onclick=handler;bar.append(b);
+ }
+ button('↶ Zurück',undo,!historyBy[active].undo.length);
+ button('↷ Vor',redo,!historyBy[active].redo.length);
+ button('🖱 Auswählen / Verschieben',()=>{tool='select';drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='select');
+ button(layer.kind==='line'?'➕ Linie zeichnen':'➕ Neu zeichnen',()=>{tool='draw';selected=null;drawing=[];mode();refreshUI()},false,tool==='draw');
+ if(layer.kind==='line'&&tool==='draw')button('✓ Linie fertig',finishLine,drawing.length<2);
+ button('🗑 Löschen',deleteSelected,!getObj());
+ button('⬇ Excel exportieren',()=>excelExport(active));
+ button('⬆ Excel importieren',()=>openPicker(active),importBusy);
+ button('✓ Beenden',endEdit);
+}
+function properties(){
+ const box=$('properties');box.replaceChildren();box.hidden=!active;
+ if(!active)return;
+ const heading=document.createElement('h2');heading.textContent='Eigenschaften';box.append(heading);
+ const object=getObj(),layer=LAYERS[active];
+ if(!object){
+  const text=document.createElement('div');text.className='hint';
+  text.textContent='Objekt auswählen und ziehen oder mit „Neu zeichnen“ anlegen.';
+  box.append(text);return;
+ }
+ function field(key,label,value,type='text',readonly=false){
+  const wrapper=document.createElement('label');wrapper.textContent=label;
+  const input=document.createElement('input');input.type=type;input.value=value??'';input.readOnly=readonly;
+  if(type==='number')input.step='1';
+  input.onchange=()=>{
+   if(readonly)return;
+   if(type==='number'&&(!input.value.trim()||!Number.isFinite(Number(input.value)))){
+    input.value=object[key];return;
+   }
+   snapshot();object[key]=type==='number'?Math.round(Number(input.value)):input.value;
+   if(key==='x'||key==='y')Object.assign(object,planPoint(object));
+   changed();
+  };
+  wrapper.append(input);box.append(wrapper);
+ }
+ field('id','ID',object.id,'text',true);
+ layer.fields.forEach(([key,label])=>field(key,label,object[key]));
+ if(layer.kind==='point'){field('x','X',object.x,'number');field('y','Y',object.y,'number')}
+ else field('pointCount','Anzahl Punkte',object.points.length,'number',true);
+ const remove=document.createElement('button');remove.textContent='Objekt löschen';remove.onclick=deleteSelected;box.append(remove);
+ const warning=document.createElement('p');warning.className='warning';
+ warning.textContent='Änderungen bleiben nur erhalten, wenn Sie die Excel-Datei exportieren.';
+ box.append(warning);
+}
+
+/* ---------- Stabiles Dragging: Pointer-Capture liegt auf der Bühne,
+             nicht auf SVG-Elementen, die beim Rendern ersetzt werden. ---------- */
+function capturePointer(event){
+ try{stage.setPointerCapture(event.pointerId)}catch{}
+ stage.classList.add('dragging');
+}
+function beginObjectGesture(event,object,index=null,insertAfter=null){
+ const layer=active,before=layerState(layer);
+ selected=object.id;
+ if(insertAfter!==null){
+  const a=object.points[insertAfter],b=object.points[insertAfter+1];
+  index=insertAfter+1;
+  object.points.splice(index,0,{x:Math.round((a.x+b.x)/2),y:Math.round((a.y+b.y)/2)});
+ }
+ gesture={
+  type:index===null?'object':'vertex',pointerId:event.pointerId,layer,plan:current,
+  object,before,start:toSvg(event.clientX,event.clientY),original:copy(object),index,
+  startX:event.clientX,startY:event.clientY,started:insertAfter!==null
+ };
+ capturePointer(event);renderOverlay();properties();toolbar();
+}
+function finishGesture(cancelled=false){
+ if(!gesture)return;
+ const g=gesture;gesture=null;stage.classList.remove('dragging');
+ if(g.type!=='pan'){
+  if(cancelled){
+   PLANS.forEach(p=>inventory[p.id][g.layer]=copy(g.before[p.id]));
+  }else if(JSON.stringify(g.before)!==JSON.stringify(layerState(g.layer))){
+   recordHistory(g.layer,g.before);dirty[g.layer]=true;
+  }
+ }
+ try{if(stage.hasPointerCapture(g.pointerId))stage.releasePointerCapture(g.pointerId)}catch{}
+ if(svg)refreshUI();
+}
+stage.addEventListener('pointerdown',event=>{
+ if(event.button!==0||gesture)return;
+ event.preventDefault();
+ const p=toSvg(event.clientX,event.clientY);
+ if(active&&tool==='draw'){
+  if(LAYERS[active].kind==='point'){
+   snapshot();const layer=LAYERS[active];
+   const object={id:newId(layer),...planPoint(p),name:layer.idPrefix+' '+(inventory[current][active].length+1)};
+   inventory[current][active].push(object);selected=object.id;changed();
+  }else if(event.detail<2){
+   const q=planPoint(p),last=drawing[drawing.length-1];
+   if(!last||last.x!==q.x||last.y!==q.y)drawing.push(q);
+   previewPoint=q;drawPreview();toolbar();
+  }
+  return;
+ }
+ if(active&&tool==='select'){
+  const vertex=event.target.closest('[data-vertex]');
+  const midpoint=event.target.closest('[data-midpoint]');
+  if(vertex&&getObj()){beginObjectGesture(event,getObj(),Number(vertex.dataset.vertex));return}
+  if(midpoint&&getObj()){beginObjectGesture(event,getObj(),null,Number(midpoint.dataset.midpoint));return}
+  const element=event.target.closest('[data-id]');
+  if(element){
+   const object=inventory[current][active].find(o=>o.id===element.dataset.id);
+   if(object){beginObjectGesture(event,object);return}
+  }
+ }
+ selected=null;
+ gesture={type:'pan',pointerId:event.pointerId,start:toSvg(event.clientX,event.clientY),initial:vb.slice(),inverse:svg.getScreenCTM().inverse()};
+ capturePointer(event);renderOverlay();properties();toolbar();
+});
+stage.addEventListener('pointermove',event=>{
+ if(!svg)return;
+ const p=toSvg(event.clientX,event.clientY);lastPointer=p;
+ if(gesture&&event.pointerId===gesture.pointerId){
+  const g=gesture;
+  if(g.type==='pan'){
+   const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;
+   const q=point.matrixTransform(g.inverse);
+   vb=[g.initial[0]-(q.x-g.start.x),g.initial[1]-(q.y-g.start.y),g.initial[2],g.initial[3]];
+   applyVB();lastPointer=toSvg(event.clientX,event.clientY);
+  }else{
+   if(Math.hypot(event.clientX-g.startX,event.clientY-g.startY)>2)g.started=true;
+   if(g.started){
+    if(g.type==='vertex')g.object.points[g.index]=planPoint(p,g.plan);
+    else{
+     const b=PLANS.find(p=>p.id===g.plan).box;
+     let dx=Math.round(p.x-g.start.x),dy=Math.round(p.y-g.start.y);
+     if(LAYERS[g.layer].kind==='line'){
+      const xs=g.original.points.map(p=>p.x),ys=g.original.points.map(p=>p.y);
+      dx=clamp(dx,b[0]-Math.min(...xs),b[0]+b[2]-Math.max(...xs));
+      dy=clamp(dy,b[1]-Math.min(...ys),b[1]+b[3]-Math.max(...ys));
+      g.object.points=g.original.points.map(p=>({x:p.x+dx,y:p.y+dy}));
+     }else{
+      Object.assign(g.object,planPoint({x:g.original.x+dx,y:g.original.y+dy},g.plan));
+     }
+    }
+    renderOverlay();
+   }
+  }
+ }else if(active&&tool==='draw'&&LAYERS[active].kind==='line'){
+  previewPoint=planPoint(p);drawPreview();
+ }
+ updateStatus();
+});
+stage.addEventListener('pointerup',event=>{if(gesture?.pointerId===event.pointerId)finishGesture(false)});
+stage.addEventListener('pointercancel',event=>{if(gesture?.pointerId===event.pointerId)finishGesture(true)});
+stage.addEventListener('lostpointercapture',event=>{if(gesture?.pointerId===event.pointerId)finishGesture(true)});
+window.addEventListener('blur',()=>finishGesture(true));
+stage.addEventListener('pointerleave',()=>{if(!gesture){lastPointer=null;updateStatus()}});
+stage.addEventListener('wheel',event=>{
+ event.preventDefault();
+ if(gesture)return;
+ lastPointer=toSvg(event.clientX,event.clientY);
+ zoomAt(lastPointer,event.deltaY<0?1.15:1/1.15);
+ lastPointer=toSvg(event.clientX,event.clientY);updateStatus();
+},{passive:false});
+stage.addEventListener('dblclick',event=>{
+ event.preventDefault();
+ if(active&&tool==='draw'){finishLine();return}
+ const vertex=event.target.closest('[data-vertex]');
+ if(active&&vertex){
+  const object=getObj();
+  if(object?.points?.length>2){snapshot();object.points.splice(Number(vertex.dataset.vertex),1);changed()}
+  return;
+ }
+ if(!event.target.closest('[data-id]'))zoomAt(toSvg(event.clientX,event.clientY),1.8);
+});
+$('zin').onclick=()=>zoomCenter(1.4);
+$('zout').onclick=()=>zoomCenter(1/1.4);
+$('zreset').onclick=fit;
+$('chk-labels').onchange=event=>svg.classList.toggle('hide-labels',!event.target.checked);
+$('grid-on').onclick=()=>{gridOn=true;renderOverlay()};
+$('grid-off').onclick=()=>{gridOn=false;renderOverlay()};
+
+/* ---------- Suche ---------- */
+function runSearch(jump){
+ if(!overlay)return;
+ const highlights=groupOf(svg,'highlights');highlights.replaceChildren();highlights.setAttribute('pointer-events','none');
+ const q=$('search').value.trim().toLowerCase();
+ if(!q){$('search-hint').textContent='Enter springt zum ersten Treffer.';return}
+ const hits=[...svg.querySelectorAll('text')].filter(t=>!overlay.contains(t)&&t.textContent.toLowerCase().includes(q));
+  const k=SOURCES[current]?base[2]/2400:1;
+  const boxOf=t=>{try{return t.getBBox()}catch{return null}};
+  hits.forEach(t=>{
+   const b=boxOf(t);if(!b)return;
+   const pad=Math.max(2,8*k);
+   highlights.append(S('rect',{x:b.x-pad,y:b.y-pad*.75,width:b.width+pad*2,height:b.height+pad*1.5,rx:pad*.75,fill:'#ffd60059',stroke:'#e0245e','stroke-width':Math.max(1,3*k)}));
+  });
+  $('search-hint').textContent=hits.length+' Treffer in '+PLANS.find(p=>p.id===current).name;
+  if(jump&&hits[0]){
+   finishGesture(true);
+   const b=boxOf(hits[0]);if(!b)return;
+   const width=clamp(b.width+280*k,base[2]/MAX_ZOOM,base[2]/MIN_ZOOM),height=width*base[3]/base[2];
+   vb=[b.x+b.width/2-width/2,b.y+b.height/2-height/2,width,height];
+   lastPointer=null;applyVB();
+  }
+}
+
+$('search').oninput=()=>runSearch(false);
+$('search').onkeydown=event=>{if(event.key==='Enter')runSearch(true)};
+
+/* ---------- Excel: sichtbare Meldungen und sicherer Import ---------- */
+function feedback(kind,title,lines=[],actions=[]){
+ const box=$('import-feedback');box.dataset.kind=kind;box.replaceChildren();
+ const p=document.createElement('p'),strong=document.createElement('strong');strong.textContent=title;p.append(strong);box.append(p);
+ if(lines.length){
+  const ul=document.createElement('ul');
+  lines.forEach(line=>{const li=document.createElement('li');li.textContent=line;ul.append(li)});
+  box.append(ul);
+ }
+ if(actions.length){
+  const group=document.createElement('div');group.className='import-actions';
+  actions.forEach(({label,run,primary})=>{
+   const button=document.createElement('button');button.textContent=label;button.classList.toggle('primary',!!primary);button.onclick=run;group.append(button);
+  });box.append(group);
+ }
+}
+function needXlsx(){
+ if(window.XLSX)return true;
+ feedback('error','Excel-Funktion nicht verfügbar',[
+  'Die Excel-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und die HTML-Datei neu öffnen.'
+ ]);
+ return false;
+}
+function openPicker(id){
+ if(importBusy)return;
+ pickerLayer=id||$('import-layer').value;$('xlsx-file').click();
+}
+$('btn-import').onclick=()=>openPicker($('import-layer').value);
+$('xlsx-file').onchange=event=>{
+ const file=event.target.files[0],id=pickerLayer||$('import-layer').value;
+ event.target.value='';pickerLayer=null;
+ if(file)prepareImport(file,id);
+};
+function normalized(value){return String(value??'').trim().toLowerCase().replace(/\s+/g,'')}
+function numberValue(value){
+ if(typeof value==='number')return Number.isFinite(value)?value:NaN;
+ const text=String(value??'').trim();
+ if(!text)return NaN;
+ const number=Number(text.replace(',','.'));
+ return Number.isFinite(number)?number:NaN;
+}
+function formatIssues(issues){
+ const result=issues.slice(0,15);
+ if(issues.length>15)result.push('… und '+(issues.length-15)+' weitere Hinweise.');
+ return result;
+}
+async function prepareImport(file,layerId){
+ if(importBusy){
+  feedback('pending','Ein Import wird bereits geprüft. Bitte kurz warten.');return;
+ }
+ pendingImport=null;
+ if(!/\.(xlsx|xls)$/i.test(file.name)){
+  feedback('error','Nicht unterstützte Datei',['Bitte eine .xlsx- oder .xls-Datei auswählen.']);return;
+ }
+ if(file.size>25*1024*1024){
+  feedback('error','Datei zu groß',['Bitte eine Excel-Datei bis 25 MB verwenden.']);return;
+ }
+ if(!LAYERS[layerId]||!needXlsx())return;
+ importBusy=true;const token=++importSerial;toolbar();
+ feedback('pending','Datei wird geprüft …',[file.name,'Zielebene: '+LAYERS[layerId].label]);
+ await new Promise(resolve=>setTimeout(resolve,30));
+ try{
+  const buffer=await file.arrayBuffer();
+  const workbook=XLSX.read(buffer,{type:'array'});
+  const sheetName=workbook.Sheets.Daten?'Daten':workbook.SheetNames[0];
+  if(!sheetName)throw new Error('Die Datei enthält keine Tabellenblätter.');
+  const rows=XLSX.utils.sheet_to_json(workbook.Sheets[sheetName],{header:1,defval:'',blankrows:true});
+  const headerIndex=rows.findIndex(row=>row.some(value=>String(value).trim()!==''));
+  if(headerIndex<0)throw new Error('Das Tabellenblatt ist leer.');
+  const map={};
+  rows[headerIndex].forEach((value,index)=>{map[normalized(value)]=index});
+  const layer=LAYERS[layerId];
+  const required=['Plan',...(layer.kind==='point'?['X','Y']:['Punkte'])];
+  const missing=required.filter(name=>map[normalized(name)]===undefined);
+  if(missing.length)throw new Error('Erforderliche Spalten fehlen: '+missing.join(', ')+'.');
+  const fresh=Object.fromEntries(PLANS.map(p=>[p.id,[]]));
+  const used=new Set(),issues=[];
+  let ok=0,bad=0,adjusted=0,assigned=0;
+  for(let index=headerIndex+1;index<rows.length;index++){
+   const row=rows[index];
+   if(!row.some(value=>String(value).trim()!==''))continue;
+   const value=key=>map[normalized(key)]===undefined?'':row[map[normalized(key)]];
+   const rowNumber=index+1;
+   const planText=normalized(value('Plan'));
+   const plan=PLANS.find(p=>normalized(p.id)===planText||normalized(p.name)===planText);
+   if(!plan){bad++;issues.push('Zeile '+rowNumber+': unbekannter oder fehlender Plan „'+String(value('Plan'))+'“.');continue}
+   const object={id:String(value('ID')??'').trim()};
+   layer.fields.forEach(([key,label])=>{
+    object[key]=String(value(label)!==''?value(label):value(key));
+   });
+   let coordinates;
+   if(layer.kind==='point'){
+    const x=numberValue(value('X')),y=numberValue(value('Y'));
+    if(!Number.isFinite(x)||!Number.isFinite(y)){
+     bad++;issues.push('Zeile '+rowNumber+': X oder Y fehlt oder ist keine gültige Zahl.');continue;
+    }
+    coordinates=[{x,y}];
+   }else{
+    const raw=String(value('Punkte')).trim();
+    const parts=raw.split(';').map(part=>part.trim()).filter(Boolean);
+    coordinates=parts.map(part=>{
+     const pair=part.split(',');
+     return pair.length===2?{x:numberValue(pair[0]),y:numberValue(pair[1])}:{x:NaN,y:NaN};
+    });
+    if(coordinates.length<2||coordinates.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y))){
+     bad++;issues.push('Zeile '+rowNumber+': Punkte müssen „x,y;x,y;…“ mit mindestens zwei gültigen Punkten enthalten.');continue;
+    }
+   }
+   let outside=false;
+   const clamped=coordinates.map(p=>{
+    const q=planPoint(p,plan.id);
+    if(p.x<plan.box[0]||p.x>plan.box[0]+plan.box[2]||p.y<plan.box[1]||p.y>plan.box[1]+plan.box[3])outside=true;
+    return q;
+   });
+   if(outside){adjusted++;issues.push('Zeile '+rowNumber+': Koordinaten auf den Planbereich begrenzt.')}
+   if(layer.kind==='point')Object.assign(object,clamped[0]);
+   else object.points=clamped;
+   if(!object.id||used.has(object.id)){
+    const duplicate=!!object.id;
+    object.id=newId(layer,used);assigned++;
+    issues.push('Zeile '+rowNumber+': '+(duplicate?'doppelte':'fehlende')+' ID durch '+object.id+' ersetzt.');
+   }
+   used.add(object.id);fresh[plan.id].push(object);ok++;
+  }
+  if(token!==importSerial)return;
+  if(!ok){
+   feedback('error','Kein Import durchgeführt',[
+    file.name,'Keine gültigen Datenzeilen gefunden. Bestehende Daten wurden nicht verändert.',
+    ...formatIssues(issues)
+   ]);return;
+  }
+  pendingImport={fileName:file.name,layerId,fresh,ok,bad,adjusted,assigned,issues};
+  showImportPreview();
+ }catch(error){
+  feedback('error','Import fehlgeschlagen',[
+   file.name,error.message||'Die Datei konnte nicht gelesen werden.','Bestehende Daten wurden nicht verändert.'
+  ]);
+ }finally{importBusy=false;toolbar()}
+}
+function showImportPreview(){
+ const data=pendingImport;if(!data)return;
+ const existing=PLANS.reduce((sum,p)=>sum+inventory[p.id][data.layerId].length,0);
+ const counts=PLANS.filter(p=>data.fresh[p.id].length).map(p=>p.name+': '+data.fresh[p.id].length);
+ feedback('pending','Datei geprüft – Bestätigung erforderlich',[
+  'Datei: '+data.fileName,
+  'Zielebene: '+LAYERS[data.layerId].label,
+  data.ok+' gültige Objekte, '+data.bad+' ungültige Zeilen.',
+  'Verteilung: '+counts.join(' · '),
+  'Achtung: Alle '+existing+' vorhandenen Objekte dieser Ebene in allen Plänen werden ersetzt. Andere Ebenen bleiben unverändert.',
+  ...formatIssues(data.issues)
+ ],[
+  {label:'Import bestätigen',primary:true,run:commitImport},
+  {label:'Abbrechen',run:()=>{
+   pendingImport=null;
+   feedback('','Import abgebrochen',['Bestehende Daten wurden nicht verändert.']);
+  }}
+ ]);
+}
+function commitImport(){
+ const data=pendingImport;if(!data)return;
+ finishGesture(false);
+ recordHistory(data.layerId,layerState(data.layerId));
+ PLANS.forEach(p=>inventory[p.id][data.layerId]=copy(data.fresh[p.id]));
+ dirty[data.layerId]=true;visible[data.layerId]=true;pendingImport=null;
+ if(active===data.layerId){selected=null;drawing=[];previewPoint=null}
+ refreshUI();
+ feedback('success','Import erfolgreich',[
+  'Datei: '+data.fileName,
+  'Ebene: '+LAYERS[data.layerId].label,
+  data.ok+' Objekte importiert; '+data.bad+' Zeilen übersprungen.',
+  data.adjusted+' Objekte mit begrenzten Koordinaten; '+data.assigned+' IDs neu vergeben.',
+  'Zum Rückgängigmachen diese Ebene bearbeiten und „Zurück“ wählen.',
+  ...formatIssues(data.issues)
+ ]);
+}
+function excelExport(id){
+ if(!needXlsx())return;
+ try{
+  const layer=LAYERS[id];
+  const headers=['Plan','ID',...layer.fields.map(f=>f[1]),...(layer.kind==='point'?['X','Y']:['Punkte'])];
+  const rows=[headers];
+  PLANS.forEach(p=>inventory[p.id][id].forEach(object=>{
+   rows.push([p.id,object.id,...layer.fields.map(([key])=>object[key]??''),
+    ...(layer.kind==='point'?[object.x,object.y]:[object.points.map(p=>p.x+','+p.y).join(';')])]);
+  }));
+  const workbook=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet(rows);
+  sheet['!cols']=headers.map(h=>({wch:Math.max(12,h.length+3)}));
+  XLSX.utils.book_append_sheet(workbook,sheet,'Daten');
+  XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet([
+   ['Hinweise'],
+   ['Gültige Pläne: '+PLANS.map(p=>p.id+' = '+p.name).join(', ')],
+   ['Koordinaten beziehen sich auf die ursprüngliche SVG-viewBox.'],
+   ['Punkte: x,y;x,y;… (mindestens zwei Punkte; Dezimalpunkt verwenden).'],
+   ['Der Import ersetzt nach Bestätigung die gesamte gewählte Ebene in allen Plänen.']
+  ]),'Hinweise');
+  const names={accesspoints:'accesspoints.xlsx',schraenke:'netzwerkschraenke.xlsx',verbindungen:'verbindungen.xlsx',fernseher:'fernseher.xlsx'};
+  XLSX.writeFile(workbook,names[id]);dirty[id]=false;
+  feedback('success','Excel-Export ausgelöst',[
+   names[id],'Bitte prüfen, ob der Browser die Datei heruntergeladen hat. Die Ebene ist als exportiert markiert.'
+  ]);
+ }catch(error){feedback('error','Export fehlgeschlagen',[error.message||'Datei konnte nicht erstellt werden.'])}
+}
+
+/* ---------- Excel-Dateien per Drag-and-drop ---------- */
+let fileDragDepth=0;
+function isFileDrag(event){return [...(event.dataTransfer?.types||[])].includes('Files')}
+function clearDrop(){fileDragDepth=0;$('main').classList.remove('file-over')}
+document.addEventListener('dragover',event=>{if(isFileDrag(event))event.preventDefault()});
+document.addEventListener('drop',event=>{
+ if(isFileDrag(event)){event.preventDefault();clearDrop()}
+});
+$('main').addEventListener('dragenter',event=>{
+ if(!isFileDrag(event))return;
+ event.preventDefault();fileDragDepth++;
+ $('main').classList.add('file-over');
+ $('drop-cover').textContent='Excel-Datei ablegen → '+LAYERS[$('import-layer').value].label;
+});
+$('main').addEventListener('dragover',event=>{
+ if(!isFileDrag(event))return;
+ event.preventDefault();event.dataTransfer.dropEffect='copy';
+});
+$('main').addEventListener('dragleave',event=>{
+ if(!isFileDrag(event))return;
+ fileDragDepth=Math.max(0,fileDragDepth-1);
+ if(!fileDragDepth)clearDrop();
+});
+$('main').addEventListener('drop',event=>{
+ if(!isFileDrag(event))return;
+ event.preventDefault();event.stopPropagation();clearDrop();
+ const files=[...event.dataTransfer.files];
+ if(files.length!==1){
+  feedback('error','Bitte genau eine Excel-Datei ablegen',['Es wurden '+files.length+' Dateien erkannt.']);return;
+ }
+ prepareImport(files[0],$('import-layer').value);
+});
+window.addEventListener('dragend',clearDrop);
+
+/* ---------- PDF-Druck ---------- */
+function svgUrl(element,view,labels){
+ element.setAttribute('viewBox',view.join(' '));
+ element.setAttribute('width',view[2]);element.setAttribute('height',view[3]);
+ if(!labels){
+  element.querySelectorAll('text').forEach(t=>{if(!t.classList.contains('ov'))t.remove()});
+ }
+ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(element));
+}
+async function exportPdf(){
+ const button=$('btn-pdf');button.disabled=true;
+ let root=null;
+ try{
+  const mode=$('pdf-mode').value,labels=$('chk-labels').checked;
+  const plans=mode==='all'?PLANS:[PLANS.find(p=>p.id===current)];
+  $('print-root')?.remove();root=document.createElement('div');root.id='print-root';
+  const loading=[];
+  for(const plan of plans){
+   const element=createPlanSvg(plan);attachOverlay(element);renderOverlay(element,plan.id,true);
+   const view=mode==='view'?vb.slice():plan.box.slice();
+   const page=document.createElement('div');page.className='print-page';
+   const heading=document.createElement('div');heading.className='print-head';
+   const title=document.createElement('strong');title.textContent='Gebäudeplan – '+plan.name;
+   const subtitle=document.createElement('span');subtitle.textContent=plan.sub+' · Stand '+new Date().toLocaleDateString('de-DE');
+   heading.append(title,subtitle);
+   const image=new Image();image.alt='Gebäudeplan '+plan.name;
+   loading.push(new Promise((resolve,reject)=>{
+    image.onload=resolve;image.onerror=()=>reject(new Error('Ein Planbild konnte nicht für den Druck geladen werden.'));
+   }));
+   image.src=svgUrl(element,view,labels);page.append(heading,image);root.append(page);
+  }
+  document.body.append(root);await Promise.all(loading);
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const printRoot=root;
+  window.addEventListener('afterprint',()=>printRoot.remove(),{once:true});
+  window.print();
+ }catch(error){
+  root?.remove();
+  feedback('error','PDF-Druck konnte nicht gestartet werden',[
+   error.message||'Unbekannter Fehler.',
+   'Die heruntergeladene HTML-Datei direkt im Browser öffnen und erneut versuchen.'
+  ]);
+ }finally{button.disabled=false}
+}
+$('btn-pdf').onclick=exportPdf;
+
+/* ---------- Tastatur und Start ---------- */
+document.addEventListener('keydown',event=>{
+ if(/INPUT|TEXTAREA|SELECT/.test(event.target.tagName)||event.target.isContentEditable)return;
+ const key=event.key.toLowerCase(),modifier=event.ctrlKey||event.metaKey;
+ if(event.key==='Escape'){
+  finishGesture(true);drawing=[];previewPoint=null;tool='select';mode();refreshUI();return;
+ }
+ if(active&&modifier&&key==='z'){event.preventDefault();event.shiftKey?redo():undo();return}
+ if(active&&modifier&&key==='y'){event.preventDefault();redo();return}
+ if(active&&['Delete','Backspace'].includes(event.key)){event.preventDefault();deleteSelected();return}
+ if(active&&event.key==='Enter'&&tool==='draw'){event.preventDefault();finishLine();return}
+ if(modifier||event.altKey)return;
+ if(/^[1-5]$/.test(event.key))loadPlan(PLANS[Number(event.key)-1].id);
+ if(event.key==='+'||event.key==='='){event.preventDefault();zoomCenter(1.4)}
+ if(event.key==='-'){event.preventDefault();zoomCenter(1/1.4)}
+ if(event.key==='0'){event.preventDefault();fit()}
+});
+window.addEventListener('beforeunload',event=>{
+ if(Object.values(dirty).some(Boolean)){event.preventDefault();event.returnValue=''}
+});
+window.addEventListener('resize',updateStatus);
+buildButtons();
+const initial=(location.hash||'').slice(1);
+loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
+</script>
+</body>
+</html>
