@@ -41,6 +41,10 @@ svg.hide-labels text:not(.ov){display:none}
 .layer-row button,.editbar button,.prop button,.import-actions button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 8px;cursor:pointer}
 .layer-row button:hover,.editbar button:hover{background:#f1f4f9}
 .layer-row b{font-size:11px;color:var(--muted)}
+.legend{display:flex;flex-direction:column;gap:5px;margin-top:12px;font-size:12px;color:var(--muted)}
+.legend strong{color:var(--text);font-size:12px}
+.legend span{display:flex;align-items:center;gap:7px}
+.legend i.bar{width:22px;height:5px;border-radius:3px;display:inline-block;box-shadow:0 0 0 1px #0004}
 .grid-btns{display:flex;gap:6px}
 .grid-btns button{flex:1;border:1px solid var(--line);border-radius:6px;background:#fff;padding:7px;cursor:pointer}
 .editbar{position:absolute;top:24px;left:24px;right:132px;z-index:3;display:none;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;background:#fffffff5;border:1px solid var(--line);border-radius:9px;box-shadow:0 2px 8px #0002;font-size:13px}
@@ -50,7 +54,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .editbar .layer-name{font-weight:650;margin-right:5px}
 .prop{font-size:13px}
 .prop label{display:block;margin:7px 0}
-.prop input{width:100%;padding:6px;border:1px solid var(--line);border-radius:5px;font:inherit}
+.prop input,.prop select{width:100%;padding:6px;border:1px solid var(--line);border-radius:5px;font:inherit;background:#fff}
 .prop .warning{color:#9a5a00;font-size:12px;line-height:1.5}
 .ov{paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
 #drop-cover{display:none;position:absolute;inset:12px;z-index:8;align-items:center;justify-content:center;border:3px dashed var(--accent);border-radius:10px;background:#e6f0fff2;padding:24px;text-align:center;font-size:18px;font-weight:650;pointer-events:none}
@@ -131,6 +135,7 @@ body>*:not(#print-root){display:none!important}
 <section>
 <h2>Ergänzungsebenen</h2>
 <div id="layer-list"></div>
+<div class="legend" id="legend"></div>
 </section>
 <section>
 <h2>Excel-Import</h2>
@@ -185,12 +190,54 @@ const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 
 /* PLANS, geometry und SOURCES kommen aus gebaeudedaten.js */
 
+/* Die Ebene „schraenke“ ist eine gemischte Ebene (kind:'mixed'):
+   Sie enthält Netzwerkschränke (Punkte mit x/y) UND Verbindungen (Linien mit points). */
 const LAYERS={
 accesspoints:{id:'accesspoints',label:'Accesspoints',color:'#1f6feb',kind:'point',idPrefix:'AP',fields:[['name','Name'],['modell','Modell'],['mac','MAC'],['ip','IP'],['raum','Raum'],['notiz','Notiz']]},
-schraenke:{id:'schraenke',label:'Netzwerkschränke',color:'#d73a49',kind:'point',idPrefix:'SK',fields:[['name','Name'],['typ','Typ'],['raum','Raum'],['notiz','Notiz']]},
-verbindungen:{id:'verbindungen',label:'Verbindungen',color:'#2da44e',kind:'line',idPrefix:'VB',fields:[['name','Name'],['typ','Typ'],['von','Von'],['nach','Nach'],['notiz','Notiz']]},
+schraenke:{id:'schraenke',label:'Netzwerkschränke & Verbindungen',color:'#d73a49',lineColor:'#2da44e',kind:'mixed',idPrefix:'SK',linePrefix:'VB',
+ fields:[['name','Name'],['typ','Typ'],['raum','Raum'],['notiz','Notiz']],
+ lineFields:[['name','Name'],['typ','Typ'],['von','Von'],['nach','Nach'],['notiz','Notiz']],
+ exportFields:[['name','Name'],['typ','Typ'],['raum','Raum'],['von','Von'],['nach','Nach'],['notiz','Notiz']]},
 fernseher:{id:'fernseher',label:'Fernseher',color:'#e3a008',kind:'point',idPrefix:'TV',fields:[['name','Name'],['modell','Modell'],['zoll','Zoll'],['ip','IP'],['raum','Raum'],['notiz','Notiz']]}
 };
+
+/* Verbindungstypen: Mono (Singlemode) = gelb, Multi (Multimode) = orange, Kupfer = blau.
+   „text“ ist eine dunklere Variante für die Beschriftung (gut lesbar auf Weiß). */
+const LINE_TYPES=[
+ {value:'Mono',label:'Mono (Singlemode)',color:'#f5c400',text:'#8a6d00'},
+ {value:'Multi',label:'Multi (Multimode)',color:'#ff8c00',text:'#b35f00'},
+ {value:'Kupfer',label:'Kupfer',color:'#1f6feb',text:'#0b4fbf'}
+];
+const DEFAULT_LINE_TYPE='Mono';
+/* Schreibweisen (auch aus Excel) auf Mono / Multi / Kupfer abbilden; Unbekanntes bleibt unverändert */
+function canonicalLineType(value){
+ const raw=String(value??'').trim();
+ const t=raw.toLowerCase().replace(/\s+/g,'');
+ if(!t)return '';
+ if(t.startsWith('mono')||t.includes('singlemode')||t==='single')return 'Mono';
+ if(t.startsWith('multi')||t.includes('multimode'))return 'Multi';
+ if(t.startsWith('kupfer')||t.startsWith('copper')||t==='cu')return 'Kupfer';
+ return raw;
+}
+function lineTypeInfo(typ){
+ const c=canonicalLineType(typ);
+ return LINE_TYPES.find(t=>t.value===c)||null;
+}
+
+/* Hilfsfunktionen für gemischte Ebenen */
+function isLine(o){return !!o&&Array.isArray(o.points)}
+function colorFor(layer,o){
+ if(isLine(o)){const info=lineTypeInfo(o.typ);return info?info.color:(layer.lineColor||layer.color)}
+ return layer.color;
+}
+function textColorFor(layer,o){
+ if(isLine(o)){const info=lineTypeInfo(o.typ);return info?info.text:(layer.lineColor||layer.color)}
+ return layer.color;
+}
+function fieldsFor(layer,o){return isLine(o)&&layer.lineFields?layer.lineFields:layer.fields}
+function allFields(layer){return layer.exportFields||layer.fields}
+function countOf(list,line){return list.filter(o=>isLine(o)===line).length}
+function isDrawTool(){return tool==='draw'||tool==='drawline'}
 
 function createPlanSvg(plan){
   const b=plan.box;
@@ -244,22 +291,24 @@ function recordHistory(id,before){
 }
 function snapshot(){if(active)recordHistory(active,layerState(active))}
 function getObj(){return active&&selected?inventory[current][active].find(o=>o.id===selected):null}
-function newId(layer,used){
+function newId(layer,used,line){
+ const prefix=line&&layer.linePrefix?layer.linePrefix:layer.idPrefix;
  const ids=used||new Set(PLANS.flatMap(p=>inventory[p.id][layer.id].map(o=>o.id)));
  let n=1,id;
- do{id=layer.idPrefix+'-'+String(n++).padStart(3,'0')}while(ids.has(id));
+ do{id=prefix+'-'+String(n++).padStart(3,'0')}while(ids.has(id));
  return id;
 }
 function planPoint(p,planId=current){
  const b=PLANS.find(p=>p.id===planId).box;
  return {x:Math.round(clamp(p.x,b[0],b[0]+b[2])),y:Math.round(clamp(p.y,b[1],b[1]+b[3]))};
 }
+function planSize(planId){return PLANS.find(p=>p.id===planId).box[2]/110}
 function updateStatus(){
  if(!vb||!base)return;
  const zoom=base[2]/vb[2]*100;
  const coordinates=lastPointer?'x: '+Math.round(lastPointer.x)+' · y: '+Math.round(lastPointer.y)+' | ':'';
- let instruction=active&&tool==='draw'
- ?(LAYERS[active].kind==='line'?'Klicken: Linienpunkte · Enter: fertig · Esc: abbrechen':'Klicken: Objekt setzen')
+ let instruction=active&&isDrawTool()
+ ?(tool==='drawline'?'Klicken: Linienpunkte · Enter: fertig · Esc: abbrechen':'Klicken: Objekt setzen')
  :'Mausrad: Zoom · Ziehen: Verschieben';
  $('status').textContent=coordinates+'Zoom: '+new Intl.NumberFormat('de-DE',{maximumFractionDigits:1}).format(zoom)+' % | '+instruction;
 }
@@ -294,6 +343,14 @@ function buildButtons(){
   const option=document.createElement('option');option.value=l.id;option.textContent=l.label;
   $('import-layer').append(option);
  });
+ /* Legende der Verbindungstypen */
+ const legend=$('legend');legend.replaceChildren();
+ const head=document.createElement('strong');head.textContent='Verbindungstypen';legend.append(head);
+ LINE_TYPES.forEach(t=>{
+  const row=document.createElement('span');
+  const bar=document.createElement('i');bar.className='bar';bar.style.background=t.color;
+  row.append(bar,document.createTextNode(t.label));legend.append(row);
+ });
 }
 function layerList(){
  const box=$('layer-list');box.replaceChildren();
@@ -304,7 +361,12 @@ function layerList(){
   check.onchange=()=>{visible[l.id]=check.checked;renderOverlay()};
   const dot=document.createElement('i');dot.className='dot';dot.style.background=l.color;
   const label=document.createElement('span');label.textContent=l.label;
-  const count=document.createElement('b');count.textContent=inventory[current][l.id].length;
+  const count=document.createElement('b');
+  const list=inventory[current][l.id];
+  if(l.kind==='mixed'){
+   count.textContent=countOf(list,false)+' + '+countOf(list,true)+' VB';
+   count.title=countOf(list,false)+' Schränke, '+countOf(list,true)+' Verbindungen';
+  }else count.textContent=list.length;
   const button=document.createElement('button');button.textContent=active===l.id?'✓ Ende':'✏️ Bearbeiten';
   button.onclick=()=>active===l.id?endEdit():startEdit(l.id);
   row.append(check,dot,label,count,button);box.append(row);
@@ -313,7 +375,7 @@ function layerList(){
 function mode(){
  $('mode-badge').classList.toggle('edit-mode',!!active);
  $('mode-badge').textContent=active?'✏️ Bearbeitungsmodus: '+LAYERS[active].label:'👁 Ansichtsmodus · nur lesen';
- stage.classList.toggle('drawing',!!active&&tool==='draw');
+ stage.classList.toggle('drawing',!!active&&isDrawTool());
  updateStatus();
 }
 function loadPlan(id){
@@ -339,12 +401,38 @@ function endEdit(){
 }
 function refreshUI(){renderOverlay();layerList();toolbar();properties();updateStatus()}
 
+/* ---------- Zuordnung Schrank ↔ Verbindung (für die Hervorhebung) ---------- */
+/* Eine Verbindung gehört zu einem Schrank, wenn „Von“ oder „Nach“ dessen Name/ID enthält
+   oder wenn Anfangs- bzw. Endpunkt der Linie direkt am Schrank liegt. */
+function refersTo(text,cab){
+ const t=normalized(text);
+ return !!t&&(t===normalized(cab.name)||t===normalized(cab.id));
+}
+function endsAt(line,cab,size){
+ const ends=[line.points[0],line.points[line.points.length-1]];
+ return ends.some(p=>Math.hypot(p.x-cab.x,p.y-cab.y)<=size*1.2);
+}
+function lineTouches(line,cab,size){
+ return refersTo(line.von,cab)||refersTo(line.nach,cab)||endsAt(line,cab,size);
+}
+/* Liefert die hervorzuhebenden Verbindungen und die Schränke am anderen Ende
+   (nur im Werkzeug „Auswählen“ und wenn ein Schrank gewählt ist). */
+function highlightInfo(planId=current){
+ if(!active||tool!=='select'||LAYERS[active].kind!=='mixed')return null;
+ const sel=getObj();
+ if(!sel||isLine(sel))return null;
+ const size=planSize(planId),items=inventory[planId][active];
+ const lines=items.filter(o=>isLine(o)&&lineTouches(o,sel,size));
+ const partners=items.filter(o=>!isLine(o)&&o.id!==sel.id&&lines.some(l=>lineTouches(l,o,size)));
+ return {lines:new Set(lines.map(l=>l.id)),partners:new Set(partners.map(p=>p.id))};
+}
+
 /* ---------- SVG-Ebenen und Raster ---------- */
 function attachOverlay(target){
  const existing=target.querySelector('[data-overlay]');
  if(existing)existing.remove();
  const group=S('g',{'data-overlay':'true'});
- ['grid','verbindungen','schraenke','accesspoints','fernseher','highlights','preview'].forEach(id=>{
+ ['grid','schraenke','accesspoints','fernseher','highlights','preview'].forEach(id=>{
   group.append(S('g',{'data-layer':id}));
  });
  target.append(group);
@@ -370,32 +458,46 @@ function drawGrid(target,planId){
   t.textContent=String.fromCharCode(65+x)+(y+1);g.append(t);
  }
 }
-function draw(layer,o,size,editing){
+function draw(layer,o,size,editing,hl=null){
  const g=S('g',{'data-id':o.id});
- const title=S('title');title.textContent=o.name||o.id;g.append(title);
- if(layer.kind==='line'){
+ const title=S('title');
+ title.textContent=(o.name||o.id)+(isLine(o)&&o.typ?' ('+o.typ+')':'');g.append(title);
+ const color=colorFor(layer,o);
+ if(isLine(o)){
   const points=o.points.map(p=>p.x+','+p.y).join(' ');
+  const related=!!hl&&hl.lines.has(o.id);
+  const dim=!!hl&&!related;
+  const width=related?size*.45:size/4;
+  if(dim)g.setAttribute('opacity','.2');
   if(editing)g.append(S('polyline',{points,fill:'none',stroke:'transparent','stroke-width':size*1.4,'pointer-events':'stroke'}));
-  g.append(S('polyline',{points,fill:'none',stroke:layer.color,'stroke-width':size/4,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  /* Schein bei hervorgehobener Verbindung */
+  if(related)g.append(S('polyline',{points,fill:'none',stroke:'#111','stroke-opacity':'.22','stroke-width':width+size*.9,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  /* dünne dunkle Kontur, damit auch Gelb auf Weiß gut lesbar ist */
+  g.append(S('polyline',{points,fill:'none',stroke:'#000','stroke-opacity':'.4','stroke-width':width+size*.1,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  g.append(S('polyline',{points,fill:'none',stroke:color,'stroke-width':width,'stroke-linecap':'round','stroke-linejoin':'round'}));
   const p=o.points[0];
-  const text=S('text',{x:p.x+size,y:p.y-size/2,fill:layer.color,'font-size':size*.8,class:'ov'});
+  const text=S('text',{x:p.x+size,y:p.y-size/2,fill:textColorFor(layer,o),'font-size':size*.8,class:'ov'});
   text.textContent=o.name||o.id;g.append(text);
  }else{
   const x=o.x,y=o.y;
   if(layer.id==='accesspoints'){
-   g.append(S('circle',{cx:x,cy:y,r:size*.65,fill:layer.color,stroke:'#fff','stroke-width':size*.18}));
+   g.append(S('circle',{cx:x,cy:y,r:size*.65,fill:color,stroke:'#fff','stroke-width':size*.18}));
    g.append(S('path',{d:`M ${x-size*.3} ${y+size*.1} q ${size*.3} ${-size*.5} ${size*.6} 0 M ${x-size*.43} ${y+size*.33} q ${size*.43} ${-size*.75} ${size*.86} 0`,fill:'none',stroke:'#fff','stroke-width':size*.1}));
   }else if(layer.id==='schraenke'){
-   g.append(S('rect',{x:x-size*.55,y:y-size*.55,width:size*1.1,height:size*1.1,rx:size*.08,fill:layer.color,stroke:'#fff','stroke-width':size*.15}));
+   g.append(S('rect',{x:x-size*.55,y:y-size*.55,width:size*1.1,height:size*1.1,rx:size*.08,fill:color,stroke:'#fff','stroke-width':size*.15}));
   }else{
-   g.append(S('rect',{x:x-size*.7,y:y-size*.48,width:size*1.4,height:size*.85,rx:size*.08,fill:layer.color,stroke:'#fff','stroke-width':size*.15}));
-   g.append(S('path',{d:`M ${x-size*.35} ${y+size*.55} h ${size*.7} M ${x} ${y+size*.36} v ${size*.2}`,stroke:layer.color,'stroke-width':size*.15}));
+   g.append(S('rect',{x:x-size*.7,y:y-size*.48,width:size*1.4,height:size*.85,rx:size*.08,fill:color,stroke:'#fff','stroke-width':size*.15}));
+   g.append(S('path',{d:`M ${x-size*.35} ${y+size*.55} h ${size*.7} M ${x} ${y+size*.36} v ${size*.2}`,stroke:color,'stroke-width':size*.15}));
   }
-  const text=S('text',{x:x+size,y:y-size*.45,fill:layer.color,'font-size':size*.8,class:'ov'});
+  /* Schränke am anderen Ende hervorgehobener Verbindungen */
+  if(hl&&hl.partners.has(o.id)){
+   g.append(S('circle',{cx:x,cy:y,r:size*.95,fill:'none',stroke:'#111','stroke-width':size*.14,'data-editor-ui':'true','pointer-events':'none'}));
+  }
+  const text=S('text',{x:x+size,y:y-size*.45,fill:color,'font-size':size*.8,class:'ov'});
   text.textContent=o.name||o.id;g.append(text);
  }
  if(editing&&selected===o.id){
-  const p=layer.kind==='line'?o.points[0]:o;
+  const p=isLine(o)?o.points[0]:o;
   g.append(S('circle',{cx:p.x,cy:p.y,r:size*1.05,fill:'none',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15,'data-editor-ui':'true','pointer-events':'none'}));
  }
  return g;
@@ -403,36 +505,46 @@ function draw(layer,o,size,editing){
 function renderOverlay(target=svg,planId=current,exporting=false){
  if(!target)return;
  drawGrid(target,planId);
- const size=PLANS.find(p=>p.id===planId).box[2]/110;
+ const size=planSize(planId);
+ const info=exporting?null:highlightInfo(planId);
+ const hl=info&&info.lines.size?info:null;
  Object.values(LAYERS).forEach(layer=>{
   const g=groupOf(target,layer.id);g.replaceChildren();
   g.style.display=visible[layer.id]?'':'none';
   g.style.opacity=!exporting&&active&&active!==layer.id?'.3':'1';
   const editing=!exporting&&active===layer.id;
   g.setAttribute('pointer-events',editing?'all':'none');
-  inventory[planId][layer.id].forEach(o=>g.append(draw(layer,o,size,editing)));
-  if(editing&&selected&&layer.kind==='line')drawHandles(g,size);
+  const items=inventory[planId][layer.id];
+  const layerHl=hl&&layer.id===active?hl:null;
+  /* Verbindungen zuerst zeichnen (hervorgehobene zuletzt), damit die Schränke darüber liegen */
+  const lines=items.filter(isLine);
+  if(layerHl)lines.sort((a,b)=>layerHl.lines.has(a.id)-layerHl.lines.has(b.id));
+  [...lines,...items.filter(o=>!isLine(o))].forEach(o=>g.append(draw(layer,o,size,editing,layerHl)));
+  const sel=editing&&selected?getObj():null;
+  if(sel&&isLine(sel))drawHandles(g,size);
  });
  if(!exporting)drawPreview();
 }
 function drawHandles(group,size){
- const object=getObj();if(!object)return;
+ const object=getObj();if(!object||!isLine(object))return;
+ const color=colorFor(LAYERS[active],object);
  object.points.forEach((p,i)=>group.append(S('circle',{
-  cx:p.x,cy:p.y,r:size*.3,fill:'#fff',stroke:LAYERS[active].color,'stroke-width':size*.1,
+  cx:p.x,cy:p.y,r:size*.3,fill:'#fff',stroke:color,'stroke-width':size*.1,
   'data-vertex':i,'data-editor-ui':'true',cursor:'move'
  })));
  for(let i=0;i<object.points.length-1;i++){
   const a=object.points[i],b=object.points[i+1];
-  group.append(S('circle',{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,r:size*.21,fill:LAYERS[active].color,stroke:'#fff','stroke-width':size*.05,'data-midpoint':i,'data-editor-ui':'true',cursor:'copy'}));
+  group.append(S('circle',{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,r:size*.21,fill:color,stroke:'#fff','stroke-width':size*.05,'data-midpoint':i,'data-editor-ui':'true',cursor:'copy'}));
  }
 }
 function drawPreview(){
  const g=groupOf(svg,'preview');if(!g)return;
  g.replaceChildren();g.setAttribute('pointer-events','none');
- if(!active||tool!=='draw'||LAYERS[active].kind!=='line'||!drawing.length)return;
+ if(!active||tool!=='drawline'||!drawing.length)return;
+ const color='#333';
  const points=[...drawing,...(previewPoint?[previewPoint]:[])];
- g.append(S('polyline',{points:points.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:LAYERS[active].color,'stroke-width':base[2]/440,'stroke-dasharray':'8 6'}));
- drawing.forEach(p=>g.append(S('circle',{cx:p.x,cy:p.y,r:base[2]/330,fill:LAYERS[active].color})));
+ g.append(S('polyline',{points:points.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:color,'stroke-width':base[2]/440,'stroke-dasharray':'8 6'}));
+ drawing.forEach(p=>g.append(S('circle',{cx:p.x,cy:p.y,r:base[2]/330,fill:color})));
 }
 
 /* ---------- Historie, Eigenschaften und Werkzeuge ---------- */
@@ -460,10 +572,10 @@ function deleteSelected(){
  selected=null;changed();
 }
 function finishLine(){
- if(!active||tool!=='draw'||LAYERS[active].kind!=='line'||drawing.length<2)return;
+ if(!active||tool!=='drawline'||drawing.length<2)return;
  snapshot();
  const layer=LAYERS[active];
- const object={id:newId(layer),points:copy(drawing),name:'VB '+(inventory[current][active].length+1)};
+ const object={id:newId(layer,null,true),points:copy(drawing),name:'VB '+(countOf(inventory[current][active],true)+1),typ:DEFAULT_LINE_TYPE};
  inventory[current][active].push(object);selected=object.id;drawing=[];previewPoint=null;changed();
 }
 function toolbar(){
@@ -478,8 +590,13 @@ function toolbar(){
  button('↶ Zurück',undo,!historyBy[active].undo.length);
  button('↷ Vor',redo,!historyBy[active].redo.length);
  button('🖱 Auswählen / Verschieben',()=>{tool='select';drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='select');
- button(layer.kind==='line'?'➕ Linie zeichnen':'➕ Neu zeichnen',()=>{tool='draw';selected=null;drawing=[];mode();refreshUI()},false,tool==='draw');
- if(layer.kind==='line'&&tool==='draw')button('✓ Linie fertig',finishLine,drawing.length<2);
+ if(layer.kind==='mixed'){
+  button('➕ Schrank setzen',()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
+  button('➕ Verbindung zeichnen',()=>{tool='drawline';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='drawline');
+  if(tool==='drawline')button('✓ Linie fertig',finishLine,drawing.length<2);
+ }else{
+  button('➕ Neu zeichnen',()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
+ }
  button('🗑 Löschen',deleteSelected,!getObj());
  button('⬇ Excel exportieren',()=>excelExport(active));
  button('⬆ Excel importieren',()=>openPicker(active),importBusy);
@@ -492,7 +609,9 @@ function properties(){
  const object=getObj(),layer=LAYERS[active];
  if(!object){
   const text=document.createElement('div');text.className='hint';
-  text.textContent='Objekt auswählen und ziehen oder mit „Neu zeichnen“ anlegen.';
+  text.textContent=layer.kind==='mixed'
+   ?'Objekt auswählen und ziehen oder mit „Schrank setzen“ bzw. „Verbindung zeichnen“ anlegen. Ein Klick auf einen Schrank hebt seine Verbindungen hervor.'
+   :'Objekt auswählen und ziehen oder mit „Neu zeichnen“ anlegen.';
   box.append(text);return;
  }
  function field(key,label,value,type='text',readonly=false){
@@ -510,10 +629,41 @@ function properties(){
   };
   wrapper.append(input);box.append(wrapper);
  }
+ /* Auswahlfeld (für den Verbindungstyp) */
+ function selectField(key,label,value,options){
+  const wrapper=document.createElement('label');wrapper.textContent=label;
+  const select=document.createElement('select');
+  const known=options.some(o=>o.value===value);
+  if(!known){
+   const option=document.createElement('option');
+   option.value=value??'';option.textContent=value?String(value):'– bitte wählen –';
+   select.append(option);
+  }
+  options.forEach(o=>{
+   const option=document.createElement('option');option.value=o.value;option.textContent=o.label;select.append(option);
+  });
+  select.value=value??'';
+  select.onchange=()=>{snapshot();object[key]=select.value;changed()};
+  wrapper.append(select);box.append(wrapper);
+ }
  field('id','ID',object.id,'text',true);
- layer.fields.forEach(([key,label])=>field(key,label,object[key]));
- if(layer.kind==='point'){field('x','X',object.x,'number');field('y','Y',object.y,'number')}
+ fieldsFor(layer,object).forEach(([key,label])=>{
+  if(isLine(object)&&key==='typ'){
+   /* ältere Schreibweisen (z. B. „mono“) werden passend vorausgewählt */
+   const info=lineTypeInfo(object.typ);
+   selectField(key,label,info?info.value:object.typ,LINE_TYPES);
+  }else field(key,label,object[key]);
+ });
+ if(!isLine(object)){field('x','X',object.x,'number');field('y','Y',object.y,'number')}
  else field('pointCount','Anzahl Punkte',object.points.length,'number',true);
+ if(!isLine(object)&&layer.kind==='mixed'){
+  const info=highlightInfo();
+  const note=document.createElement('div');note.className='hint';
+  note.textContent=info&&info.lines.size
+   ?'Hervorgehoben: '+info.lines.size+' Verbindung'+(info.lines.size===1?'':'en')+'.'
+   :'Keine Verbindung gefunden. Zuordnung über „Von“/„Nach“ (Name oder ID des Schranks) oder ein Linienende direkt am Schrank.';
+  box.append(note);
+ }
  const remove=document.createElement('button');remove.textContent='Objekt löschen';remove.onclick=deleteSelected;box.append(remove);
  const warning=document.createElement('p');warning.className='warning';
  warning.textContent='Änderungen bleiben nur erhalten, wenn Sie die Excel-Datei exportieren.';
@@ -558,10 +708,10 @@ stage.addEventListener('pointerdown',event=>{
  if(event.button!==0||gesture)return;
  event.preventDefault();
  const p=toSvg(event.clientX,event.clientY);
- if(active&&tool==='draw'){
-  if(LAYERS[active].kind==='point'){
+ if(active&&isDrawTool()){
+  if(tool==='draw'){
    snapshot();const layer=LAYERS[active];
-   const object={id:newId(layer),...planPoint(p),name:layer.idPrefix+' '+(inventory[current][active].length+1)};
+   const object={id:newId(layer),...planPoint(p),name:layer.idPrefix+' '+(countOf(inventory[current][active],false)+1)};
    inventory[current][active].push(object);selected=object.id;changed();
   }else if(event.detail<2){
    const q=planPoint(p),last=drawing[drawing.length-1];
@@ -602,7 +752,7 @@ stage.addEventListener('pointermove',event=>{
     else{
      const b=PLANS.find(p=>p.id===g.plan).box;
      let dx=Math.round(p.x-g.start.x),dy=Math.round(p.y-g.start.y);
-     if(LAYERS[g.layer].kind==='line'){
+     if(isLine(g.object)){
       const xs=g.original.points.map(p=>p.x),ys=g.original.points.map(p=>p.y);
       dx=clamp(dx,b[0]-Math.min(...xs),b[0]+b[2]-Math.max(...xs));
       dy=clamp(dy,b[1]-Math.min(...ys),b[1]+b[3]-Math.max(...ys));
@@ -614,7 +764,7 @@ stage.addEventListener('pointermove',event=>{
     renderOverlay();
    }
   }
- }else if(active&&tool==='draw'&&LAYERS[active].kind==='line'){
+ }else if(active&&tool==='drawline'){
   previewPoint=planPoint(p);drawPreview();
  }
  updateStatus();
@@ -633,7 +783,7 @@ stage.addEventListener('wheel',event=>{
 },{passive:false});
 stage.addEventListener('dblclick',event=>{
  event.preventDefault();
- if(active&&tool==='draw'){finishLine();return}
+ if(active&&tool==='drawline'){finishLine();return}
  const vertex=event.target.closest('[data-vertex]');
  if(active&&vertex){
   const object=getObj();
@@ -747,9 +897,14 @@ async function prepareImport(file,layerId){
   if(headerIndex<0)throw new Error('Das Tabellenblatt ist leer.');
   const map={};
   rows[headerIndex].forEach((value,index)=>{map[normalized(value)]=index});
-  const layer=LAYERS[layerId];
-  const required=['Plan',...(layer.kind==='point'?['X','Y']:['Punkte'])];
-  const missing=required.filter(name=>map[normalized(name)]===undefined);
+  const layer=LAYERS[layerId],mixed=layer.kind==='mixed',fields=allFields(layer);
+  const missing=['Plan'].filter(name=>map[normalized(name)]===undefined);
+  if(mixed){
+   const hasXY=map.x!==undefined&&map.y!==undefined,hasPts=map.punkte!==undefined;
+   if(!hasXY&&!hasPts)missing.push('X und Y (Schränke) und/oder Punkte (Verbindungen)');
+  }else{
+   ['X','Y'].forEach(name=>{if(map[normalized(name)]===undefined)missing.push(name)});
+  }
   if(missing.length)throw new Error('Erforderliche Spalten fehlen: '+missing.join(', ')+'.');
   const fresh=Object.fromEntries(PLANS.map(p=>[p.id,[]]));
   const used=new Set(),issues=[];
@@ -763,18 +918,30 @@ async function prepareImport(file,layerId){
    const plan=PLANS.find(p=>normalized(p.id)===planText||normalized(p.name)===planText);
    if(!plan){bad++;issues.push('Zeile '+rowNumber+': unbekannter oder fehlender Plan „'+String(value('Plan'))+'“.');continue}
    const object={id:String(value('ID')??'').trim()};
-   layer.fields.forEach(([key,label])=>{
+   fields.forEach(([key,label])=>{
     object[key]=String(value(label)!==''?value(label):value(key));
    });
+   /* Zeile mit Punkten = Verbindung (nur in gemischter Ebene), sonst Punktobjekt */
+   const raw=String(value('Punkte')).trim();
+   const line=mixed&&raw!=='';
+   /* Verbindungstyp vereinheitlichen (Mono / Multi / Kupfer) */
+   if(line){
+    const type=canonicalLineType(object.typ);
+    if(type&&!LINE_TYPES.some(t=>t.value===type)){
+     issues.push('Zeile '+rowNumber+': Typ „'+type+'“ unbekannt (erlaubt: Mono, Multi, Kupfer). Die Verbindung wird grün dargestellt.');
+    }
+    object.typ=type;
+   }
    let coordinates;
-   if(layer.kind==='point'){
+   if(!line){
     const x=numberValue(value('X')),y=numberValue(value('Y'));
     if(!Number.isFinite(x)||!Number.isFinite(y)){
-     bad++;issues.push('Zeile '+rowNumber+': X oder Y fehlt oder ist keine gültige Zahl.');continue;
+     bad++;issues.push('Zeile '+rowNumber+(mixed
+      ?': weder X und Y (Schrank) noch Punkte (Verbindung) sind gültig angegeben.'
+      :': X oder Y fehlt oder ist keine gültige Zahl.'));continue;
     }
     coordinates=[{x,y}];
    }else{
-    const raw=String(value('Punkte')).trim();
     const parts=raw.split(';').map(part=>part.trim()).filter(Boolean);
     coordinates=parts.map(part=>{
      const pair=part.split(',');
@@ -791,11 +958,11 @@ async function prepareImport(file,layerId){
     return q;
    });
    if(outside){adjusted++;issues.push('Zeile '+rowNumber+': Koordinaten auf den Planbereich begrenzt.')}
-   if(layer.kind==='point')Object.assign(object,clamped[0]);
+   if(!line)Object.assign(object,clamped[0]);
    else object.points=clamped;
    if(!object.id||used.has(object.id)){
     const duplicate=!!object.id;
-    object.id=newId(layer,used);assigned++;
+    object.id=newId(layer,used,line);assigned++;
     issues.push('Zeile '+rowNumber+': '+(duplicate?'doppelte':'fehlende')+' ID durch '+object.id+' ersetzt.');
    }
    used.add(object.id);fresh[plan.id].push(object);ok++;
@@ -854,24 +1021,35 @@ function commitImport(){
 function excelExport(id){
  if(!needXlsx())return;
  try{
-  const layer=LAYERS[id];
-  const headers=['Plan','ID',...layer.fields.map(f=>f[1]),...(layer.kind==='point'?['X','Y']:['Punkte'])];
+  const layer=LAYERS[id],mixed=layer.kind==='mixed',fields=allFields(layer);
+  const headers=['Plan','ID',...fields.map(f=>f[1]),...(mixed?['X','Y','Punkte']:['X','Y'])];
   const rows=[headers];
   PLANS.forEach(p=>inventory[p.id][id].forEach(object=>{
-   rows.push([p.id,object.id,...layer.fields.map(([key])=>object[key]??''),
-    ...(layer.kind==='point'?[object.x,object.y]:[object.points.map(p=>p.x+','+p.y).join(';')])]);
+   const line=isLine(object);
+   const coords=mixed
+    ?(line?['','',object.points.map(q=>q.x+','+q.y).join(';')]:[object.x,object.y,''])
+    :[object.x,object.y];
+   rows.push([p.id,object.id,...fields.map(([key])=>object[key]??''),...coords]);
   }));
   const workbook=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet(rows);
   sheet['!cols']=headers.map(h=>({wch:Math.max(12,h.length+3)}));
   XLSX.utils.book_append_sheet(workbook,sheet,'Daten');
-  XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet([
+  const notes=[
    ['Hinweise'],
    ['Gültige Pläne: '+PLANS.map(p=>p.id+' = '+p.name).join(', ')],
-   ['Koordinaten beziehen sich auf die ursprüngliche SVG-viewBox.'],
-   ['Punkte: x,y;x,y;… (mindestens zwei Punkte; Dezimalpunkt verwenden).'],
-   ['Der Import ersetzt nach Bestätigung die gesamte gewählte Ebene in allen Plänen.']
-  ]),'Hinweise');
-  const names={accesspoints:'accesspoints.xlsx',schraenke:'netzwerkschraenke.xlsx',verbindungen:'verbindungen.xlsx',fernseher:'fernseher.xlsx'};
+   ['Koordinaten beziehen sich auf die ursprüngliche SVG-viewBox.']
+  ];
+  if(mixed){
+   notes.push(['Zeilen mit X und Y = Netzwerkschrank (Punkt). Zeilen mit Punkten = Verbindung (Linie).']);
+   notes.push(['Punkte: x,y;x,y;… (mindestens zwei Punkte; Dezimalpunkt verwenden). Bei Schränken bleibt „Punkte“ leer, bei Verbindungen bleiben X und Y leer.']);
+   notes.push(['Typ bei Verbindungen: Mono (Singlemode) = gelb, Multi (Multimode) = orange, Kupfer = blau.']);
+   notes.push(['Von/Nach: Name oder ID des Schranks. Damit werden beim Klick auf einen Schrank seine Verbindungen hervorgehoben.']);
+  }else{
+   notes.push(['Koordinaten X und Y als Zahlen (Dezimalpunkt verwenden).']);
+  }
+  notes.push(['Der Import ersetzt nach Bestätigung die gesamte gewählte Ebene in allen Plänen.']);
+  XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet(notes),'Hinweise');
+  const names={accesspoints:'accesspoints.xlsx',schraenke:'netzwerkschraenke.xlsx',fernseher:'fernseher.xlsx'};
   XLSX.writeFile(workbook,names[id]);dirty[id]=false;
   feedback('success','Excel-Export ausgelöst',[
    names[id],'Bitte prüfen, ob der Browser die Datei heruntergeladen hat. Die Ebene ist als exportiert markiert.'
@@ -969,7 +1147,7 @@ document.addEventListener('keydown',event=>{
  if(active&&modifier&&key==='z'){event.preventDefault();event.shiftKey?redo():undo();return}
  if(active&&modifier&&key==='y'){event.preventDefault();redo();return}
  if(active&&['Delete','Backspace'].includes(event.key)){event.preventDefault();deleteSelected();return}
- if(active&&event.key==='Enter'&&tool==='draw'){event.preventDefault();finishLine();return}
+ if(active&&event.key==='Enter'&&tool==='drawline'){event.preventDefault();finishLine();return}
  if(modifier||event.altKey)return;
  if(/^[1-5]$/.test(event.key))loadPlan(PLANS[Number(event.key)-1].id);
  if(event.key==='+'||event.key==='='){event.preventDefault();zoomCenter(1.4)}
