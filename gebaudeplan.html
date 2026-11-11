@@ -43,10 +43,16 @@ svg.hide-labels text:not(.ov){display:none}
 .status{position:absolute;left:24px;bottom:24px;background:#fffffff0;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);z-index:2;font-variant-numeric:tabular-nums;pointer-events:none;max-width:calc(100% - 48px)}
 #mode-badge{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2f7;color:#465365;font-weight:600}
 .edit-mode{background:#fff0d8!important;color:#a84c00!important}
-.layer-row{display:grid;grid-template-columns:auto 12px 1fr auto auto;gap:6px;align-items:center;margin:7px 0;font-size:13px}
+/* Ergänzungsebenen: jede Ebene als eigene Karte, Text darf umbrechen */
+.layer-row{display:grid;grid-template-columns:auto 12px minmax(0,1fr);gap:6px 8px;align-items:start;margin:0 0 8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px}
+.layer-row.editing{border-color:var(--accent);background:var(--accent-soft)}
+.layer-row input[type=checkbox]{margin:2px 0 0}
+.layer-row .dot{margin-top:3px}
+.layer-row .lname{display:block;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.layer-row .lcount{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
 .layer-row button,.editbar button,.prop button,.import-actions button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 8px;cursor:pointer}
+.layer-row button{grid-column:1/-1;width:100%;padding:7px 8px}
 .layer-row button:hover,.editbar button:hover{background:#f1f4f9}
-.layer-row b{font-size:11px;color:var(--muted)}
 .legend{display:flex;flex-direction:column;gap:5px;margin-top:12px;font-size:12px;color:var(--muted)}
 .legend strong{color:var(--text);font-size:12px}
 .legend span{display:flex;align-items:center;gap:7px}
@@ -132,7 +138,6 @@ body>*:not(#print-root){display:none!important}
 <h2>Anzeige</h2>
 <label class="chk"><input type="checkbox" id="chk-labels" checked> Raumbeschriftungen</label>
 <label class="chk"><input type="checkbox" id="chk-grid"> Planquadrat-Raster</label>
-<div class="hint">100 % Zoom = vollständige Planansicht.</div>
 </section>
 <section>
 <h2>Ergänzungsebenen</h2>
@@ -210,6 +215,12 @@ const LINE_TYPES=[
 const DEFAULT_LINE_TYPE='Mono';
 /* Fangradius (in Symbolgrößen) für das Anschließen von Linienenden an Schränke */
 const ATTACH=1.5;
+/* Weißer Rand um den Plan in der Grundansicht (100 %), Anteil der längeren Plankante */
+const VIEW_MARGIN=0.04;
+function paddedBox(box){
+ const pad=Math.max(box[2],box[3])*VIEW_MARGIN;
+ return [box[0]-pad,box[1]-pad,box[2]+pad*2,box[3]+pad*2];
+}
 /* Schreibweisen (auch aus Excel) auf Mono / Multi / Kupfer abbilden; Unbekanntes bleibt unverändert */
 function canonicalLineType(value){
  const raw=String(value??'').trim();
@@ -355,20 +366,23 @@ function layerList(){
  const box=$('layer-list');box.replaceChildren();
  Object.values(LAYERS).forEach(l=>{
   const row=document.createElement('div');row.className='layer-row';
+  row.classList.toggle('editing',active===l.id);
   const check=document.createElement('input');check.type='checkbox';check.checked=visible[l.id];
   check.setAttribute('aria-label',l.label+' anzeigen');
   check.onchange=()=>{visible[l.id]=check.checked;renderOverlay()};
   const dot=document.createElement('i');dot.className='dot';dot.style.background=l.color;
-  const label=document.createElement('span');label.textContent=l.label;
-  const count=document.createElement('b');
+  const text=document.createElement('div');
+  const name=document.createElement('span');name.className='lname';name.textContent=l.label;
+  const count=document.createElement('span');count.className='lcount';
   const list=inventory[current][l.id];
   if(l.kind==='mixed'){
-   count.textContent=countOf(list,false)+' + '+countOf(list,true)+' VB';
-   count.title=countOf(list,false)+' Schränke, '+countOf(list,true)+' Verbindungen';
-  }else count.textContent=list.length;
+   const cabinets=countOf(list,false),lines=countOf(list,true);
+   count.textContent=cabinets+(cabinets===1?' Schrank':' Schränke')+' · '+lines+(lines===1?' Verbindung':' Verbindungen');
+  }else count.textContent=list.length+(list.length===1?' Objekt':' Objekte');
+  text.append(name,count);
   const button=document.createElement('button');button.textContent=active===l.id?'✓ Ende':'✏️ Bearbeiten';
   button.onclick=()=>active===l.id?endEdit():startEdit(l.id);
-  row.append(check,dot,label,count,button);box.append(row);
+  row.append(check,dot,text,button);box.append(row);
  });
 }
 function mode(){
@@ -382,7 +396,8 @@ function loadPlan(id){
  finishGesture(true);
  current=id;selected=null;drawing=[];previewPoint=null;lastPointer=null;
  const p=PLANS.find(p=>p.id===id);
- base=p.box.slice();vb=base.slice();
+ /* Grundansicht mit weißem Rand um den Plan */
+ base=paddedBox(p.box);vb=base.slice();
  svg=createPlanSvg(p);overlay=attachOverlay(svg);
  stage.replaceChildren(svg);
  svg.classList.toggle('hide-labels',!$('chk-labels').checked);
@@ -887,7 +902,8 @@ function runSearch(jump){
  const q=$('search').value.trim().toLowerCase();
  if(!q){$('search-hint').textContent='Enter springt zum ersten Treffer.';return}
  const hits=[...svg.querySelectorAll('text')].filter(t=>!overlay.contains(t)&&t.textContent.toLowerCase().includes(q));
-  const k=SOURCES[current]?base[2]/2400:1;
+  const planBox=PLANS.find(p=>p.id===current).box;
+  const k=SOURCES[current]?planBox[2]/2400:1;
   const boxOf=t=>{try{return t.getBBox()}catch{return null}};
   hits.forEach(t=>{
    const b=boxOf(t);if(!b)return;
