@@ -131,7 +131,7 @@ body>*:not(#print-root){display:none!important}
 </section>
 <section>
 <h2>Raum suchen</h2>
-<input type="search" id="search" placeholder="z. B. Chemie, U-Raum 3, #12 …">
+<input type="search" id="search" placeholder="z. B. Chemie, U-Raum E3-3, Raum 12 …">
 <div class="hint" id="search-hint">Enter springt zum ersten Treffer.</div>
 </section>
 <section>
@@ -173,7 +173,7 @@ body>*:not(#print-root){display:none!important}
 
 <!-- Prüfung, ob die Gebäudedaten geladen wurden -->
 <script>
-if(typeof PLANS==='undefined'||typeof SOURCES==='undefined'||typeof geometry==='undefined'){
+if(typeof PLANS==='undefined'||typeof geometry==='undefined'){
  var err=document.getElementById('data-error');
  err.style.display='block';
  err.innerHTML='<strong>Gebäudedaten nicht gefunden.</strong> Die Datei <code>gebaeudedaten.js</code> muss im selben Ordner wie diese HTML-Datei liegen und genau so heißen.';
@@ -192,7 +192,7 @@ const S=(tag,attrs={})=>{
 const copy=value=>JSON.parse(JSON.stringify(value));
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 
-/* PLANS, geometry und SOURCES kommen aus gebaeudedaten.js */
+/* PLANS und geometry kommen aus gebaeudedaten.js */
 
 /* Die Ebene „schraenke“ ist eine gemischte Ebene (kind:'mixed'):
    Sie enthält Netzwerkschränke (Punkte mit x/y) UND Verbindungen (Linien mit points). */
@@ -256,15 +256,15 @@ function createPlanSvg(plan){
   const root=S('svg',{xmlns:NS,viewBox:b.join(' '),preserveAspectRatio:'xMidYMid meet'});
   root.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
   root.append(S('rect',{x:b[0],y:b[1],width:b[2],height:b[3],fill:'#fff'}));
-  const src=SOURCES[plan.id];
-  if(src){
-   const g=S('g',{class:'src src-'+plan.id});
-   if(src.font)g.setAttribute('font-family',src.font);
-   g.innerHTML=src.markup;
-   root.append(g);
-   return root;
-  }
   const data=geometry[plan.id];
+  /* Treppenhäuser (rot) und Aufzug (blau) als Füllung unter den Wänden und Texten */
+  const fills=(list,color)=>{
+   const g=S('g',{fill:color,stroke:'#111','stroke-width':0.8});
+   (list||[]).forEach(d=>g.append(S('path',{d})));
+   root.append(g);
+  };
+  fills(data.stairwells,'#e22b0e');
+  fills(data.lift,'#1f5fd0');
   function paths(list,width,color='#222',extra={}){
    const g=S('g',{fill:'none',stroke:color,'stroke-width':width,'stroke-linejoin':'miter','stroke-linecap':'square',...extra});
    (list||[]).forEach(d=>g.append(S('path',{d})));
@@ -903,7 +903,7 @@ function runSearch(jump){
  if(!q){$('search-hint').textContent='Enter springt zum ersten Treffer.';return}
  const hits=[...svg.querySelectorAll('text')].filter(t=>!overlay.contains(t)&&t.textContent.toLowerCase().includes(q));
   const planBox=PLANS.find(p=>p.id===current).box;
-  const k=SOURCES[current]?planBox[2]/2400:1;
+  const k=1;
   const boxOf=t=>{try{return t.getBBox()}catch{return null}};
   hits.forEach(t=>{
    const b=boxOf(t);if(!b)return;
