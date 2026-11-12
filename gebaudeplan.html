@@ -169,14 +169,14 @@ body>*:not(#print-root){display:none!important}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- Gebäudedaten: Datei muss im selben Ordner liegen wie diese HTML-Datei -->
-<script src="gebaeudedaten.js"></script>
+<script src="gebaudedaten.js"></script>
 
 <!-- Prüfung, ob die Gebäudedaten geladen wurden -->
 <script>
 if(typeof PLANS==='undefined'||typeof geometry==='undefined'){
  var err=document.getElementById('data-error');
  err.style.display='block';
- err.innerHTML='<strong>Gebäudedaten nicht gefunden.</strong> Die Datei <code>gebaeudedaten.js</code> muss im selben Ordner wie diese HTML-Datei liegen und genau so heißen.';
+ err.innerHTML='<strong>Gebäudedaten nicht gefunden.</strong> Die Datei <code>gebaudedaten.js</code> muss im selben Ordner wie diese HTML-Datei liegen und genau so heißen.';
 }
 </script>
 
@@ -192,7 +192,7 @@ const S=(tag,attrs={})=>{
 const copy=value=>JSON.parse(JSON.stringify(value));
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 
-/* PLANS und geometry kommen aus gebaeudedaten.js */
+/* PLANS und geometry kommen aus gebaudedaten.js */
 
 /* Die Ebene „schraenke“ ist eine gemischte Ebene (kind:'mixed'):
    Sie enthält Netzwerkschränke (Punkte mit x/y) UND Verbindungen (Linien mit points). */
