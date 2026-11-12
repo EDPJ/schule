@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gebäudeplan – Netzwerk-Viewer</title>
+<title>Gebäudeplan – Technik-Viewer</title>
 <style>
 :root{--bg:#f3f5f8;--panel:#fff;--line:#d9dee6;--text:#1c2430;--muted:#6b7686;--accent:#1f6feb;--accent-soft:#e6f0ff}
 *{box-sizing:border-box}
@@ -43,7 +43,7 @@ svg.hide-labels text:not(.ov){display:none}
 .status{position:absolute;left:24px;bottom:24px;background:#fffffff0;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);z-index:2;font-variant-numeric:tabular-nums;pointer-events:none;max-width:calc(100% - 48px)}
 #mode-badge{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2f7;color:#465365;font-weight:600}
 .edit-mode{background:#fff0d8!important;color:#a84c00!important}
-/* Ergänzungsebenen: jede Ebene als eigene Karte, Text darf umbrechen */
+/* Technikkategorien: jede Ebene als eigene Karte, Text darf umbrechen */
 .layer-row{display:grid;grid-template-columns:auto 12px minmax(0,1fr);gap:6px 8px;align-items:start;margin:0 0 8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px}
 .layer-row.editing{border-color:var(--accent);background:var(--accent-soft)}
 .layer-row input[type=checkbox]{margin:2px 0 0}
@@ -129,20 +129,17 @@ body>*:not(#print-root){display:none!important}
 .print-head span{color:#555;font-size:10pt}
 .print-page img{flex:1;min-height:0;width:100%;object-fit:contain;display:block}
 }
+
+/* Druckdialog */
+#print-popup{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:#16203380;padding:20px}#print-popup.show{display:flex}.print-dialog{position:relative;width:min(440px,100%);background:#fff;border-radius:12px;padding:24px;box-shadow:0 18px 55px #0005}.print-dialog h2{margin:0 34px 8px 0;font-size:20px}.print-dialog p{margin:0 0 18px;color:var(--muted);font-size:14px}.print-dialog label{display:block;font-weight:650;margin-bottom:18px}.print-dialog select{display:block;width:100%;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;font:inherit}.print-actions{display:flex;justify-content:flex-end;gap:8px}.print-actions button,.print-close{padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;font:inherit}.print-actions .primary{background:var(--accent);border-color:var(--accent);color:#fff}.print-close{position:absolute;right:12px;top:12px;border:0;font-size:22px;line-height:1;padding:4px 8px}
 </style>
 </head>
 <body>
 <div id="data-error" role="alert"></div>
 <header>
-<h1>Gebäudeplan – Netzwerk-Viewer</h1>
-<span class="sub" id="title-sub"></span>
+<h1>Gebäudeplan – Technik-Viewer</h1>
 <span id="mode-badge">👁 Ansichtsmodus · nur lesen</span>
 <div class="header-actions">
-<select id="pdf-mode" aria-label="Druckumfang" title="Was soll gedruckt werden?">
-<option value="plan">Aktueller Plan</option>
-<option value="view">Aktueller Ausschnitt (Zoom)</option>
-<option value="all">Alle Pläne (je eine Seite)</option>
-</select>
 <button id="btn-table" title="Daten als Tabelle bearbeiten">▦ Daten als Tabelle</button>
 <button id="btn-pdf" title="A4 quer · im Druckdialog „Als PDF speichern“ wählen">🖨 Drucken / PDF</button>
 </div>
@@ -166,7 +163,7 @@ body>*:not(#print-root){display:none!important}
 <label class="chk"><input type="checkbox" id="chk-grid"> Planquadrat-Raster</label>
 </section>
 <section>
-<h2>Ergänzungsebenen</h2>
+<h2>Technikkategorien</h2>
 <div id="layer-list"></div>
 <div class="legend" id="legend"></div>
 </section>
@@ -192,11 +189,20 @@ body>*:not(#print-root){display:none!important}
 </main>
 </div>
 
+<div id="print-popup" aria-hidden="true">
+ <div class="print-dialog" role="dialog" aria-modal="true" aria-label="Drucken">
+  <button id="print-close" class="print-close" type="button" aria-label="Schließen">×</button>
+  <h2>Drucken / PDF</h2><p>A4 quer · im Druckdialog „Als PDF speichern“ wählen</p>
+  <label>Druckumfang <select id="pdf-mode" aria-label="Druckumfang"><option value="plan">Aktueller Plan</option><option value="view">Aktueller Ausschnitt (Zoom)</option><option value="all">Alle Pläne (je eine Seite)</option></select></label>
+  <div class="print-actions"><button id="print-cancel" type="button">Abbrechen</button><button id="print-confirm" class="primary" type="button">🖨 Drucken</button></div>
+ </div>
+</div>
+
 <style>
-#table-screen{position:fixed;inset:0;z-index:100;background:#f3f5f8;display:none;flex-direction:column;color:#1c2430}#table-screen.show{display:flex}.tbl-head{background:#fff;border-bottom:1px solid #d9dee6;padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.tbl-head h2{font-size:18px;margin:0 12px 0 0}.tbl-head select,.tbl-head input,.tbl-head button{padding:7px 9px;border:1px solid #bcc6d3;border-radius:6px;background:#fff;font:inherit}.tbl-head input{min-width:190px}.tbl-head button{cursor:pointer}.tbl-head button.active{background:#e6f0ff;border-color:#1f6feb}.tbl-status{font-size:13px;color:#556272;flex:1;min-width:160px}.tbl-wrap{overflow:auto;flex:1;padding:12px 16px}.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:#fff;border:1px solid #d9dee6;font-size:13px}.data-table th{position:sticky;top:0;z-index:2;background:#eef2f7;text-align:left;padding:8px;border-bottom:1px solid #cbd3de;white-space:nowrap}.data-table td{padding:5px;border-bottom:1px solid #e5e9ef;vertical-align:top}.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid #bcc6d3;border-radius:4px;background:#fff;font:inherit}.data-table input[readonly]{background:#f3f5f8;color:#5d6877}.data-table .missing{border:2px solid #f08a24!important;background:#fff3e4!important}.tbl-feedback{color:#a13b16;font-size:12px;display:block;max-width:400px}.table-place{white-space:nowrap;padding:6px;border:1px solid #1f6feb;border-radius:5px;background:#e6f0ff;cursor:pointer}.table-close{margin-left:auto}.tbl-note{padding:8px 16px;background:#fff8e8;border-bottom:1px solid #e8c56c;font-size:13px}
+#table-screen{position:fixed;inset:0;z-index:100;background:#f3f5f8;display:none;flex-direction:column;color:#1c2430}#table-screen.show{display:flex}.tbl-head{background:#fff;border-bottom:1px solid #d9dee6;padding:12px 180px 12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.tbl-head h2{font-size:18px;margin:0 12px 0 0}.tbl-head select,.tbl-head input,.tbl-head button{padding:7px 9px;border:1px solid #bcc6d3;border-radius:6px;background:#fff;font:inherit}.tbl-head input{min-width:190px}.tbl-head button{cursor:pointer}.tbl-head button.active{background:#e6f0ff;border-color:#1f6feb}.tbl-status{font-size:13px;color:#556272;flex:1;min-width:160px}.tbl-wrap{overflow:auto;flex:1;padding:12px 16px}.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:#fff;border:1px solid #d9dee6;font-size:13px}.data-table th{position:sticky;top:0;z-index:2;background:#eef2f7;text-align:left;padding:8px;border-bottom:1px solid #cbd3de;white-space:nowrap}.data-table td{padding:5px;border-bottom:1px solid #e5e9ef;vertical-align:top}.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid #bcc6d3;border-radius:4px;background:#fff;font:inherit}.data-table input[readonly]{background:#f3f5f8;color:#5d6877}.data-table .missing{border:2px solid #f08a24!important;background:#fff3e4!important}.tbl-feedback{color:#a13b16;font-size:12px;display:block;max-width:400px}.table-place{white-space:nowrap;padding:6px;border:1px solid #1f6feb;border-radius:5px;background:#e6f0ff;cursor:pointer}.table-close{position:absolute;top:10px;right:12px;padding:10px 14px!important;background:#a13b16!important;color:#fff!important;border-color:#7d2d10!important;font-weight:700;cursor:pointer}.table-close:hover{background:#7d2d10!important}.tbl-head button:disabled{opacity:.4;background:#e1e5ea!important;color:#66707c!important;border-color:#c5ccd5!important;cursor:not-allowed}.tbl-note{padding:8px 16px;background:#fff8e8;border-bottom:1px solid #e8c56c;font-size:13px}
 </style>
 <div id="table-screen" role="dialog" aria-modal="true" aria-label="Daten als Tabelle">
- <div class="tbl-head"><h2>Daten als Tabelle</h2><label>Ebene <select id="tbl-layer" aria-label="Ebene auswählen"></select></label><input id="tbl-search" type="search" placeholder="Suchen …" aria-label="Tabelle durchsuchen"><button data-filter="all">Alle</button><button data-filter="unplaced">Ohne Ort</button><button data-filter="missing">Fehlende Angaben</button><span id="tbl-count" class="tbl-status"></span><label>Neu als <select id="tbl-new-kind" aria-label="Objektart für neuen Datensatz"><option value="point">Punkt / Schrank</option><option value="line">Verbindung</option></select></label><button id="tbl-new">＋ Neuer Datensatz</button><button id="tbl-undo">↶ Zurück</button><button id="tbl-redo">↷ Vor</button><button id="tbl-import">⬆ Import</button><button id="tbl-export">⬇ Export</button><button id="tbl-close" class="table-close">× Zurück zum Plan</button></div>
+ <div class="tbl-head"><h2>Daten als Tabelle</h2><label>Technikkategorien <select id="tbl-layer" aria-label="Technikkategorie auswählen"></select></label><input id="tbl-search" type="search" placeholder="Suchen …" aria-label="Tabelle durchsuchen"><button data-filter="all">Alle</button><button data-filter="unplaced">Ohne Ort</button><button data-filter="missing">Fehlende Angaben</button><span id="tbl-count" class="tbl-status"></span><button id="tbl-new">＋ Neuer Datensatz</button><button id="tbl-new-cabinet" hidden>＋ Schrank</button><button id="tbl-new-connection" hidden>＋ Verbindung</button><button id="tbl-undo">↶ Zurück</button><button id="tbl-redo">↷ Vor</button><button id="tbl-import">⬆ Import</button><button id="tbl-export">⬇ Export</button><button id="tbl-close" class="table-close">× Zurück zum Plan</button></div>
  <div class="tbl-note">Orange markiert fehlende, für den jeweiligen Objekttyp relevante Angaben. <b>Notiz</b> ist optional. „Ohne Ort“ zeigt Objekte ohne vollständige gültige Koordinaten.</div>
  <div class="tbl-wrap"><div id="tbl-message" class="tbl-feedback" aria-live="polite"></div><table class="data-table"><thead></thead><tbody></tbody></table></div>
 </div>
@@ -480,7 +486,6 @@ function loadPlan(id){closePopup(false);
  svg=createPlanSvg(p);overlay=attachOverlay(svg);
  stage.replaceChildren(svg);
  svg.classList.toggle('hide-labels',!$('chk-labels').checked);
- $('title-sub').textContent=p.name+' – '+p.sub;
  document.querySelectorAll('[data-plan]').forEach(b=>b.classList.toggle('active',b.dataset.plan===id));
  applyVB();mode();refreshUI();runSearch(false);
  try{history.replaceState(null,'','#'+id)}catch{}
@@ -1341,7 +1346,13 @@ async function exportPdf(){
   setTimeout(()=>{err.style.display='none'},8000);
  }finally{button.disabled=false}
 }
-$('btn-pdf').onclick=exportPdf;
+function openPrintPopup(){const popup=$('print-popup');popup.classList.add('show');popup.setAttribute('aria-hidden','false');$('pdf-mode').focus()}
+function closePrintPopup(){const popup=$('print-popup');popup.classList.remove('show');popup.setAttribute('aria-hidden','true')}
+$('btn-pdf').onclick=openPrintPopup;
+$('print-cancel').onclick=closePrintPopup;$('print-close').onclick=closePrintPopup;
+$('print-popup').onclick=event=>{if(event.target===$('print-popup'))closePrintPopup()};
+$('print-confirm').onclick=()=>{closePrintPopup();exportPdf()};
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('print-popup').classList.contains('show')){event.stopImmediatePropagation();closePrintPopup()}},true);
 
 /* ---------- Detail-Popup (nur Ansichtsmodus): Klick auf ein Objekt zeigt alle Daten ---------- */
 let popup=null; /* {layer,id,plan} */
@@ -1491,7 +1502,7 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
  function input(value,label,missing,onchange,readonly=false){const e=document.createElement('input');e.value=value??'';e.readOnly=readonly;e.setAttribute('aria-label',label);if(missing){e.classList.add('missing');e.title='Fehlende Angabe'}if(!readonly)e.onchange=()=>onchange(e.value);return e}
  function tableRender(){
   if(!tableOpen)return;
-  const layerId=$('tbl-layer').value,layer=LAYERS[layerId],query=$('tbl-search').value.toLowerCase(),head=$('table-screen').querySelector('thead'),body=$('table-screen').querySelector('tbody');head.replaceChildren();body.replaceChildren();
+  const layerId=$('tbl-layer').value,layer=LAYERS[layerId],query=$('tbl-search').value.toLowerCase(),head=$('table-screen').querySelector('thead'),body=$('table-screen').querySelector('tbody');updateTableControls(layerId);head.replaceChildren();body.replaceChildren();
   const columns=['Plan','ID','Objektart',...allFields(layer).map(f=>f[1]),'X','Y','Punkte','Aktion'];const trh=document.createElement('tr');columns.forEach(x=>{const th=document.createElement('th');th.textContent=x;trh.append(th)});head.append(trh);
   const rows=records(layerId).filter(({o,plan})=>{const text=[plan,o.id,...Object.values(o)].join(' ').toLowerCase();return(!query||text.includes(query))&&(tableFilter==='all'||tableFilter==='unplaced'&&!valid(o)||tableFilter==='missing'&&(fieldsFor(layer,o).some(([k])=>missingField(k,o[k]))||!valid(o)))});
   rows.forEach(({o,plan})=>{
@@ -1506,11 +1517,13 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
   });
   $('tbl-count').textContent=rows.length+' von '+records(layerId).length+' Datensätzen';['all','unplaced','missing'].forEach(f=>document.querySelector('[data-filter="'+f+'"]').classList.toggle('active',tableFilter===f));
  }
- function openTable(){tableOpen=true;$('table-screen').classList.add('show');const s=$('tbl-layer');if(!s.options.length)Object.values(LAYERS).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.label;s.append(o)});if(active)s.value=active;tableRender()}
+ function updateTableControls(layerId=$('tbl-layer').value){const layer=LAYERS[layerId],history=historyBy[layerId];$('tbl-undo').disabled=!history.undo.length;$('tbl-redo').disabled=!history.redo.length;$('tbl-new').hidden=layer.kind==='mixed';$('tbl-new-cabinet').hidden=layer.kind!=='mixed';$('tbl-new-connection').hidden=layer.kind!=='mixed'}
+ function createTableRecord(kind){const layerId=$('tbl-layer').value,layer=LAYERS[layerId],line=kind==='line',o={id:newId(layer,null,line),name:'',notiz:''};if(line)o.points=[];else{o.x='';o.y=''}change(layerId,()=>inventory[current][layerId].push(o));msg('Neuer Datensatz im aktuellen Plan angelegt.');tableRender()}
+ function openTable(){tableOpen=true;$('table-screen').classList.add('show');const s=$('tbl-layer');if(!s.options.length)Object.values(LAYERS).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.label;s.append(o)});if(active)s.value=active;updateTableControls();tableRender()}
  function closeTable(){tableOpen=false;$('table-screen').classList.remove('show');refreshUI()}
  function startPlacement(layerId,o,plan){if(isLine(o))return;placement={layerId,id:o.id,plan};active=layerId;tool='select';drawing=[];previewPoint=null;loadPlan(plan);closeTable();$('status').textContent='Platzierung aktiv: auf den Plan klicken; Esc bricht ab.'}
- $('btn-table').onclick=openTable;$('tbl-close').onclick=closeTable;$('tbl-layer').onchange=tableRender;$('tbl-search').oninput=tableRender;document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{tableFilter=b.dataset.filter;tableRender()});
- $('tbl-new').onclick=()=>{const layerId=$('tbl-layer').value,layer=LAYERS[layerId],line=layer.kind==='mixed'&&$('tbl-new-kind').value==='line',o={id:newId(layer,null,line),name:'',notiz:''};if(line)o.points=[];else{o.x='';o.y=''}change(layerId,()=>inventory[current][layerId].push(o));msg('Neuer Datensatz im aktuellen Plan angelegt.')};
+ $('btn-table').onclick=openTable;$('tbl-close').onclick=closeTable;$('tbl-layer').onchange=()=>{updateTableControls();tableRender()};$('tbl-search').oninput=tableRender;document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{tableFilter=b.dataset.filter;tableRender()});
+ $('tbl-new').onclick=()=>createTableRecord('point');$('tbl-new-cabinet').onclick=()=>createTableRecord('point');$('tbl-new-connection').onclick=()=>createTableRecord('line');
  $('tbl-undo').onclick=()=>{active=$('tbl-layer').value;undo();tableRender()};$('tbl-redo').onclick=()=>{active=$('tbl-layer').value;redo();tableRender()};$('tbl-import').onclick=()=>{active=$('tbl-layer').value;closeTable();openPicker(active)};$('tbl-export').onclick=()=>excelExport($('tbl-layer').value);
  stage.addEventListener('pointerdown',event=>{if(!placement)return;event.preventDefault();event.stopImmediatePropagation();const p=placement,o=inventory[p.plan][p.layerId].find(x=>x.id===p.id);if(!o){placement=null;return}const q=planPoint(toSvg(event.clientX,event.clientY),p.plan);change(p.layerId,()=>{o.x=q.x;o.y=q.y});selected=o.id;placement=null;$('status').textContent='Objekt platziert.'},{capture:true});
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&placement){placement=null;$('status').textContent='Platzierung abgebrochen.'}},true);
