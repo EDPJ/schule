@@ -1,7 +1,7 @@
 'use strict';
 /* Gebäudedaten für gebaeudeplan.html.
    PLANS und geometry: Gebäudepläne mit SVG-Pfaden.
-   Bereinigt; MLK auf einheitliche Plan-Basisschrift skaliert. */
+   Nur Linien mit 0°/45°/90° (vereinzelt 22,5°/67,5°), keine Kurven, keine Doppellinien. */
 
 const PLANS=[
 {id:'ebene1',name:'Ebene 1',group:'main',sub:'Hauptgebäude',box:[91, 101, 1133, 789]},
