@@ -272,38 +272,72 @@ function frameBox(plan){
  return gridOn?gridRef(plan.id).box.slice():plan.box.slice();
 }
 
+/* =====================================================================
+   ZENTRALE DARSTELLUNG – Schrift und Linien für ALLE Pläne an EINER Stelle
+   Diese Werte gelten für Ebene 1–4 und MLK einheitlich. Die Einzelwerte aus
+   gebaudedaten.js (outerWidth, innerWidth, size, Schriftgrößen je Plan) werden
+   dann nicht mehr verwendet. Nur die RELATIVEN Größenverhältnisse der Beschriftungen
+   (z. B. kleine Räume = kleinere Schrift) bleiben erhalten.
+   unify:false  → alte Darstellung aus gebaudedaten.js
+   groupScale   → Faktor je Plangruppe (main = Ebene 1–4, mlk = separates Gebäude),
+           falls ein Plan optisch größer/kleiner dargestellt werden soll
+   ===================================================================== */
+const PLAN_STYLE={
+  unify:true,
+  font:{family:'Arial, Helvetica, sans-serif',size:5.6,weight:'normal',weightBold:'bold',style:'normal',color:'#111'},
+  lines:{
+    outer:3.5,outerColor:'#000',  /* Gebäudeumriss */
+    inner:1.4,innerColor:'#222',  /* Innenwände */
+    stairs:1.4,     /* Treppenlinien (falls vorhanden) */
+    dashed:1.4,dashArray:'14 8',  /* gestrichelte Terrassenränder */
+    fillOutline:0.8,fillOutlineColor:'#111', /* Kontur Treppenhäuser / Aufzug */
+    join:'miter',cap:'square'
+  },
+  groupScale:{main:1,mlk:1}
+};
+
 function createPlanSvg(plan){
-  const b=frameBox(plan);
-  const root=S('svg',{xmlns:NS,viewBox:b.join(' '),preserveAspectRatio:'xMidYMid meet'});
-  root.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
-  root.append(S('rect',{x:b[0],y:b[1],width:b[2],height:b[3],fill:'#fff','data-bg':'true'}));
-  const data=geometry[plan.id];
-  /* Treppenhäuser (rot) und Aufzug (blau) als Füllung unter den Wänden und Texten */
-  const fills=(list,color)=>{
-   const g=S('g',{fill:color,stroke:'#111','stroke-width':0.8});
-   (list||[]).forEach(d=>g.append(S('path',{d})));
-   root.append(g);
-  };
-  fills(data.stairwells,'#e22b0e');
-  fills(data.lift,'#1f5fd0');
-  function paths(list,width,color='#222',extra={}){
-   const g=S('g',{fill:'none',stroke:color,'stroke-width':width,'stroke-linejoin':'miter','stroke-linecap':'square',...extra});
-   (list||[]).forEach(d=>g.append(S('path',{d})));
-   root.append(g);
-   return g;
-  }
-  const inner=paths(data.inner,data.innerWidth||3);
-  (data.rects||[]).forEach(([x,y,width,height])=>inner.append(S('rect',{x,y,width,height})));
-  paths(data.outer,data.outerWidth||9,'#000');
-  paths(data.stairs,2);
-  paths(data.dashed,3,'#000',{'stroke-dasharray':'14 8'});
-  const names=S('g',{'font-family':'Arial, Helvetica, sans-serif',fill:'#111','text-anchor':'middle'});
-  data.texts.forEach(([text,x,y,size,bold])=>{
-   const t=S('text',{x,y,'font-size':size||data.size,'font-weight':bold||data.bold?'bold':'normal'});
-   t.textContent=text;names.append(t);
-  });
-  root.append(names);
-  return root;
+const b=frameBox(plan);
+const root=S('svg',{xmlns:NS,viewBox:b.join(' '),preserveAspectRatio:'xMidYMid meet'});
+root.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+root.append(S('rect',{x:b[0],y:b[1],width:b[2],height:b[3],fill:'#fff','data-bg':'true'}));
+const data=geometry[plan.id];
+const st=PLAN_STYLE,L=st.lines,F=st.font,u=!!st.unify;
+const k=u?((st.groupScale||{})[plan.group]??1):1;
+/* Linienstärke: einheitlich (unify) oder alter Wert aus den Gebäudedaten */
+const W=(unified,own,fallback)=>u?unified*k:(own??fallback);
+/* Treppenhäuser (rot) und Aufzug (blau) als Füllung unter den Wänden und Texten */
+const fills=(list,color)=>{
+const g=S('g',{fill:color,stroke:u?L.fillOutlineColor:'#111','stroke-width':W(L.fillOutline,0.8,0.8)});
+(list||[]).forEach(d=>g.append(S('path',{d})));
+root.append(g);
+};
+fills(data.stairwells,'#e22b0e');
+fills(data.lift,'#1f5fd0');
+function paths(list,width,color='#222',extra={}){
+const g=S('g',{fill:'none',stroke:color,'stroke-width':width,'stroke-linejoin':L.join,'stroke-linecap':L.cap,...extra});
+(list||[]).forEach(d=>g.append(S('path',{d})));
+root.append(g);
+return g;
+}
+const inner=paths(data.inner,W(L.inner,data.innerWidth,3),u?L.innerColor:'#222');
+(data.rects||[]).forEach(([x,y,width,height])=>inner.append(S('rect',{x,y,width,height})));
+paths(data.outer,W(L.outer,data.outerWidth,9),u?L.outerColor:'#000');
+paths(data.stairs,W(L.stairs,2,2));
+paths(data.dashed,W(L.dashed,3,3),'#000',{'stroke-dasharray':u?L.dashArray:'14 8'});
+/* Beschriftungen: gleiche Schriftart, Farbe, Strichstärke und Basisgröße in allen Plänen */
+const names=S('g',{'font-family':u?F.family:'Arial, Helvetica, sans-serif','font-style':u?F.style:'normal',fill:u?F.color:'#111','text-anchor':'middle'});
+data.texts.forEach(([text,x,y,size,bold])=>{
+const own=size||data.size;
+const base=data.size||own;
+const fs=u?F.size*k*(own/base):own;
+/* Grundlinie so verschieben, dass die Beschriftung optisch an derselben Stelle (Mitte) bleibt */
+const yy=u?y+0.35*(fs-own):y;
+const t=S('text',{x,y:Math.round(yy*100)/100,'font-size':Math.round(fs*100)/100,'font-weight':bold||data.bold?(u?F.weightBold:'bold'):(u?F.weight:'normal')});
+t.textContent=text;names.append(t);
+});
+root.append(names);
+return root;
 }
 
 /* ---------- Daten und Zustand ---------- */
