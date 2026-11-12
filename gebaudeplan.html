@@ -401,7 +401,7 @@ function layerList(){
    count.textContent=cabinets+(cabinets===1?' Schrank':' Schränke')+' · '+lines+(lines===1?' Verbindung':' Verbindungen');
   }else count.textContent=list.length+(list.length===1?' Objekt':' Objekte');
   text.append(name,count);
-  const button=document.createElement('button');button.textContent=active===l.id?'✓ Ende':'✏️ Bearbeiten';
+  const button=document.createElement('button');button.textContent=active===l.id?'✓ Beenden':'✏️ Bearbeiten';
   button.onclick=()=>active===l.id?endEdit():startEdit(l.id);
   row.append(check,dot,text,button);box.append(row);
  });
