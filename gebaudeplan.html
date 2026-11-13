@@ -68,6 +68,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .prop{font-size:13px}
 .prop label{display:block;margin:7px 0}
 .prop input,.prop select{width:100%;padding:6px;border:1px solid var(--line);border-radius:5px;font:inherit;background:#fff}
+.prop .missing{border:2px solid #f08a24!important;background:#fff3e4!important}
 .prop .warning{color:#9a5a00;font-size:12px;line-height:1.5}
 .ov{paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
 #drop-cover{display:none;position:absolute;inset:12px;z-index:8;align-items:center;justify-content:center;border:3px dashed var(--accent);border-radius:10px;background:#e6f0fff2;padding:24px;text-align:center;font-size:18px;font-weight:650;pointer-events:none}
@@ -172,7 +173,7 @@ body>*:not(#print-root){display:none!important}
 </section>
 <section id="import-section" hidden>
 <h2>Excel-Import</h2>
-<div class="hint">Excel-Datei (.xlsx oder .xls) auf die Planfläche ziehen. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
+<div class="hint">Excel-Datei (.xlsx) auf die Planfläche ziehen. Pflichtspalten: ID, Name, Ort. Alle weiteren Spalten werden als Zusatzinformationen übernommen. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
 <div id="import-feedback" role="status" aria-live="polite">Noch keine Datei importiert.</div>
 </section>
 <section id="properties" class="prop" hidden></section>
@@ -185,7 +186,7 @@ body>*:not(#print-root){display:none!important}
 <button id="zreset" title="Gesamten Plan anzeigen · Taste 0">↺ Zoom zurücksetzen</button>
 </div>
 <div class="editbar" id="editbar"></div>
-<input id="xlsx-file" type="file" accept=".xlsx,.xls" hidden>
+<input id="xlsx-file" type="file" accept=".xlsx" hidden>
 <div class="status" id="status"></div>
 <div id="popup" role="dialog" aria-label="Objektdetails"></div>
 <div id="drop-cover">Excel-Datei hier ablegen</div>
@@ -212,8 +213,8 @@ body>*:not(#print-root){display:none!important}
   <div class="tbl-wrap"><table class="data-table"><thead></thead><tbody></tbody></table></div>
 </div>
 
-<!-- Excel-Bibliothek (benötigt Internet) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Excel-Bibliothek ExcelJS (benötigt Internet): liest und schreibt auch die Zellformatierung -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
 <!-- Gebäudedaten: Datei muss im selben Ordner liegen wie diese HTML-Datei -->
 <script src="gebaudedaten.js"></script>
@@ -243,13 +244,16 @@ const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 
 /* Die Ebene „schraenke“ ist eine gemischte Ebene (kind:'mixed'):
    Sie enthält Netzwerkschränke (Punkte mit x/y) UND Verbindungen (Linien mit points). */
+const isNoteKey=key=>/^notiz/.test(key);
+/* Zusatzspalte einer Ebene: Pflichtangabe außer „Notiz“. point/line: gilt für Schränke bzw. Verbindungen. */
+const EX=(key,label,flags={})=>({key,label,required:!isNoteKey(key),point:true,line:true,...flags});
+/* Feste Spalten jeder Ebene: ID, Name, Ort. Die Zusatzspalten (extras) werden beim Excel-Import aus der Datei ermittelt;
+   die hier eingetragenen gelten nur, solange noch nichts importiert wurde. */
 const LAYERS={
-accesspoints:{id:'accesspoints',label:'Accesspoints',color:'#1f6feb',kind:'point',idPrefix:'AP',fields:[['name','Name'],['modell','Modell'],['mac','MAC'],['ip','IP'],['raum','Raum'],['notiz','Notiz']]},
-schraenke:{id:'schraenke',label:'Netzwerkschränke & Verbindungen',color:'#d73a49',lineColor:'#2da44e',kind:'mixed',idPrefix:'SK',linePrefix:'VB',
- fields:[['name','Name'],['typ','Typ'],['raum','Raum'],['notiz','Notiz']],
- lineFields:[['name','Name'],['typ','Typ'],['von','Von'],['nach','Nach'],['notiz','Notiz']],
- exportFields:[['name','Name'],['typ','Typ'],['raum','Raum'],['von','Von'],['nach','Nach'],['notiz','Notiz']]},
-fernseher:{id:'fernseher',label:'Fernseher',color:'#e3a008',kind:'point',idPrefix:'TV',fields:[['name','Name'],['modell','Modell'],['zoll','Zoll'],['ip','IP'],['raum','Raum'],['notiz','Notiz']]}
+accesspoints:{id:'accesspoints',label:'Accesspoints',color:'#1f6feb',kind:'point',idPrefix:'AP',srcId:null,extras:[EX('modell','Modell'),EX('mac','MAC'),EX('ip','IP'),EX('raum','Raum'),EX('notiz','Notiz')]},
+schraenke:{id:'schraenke',label:'Netzwerkschränke & Verbindungen',color:'#d73a49',lineColor:'#2da44e',kind:'mixed',idPrefix:'SK',linePrefix:'VB',srcId:null,
+ extras:[EX('typ','Typ'),EX('raum','Raum',{line:false}),EX('notiz','Notiz')]},
+fernseher:{id:'fernseher',label:'Fernseher',color:'#e3a008',kind:'point',idPrefix:'TV',srcId:null,extras:[EX('modell','Modell'),EX('zoll','Zoll'),EX('ip','IP'),EX('raum','Raum'),EX('notiz','Notiz')]}
 };
 
 /* Verbindungstypen: Mono (Singlemode) = gelb, Multi (Multimode) = orange, Kupfer = blau.
@@ -295,10 +299,110 @@ function textColorFor(layer,o){
  if(isLine(o)){const info=lineTypeInfo(o.typ);return info?info.text:(layer.lineColor||layer.color)}
  return layer.color;
 }
-function fieldsFor(layer,o){return isLine(o)&&layer.lineFields?layer.lineFields:layer.fields}
-function allFields(layer){return layer.exportFields||layer.fields}
+function extrasFor(layer,o){const line=isLine(o);return layer.extras.filter(e=>line?e.line!==false:e.point!==false)}
+function fieldsFor(layer,o){return [['name','Name'],...extrasFor(layer,o).map(e=>[e.key,e.label])]}
 function countOf(list,line){return list.filter(o=>isLine(o)===line).length}
 function isDrawTool(){return tool==='draw'||tool==='drawline'}
+
+/* ---------- Ort, IDs und Verbindungen ----------
+   Jedes Objekt hat die festen Spalten ID (001, 002, …), Name und Ort.
+   Ort eines Objekts:      Plan(X/Y)  z. B. E1(10/50) oder MLK(2/230)
+   Ort einer Verbindung:   ID/ID      z. B. 001/005 (die IDs der beiden Schränke) */
+const isNum=v=>String(v??'').trim()!==''&&Number.isFinite(Number(v));
+function normId(value){
+ const t=String(value??'').trim();
+ return /^\d+$/.test(t)?t.padStart(3,'0'):t;
+}
+/* Kurzname eines Plans für die Ortsangabe: ebene1 → E1, mlk → MLK (optional PLANS[i].code) */
+function planCode(p){
+ if(p.code)return String(p.code);
+ const m=/^ebene\s*(\d+)$/i.exec(String(p.id));
+ return m?'E'+m[1]:String(p.id).toUpperCase();
+}
+function resolvePlan(text){
+ const t=normalized(text);
+ return t?(PLANS.find(p=>normalized(p.id)===t||normalized(planCode(p))===t||normalized(p.name)===t)||null):null;
+}
+const NUM_RE='-?\\d+(?:[.,]\\d+)?';
+const ORT_POINT=new RegExp('^\\s*([^()/]*?)\\s*\\(\\s*('+NUM_RE+')\\s*/\\s*('+NUM_RE+')\\s*\\)\\s*$');
+const ORT_LINK=/^\s*([^\s/()]+)\s*\/\s*([^\s/()]+)\s*$/;
+function parsePointOrt(text){const m=ORT_POINT.exec(String(text??''));return m?{plan:m[1],x:numberValue(m[2]),y:numberValue(m[3])}:null}
+function parseLinkOrt(text){const m=ORT_LINK.exec(String(text??''));return m?[normId(m[1]),normId(m[2])]:null}
+function allRecords(layerId){return PLANS.flatMap(p=>inventory[p.id][layerId].map(o=>({o,plan:p.id})))}
+function layerAll(layerId){return PLANS.flatMap(p=>inventory[p.id][layerId])}
+function findObj(layerId,id){
+ for(const p of PLANS){const o=inventory[p.id][layerId].find(x=>x.id===id);if(o)return {o,plan:p.id}}
+ return null;
+}
+function holderPlan(layerId,o){const p=PLANS.find(q=>inventory[q.id][layerId].includes(o));return p?p.id:null}
+function cabinetById(layerId,id){
+ const t=normalized(normId(id));
+ return t?(layerAll(layerId).find(o=>!isLine(o)&&normalized(o.id)===t)||null):null;
+}
+/* Fehlende Pflichtangaben (alle Spalten außer „Notiz“) */
+function missingKeys(layer,o){
+ const out=[];
+ if(!String(o.name??'').trim())out.push('Name');
+ extrasFor(layer,o).forEach(e=>{if(e.required&&!String(o[e.key]??'').trim())out.push(e.label)});
+ return out;
+}
+function ortValid(layerId,o){
+ if(isLine(o))return !!o.von&&!!o.nach&&!!cabinetById(layerId,o.von)&&!!cabinetById(layerId,o.nach);
+ return isNum(o.x)&&isNum(o.y);
+}
+function ortText(planId,o){
+ if(isLine(o))return (o.von||o.nach)?(o.von||'')+'/'+(o.nach||''):(o._ort||'');
+ if(isNum(o.x)&&isNum(o.y)){const p=PLANS.find(q=>q.id===planId);return (p?planCode(p):'')+'('+o.x+'/'+o.y+')'}
+ return o._ort||'';
+}
+/* Prüft eine Ortsangabe. Ungültig → Hinweis und null. Gültig → Funktion, die die Änderung ausführt
+   (und die Plan-ID zurückgibt, auf der das Objekt danach liegt). */
+function prepareOrt(layerId,o,text){
+ const t=String(text??'').trim(),holder=holderPlan(layerId,o);
+ if(isLine(o)){
+  if(!t)return ()=>{o.von='';o.nach='';delete o._ort;return holder};
+  const l=parseLinkOrt(t);
+  if(!l){toast('Ort einer Verbindung: ID/ID, z. B. 001/005.','warn');return null}
+  return ()=>{o.von=l[0];o.nach=l[1];delete o._ort;return holder};
+ }
+ if(!t)return ()=>{o.x='';o.y='';delete o._ort;return holder};
+ const r=parsePointOrt(t);
+ if(!r){toast('Ort: Plan(X/Y), z. B. E1(10/50) oder MLK(2/230).','warn');return null}
+ const plan=resolvePlan(r.plan);
+ if(!plan){toast('Unbekannter Plan „'+r.plan+'“. Gültig: '+PLANS.map(planCode).join(', ')+'.','warn');return null}
+ const b=plan.box;
+ if(!Number.isFinite(r.x)||!Number.isFinite(r.y)||r.x<b[0]||r.x>b[0]+b[2]||r.y<b[1]||r.y>b[1]+b[3]){
+  toast('Die Koordinaten liegen außerhalb des Plans '+planCode(plan)+'.','warn');return null;
+ }
+ return ()=>{
+  o.x=r.x;o.y=r.y;delete o._ort;
+  if(holder&&plan.id!==holder){
+   inventory[holder][layerId]=inventory[holder][layerId].filter(x=>x!==o);
+   inventory[plan.id][layerId].push(o);
+  }
+  return plan.id;
+ };
+}
+/* Verbindungen: Linie = gerade Verbindung zwischen den beiden Schränken (nur wenn beide auf demselben Plan liegen).
+   Die Verbindung wird dem Plan ihres „Von“-Schranks zugeordnet. */
+function syncLines(layerId){
+ const layer=LAYERS[layerId];if(!layer||layer.kind!=='mixed')return;
+ const cabs=new Map(),lines=[];
+ PLANS.forEach(p=>inventory[p.id][layerId].forEach(o=>{
+  if(isLine(o))lines.push({o,plan:p.id});else cabs.set(normalized(o.id),{o,plan:p.id});
+ }));
+ lines.forEach(({o,plan})=>{
+  const a=cabs.get(normalized(normId(o.von))),b=cabs.get(normalized(normId(o.nach)));
+  const ok=a&&b&&a.plan===b.plan&&isNum(a.o.x)&&isNum(a.o.y)&&isNum(b.o.x)&&isNum(b.o.y);
+  o.points=ok?[{x:Number(a.o.x),y:Number(a.o.y)},{x:Number(b.o.x),y:Number(b.o.y)}]:[];
+  const home=a?a.plan:(b?b.plan:plan);
+  if(home!==plan){
+   inventory[plan][layerId]=inventory[plan][layerId].filter(x=>x!==o);
+   inventory[home][layerId].push(o);
+  }
+ });
+}
+function syncAll(){Object.keys(LAYERS).forEach(syncLines)}
 
 /* ---------- Planquadrat-Raster ----------
    Alle Pläne einer Gruppe (Hauptgebäude: Ebene 1–4) nutzen exakt dasselbe Raster:
@@ -387,7 +491,7 @@ let svg,overlay,base,vb,current,active=null,selected=null,tool='select',drawing=
 let gridOn=false,gesture=null,lastPointer=null,previewPoint=null,pendingImport=null,importBusy=false;
 let pickerLayer=null,importSerial=0,drawType=DEFAULT_LINE_TYPE;
 const MIN_ZOOM=2/3,MAX_ZOOM=25;
-function layerState(id){return copy(Object.fromEntries(PLANS.map(p=>[p.id,inventory[p.id][id]])))}
+function layerState(id){const st=copy(Object.fromEntries(PLANS.map(p=>[p.id,inventory[p.id][id]])));st._meta={extras:copy(LAYERS[id].extras),src:LAYERS[id].srcId??null};return st}
 function recordHistory(id,before){
  const h=historyBy[id];h.undo.push(before);
  if(h.undo.length>100)h.undo.shift();
@@ -395,11 +499,10 @@ function recordHistory(id,before){
 }
 function snapshot(){if(active)recordHistory(active,layerState(active))}
 function getObj(){return active&&selected?inventory[current][active].find(o=>o.id===selected):null}
-function newId(layer,used,line){
- const prefix=line&&layer.linePrefix?layer.linePrefix:layer.idPrefix;
- const ids=used||new Set(PLANS.flatMap(p=>inventory[p.id][layer.id].map(o=>o.id)));
+function newId(layer,used){
+ const ids=used||new Set(layerAll(layer.id).map(o=>o.id));
  let n=1,id;
- do{id=prefix+'-'+String(n++).padStart(3,'0')}while(ids.has(id));
+ do{id=String(n++).padStart(3,'0')}while(ids.has(id));
  return id;
 }
 function planPoint(p,planId=current){
@@ -412,8 +515,8 @@ function updateStatus(){
  const zoom=base[2]/vb[2]*100;
  const coordinates=lastPointer?'x: '+Math.round(lastPointer.x)+' · y: '+Math.round(lastPointer.y)+' | ':'';
  let instruction=active&&isDrawTool()
- ?(tool==='drawline'?'Klicken: Linienpunkte (rastet an Schränken ein) · Enter: fertig · Esc: abbrechen':'Klicken: Objekt setzen')
- :'Mausrad: Zoom · Ziehen: Verschieben'+(active?'':' · Klick auf Objekt: Details');
+ ?(tool==='drawline'?'Klicken: erst Start-Schrank, dann Ziel-Schrank · Esc: abbrechen':'Klicken: Objekt setzen')
+ :'Mausrad: Zoom · Ziehen: Verschieben · Klick auf Objekt: Details';
  $('status').textContent=coordinates+'Zoom: '+new Intl.NumberFormat('de-DE',{maximumFractionDigits:1}).format(zoom)+' % | '+instruction;
 }
 function applyVB(){if(svg&&vb){svg.setAttribute('viewBox',vb.join(' '));updateStatus()}}
@@ -514,70 +617,39 @@ function endEdit(){
  clearDrop();
  mode();refreshUI();
 }
-function refreshUI(){renderOverlay();layerList();toolbar();properties();updateStatus()}
+function refreshUI(){renderOverlay();layerList();toolbar();properties();updateStatus();refreshPopup()}
 
-/* ---------- Zuordnung Schrank ↔ Verbindung (Hervorhebung, Mitbewegen, Einrasten) ---------- */
-function near(p,cab,size){return Math.hypot(p.x-cab.x,p.y-cab.y)<=size*ATTACH}
-/* Eine Verbindung gehört zu einem Schrank, wenn „Von“ oder „Nach“ dessen Name/ID enthält
-   oder wenn Anfangs- bzw. Endpunkt der Linie direkt am Schrank liegt. */
-function refersTo(text,cab){
- const t=normalized(text);
- return !!t&&(t===normalized(cab.name)||t===normalized(cab.id));
-}
-function endsAt(line,cab,size){
- return near(line.points[0],cab,size)||near(line.points[line.points.length-1],cab,size);
-}
-function lineTouches(line,cab,size){
- return refersTo(line.von,cab)||refersTo(line.nach,cab)||endsAt(line,cab,size);
-}
+/* ---------- Zuordnung Schrank ↔ Verbindung ----------
+   Eine Verbindung verweist über ihren Ort („001/005“) auf die IDs zweier Schränke.
+   Die Linie im Plan wird daraus berechnet und folgt den Schränken automatisch. */
+function refersTo(text,cab){const t=normalized(normId(text));return !!t&&t===normalized(cab.id)}
+function lineTouches(line,cab){return refersTo(line.von,cab)||refersTo(line.nach,cab)}
 /* Liefert die hervorzuhebenden Verbindungen und die Schränke am anderen Ende
    (nur im Werkzeug „Auswählen“ und wenn ein Schrank gewählt ist). */
 function highlightInfo(planId=current){
  if(!active||tool!=='select'||LAYERS[active].kind!=='mixed')return null;
  const sel=getObj();
  if(!sel||isLine(sel))return null;
- const size=planSize(planId),items=inventory[planId][active];
- const lines=items.filter(o=>isLine(o)&&lineTouches(o,sel,size));
- const partners=items.filter(o=>!isLine(o)&&o.id!==sel.id&&lines.some(l=>lineTouches(l,o,size)));
+ const items=inventory[planId][active];
+ const lines=items.filter(o=>isLine(o)&&lineTouches(o,sel));
+ const partners=items.filter(o=>!isLine(o)&&o.id!==sel.id&&lines.some(l=>lineTouches(l,o)));
  return {lines:new Set(lines.map(l=>l.id)),partners:new Set(partners.map(p=>p.id))};
 }
-/* Welche Linienenden hängen an diesem Schrank? Geometrisch (Ende liegt am Schrank);
-   liegt keines der beiden Enden am Schrank, zählt „Von“ = Anfang und „Nach“ = Ende. */
-function cabinetLinks(cab,planId,layerId){
- const size=planSize(planId);
- return inventory[planId][layerId].filter(isLine).map(line=>{
-  let start=near(line.points[0],cab,size),end=near(line.points[line.points.length-1],cab,size);
-  if(!start&&!end){
-   if(refersTo(line.von,cab))start=true;
-   if(refersTo(line.nach,cab))end=true;
-  }
-  return {id:line.id,start,end,points:copy(line.points)};
- }).filter(l=>l.start||l.end);
-}
-/* Verbindungsenden um den Verschiebeweg des Schranks mitbewegen */
-function moveLinks(g){
- if(!g.links||!g.links.length)return;
- const mx=g.object.x-g.original.x,my=g.object.y-g.original.y;
- const items=inventory[g.plan][g.layer];
- g.links.forEach(l=>{
-  const line=items.find(o=>o.id===l.id);if(!line)return;
-  const pts=copy(l.points),last=pts.length-1;
-  if(l.start)pts[0]=planPoint({x:pts[0].x+mx,y:pts[0].y+my},g.plan);
-  if(l.end)pts[last]=planPoint({x:pts[last].x+mx,y:pts[last].y+my},g.plan);
-  line.points=pts;
+/* Nächstgelegener Schrank innerhalb des Fangradius */
+function cabinetNear(p,planId,layerId){
+ let best=null,bestD=planSize(planId)*ATTACH;
+ inventory[planId][layerId].forEach(o=>{
+  if(isLine(o)||!isNum(o.x)||!isNum(o.y))return;
+  const d=Math.hypot(Number(o.x)-p.x,Number(o.y)-p.y);
+  if(d<=bestD){best=o;bestD=d}
  });
+ return best;
 }
-/* Punkt auf die Mitte eines nahen Schranks einrasten lassen */
 function snapToCabinet(p,planId,layerId){
  const layer=LAYERS[layerId];
  if(!layer||layer.kind!=='mixed')return p;
- let best=null,bestD=planSize(planId)*ATTACH;
- inventory[planId][layerId].forEach(o=>{
-  if(isLine(o))return;
-  const d=Math.hypot(o.x-p.x,o.y-p.y);
-  if(d<=bestD){best=o;bestD=d}
- });
- return best?{x:best.x,y:best.y}:p;
+ const c=cabinetNear(p,planId,layerId);
+ return c?{x:Number(c.x),y:Number(c.y)}:p;
 }
 
 /* ---------- SVG-Ebenen und Raster ---------- */
@@ -659,6 +731,7 @@ function draw(layer,o,size,editing,hl=null,hit=editing){
 }
 function renderOverlay(target=svg,planId=current,exporting=false){
  if(!target)return;
+ syncAll();
  drawGrid(target,planId);
 if(!exporting)drawPopupMark(target,planId);
  const size=planSize(planId);
@@ -670,14 +743,12 @@ if(!exporting)drawPopupMark(target,planId);
   g.style.opacity=!exporting&&active&&active!==layer.id?'.3':'1';
   const editing=!exporting&&active===layer.id;
   const hit=editing||(!exporting&&!active);g.setAttribute('pointer-events',hit?'all':'none');
-  const items=inventory[planId][layer.id].filter(o=>isLine(o)?Array.isArray(o.points)&&o.points.length>=2&&o.points.every(q=>Number.isFinite(Number(q.x))&&Number.isFinite(Number(q.y))):Number.isFinite(Number(o.x))&&Number.isFinite(Number(o.y)));
+  const items=inventory[planId][layer.id].filter(o=>isLine(o)?Array.isArray(o.points)&&o.points.length>=2&&o.points.every(q=>Number.isFinite(Number(q.x))&&Number.isFinite(Number(q.y))):isNum(o.x)&&isNum(o.y));
   const layerHl=hl&&layer.id===active?hl:null;
   /* Verbindungen zuerst zeichnen (hervorgehobene zuletzt), damit die Schränke darüber liegen */
   const lines=items.filter(isLine);
   if(layerHl)lines.sort((a,b)=>layerHl.lines.has(a.id)-layerHl.lines.has(b.id));
   [...lines,...items.filter(o=>!isLine(o))].forEach(o=>g.append(draw(layer,o,size,editing,layerHl,hit)));
-  const sel=editing&&selected?getObj():null;
-  if(sel&&isLine(sel))drawHandles(g,size);
  });
  if(!exporting)drawPreview();
 }
@@ -709,6 +780,7 @@ function drawPreview(){
 /* ---------- Historie, Eigenschaften und Werkzeuge ---------- */
 function restore(state,id){
  PLANS.forEach(p=>inventory[p.id][id]=copy(state[p.id]));
+ if(state._meta){LAYERS[id].extras=copy(state._meta.extras);LAYERS[id].srcId=state._meta.src}
  if(selected&&!getObj())selected=null;
  dirty[id]=true;refreshUI();
 }
@@ -730,11 +802,13 @@ function deleteSelected(){
  snapshot();inventory[current][active]=inventory[current][active].filter(o=>o.id!==selected);
  selected=null;changed();
 }
-function finishLine(){
- if(!active||tool!=='drawline'||drawing.length<2)return;
+/* Verbindung anlegen: erst Start-Schrank, dann Ziel-Schrank anklicken */
+function finishLine(target){
+ if(!active||tool!=='drawline'||!drawing.length||!target)return;
  snapshot();
  const layer=LAYERS[active];
- const object={id:newId(layer,null,true),points:copy(drawing),name:'VB '+(countOf(inventory[current][active],true)+1),typ:drawType};
+ const object={id:newId(layer),name:'VB '+(countOf(inventory[current][active],true)+1),von:drawing[0].id,nach:target.id,points:[]};
+ if(layer.extras.some(e=>e.key==='typ'))object.typ=drawType;
  inventory[current][active].push(object);selected=object.id;drawing=[];previewPoint=null;changed();
 }
 function toolbar(){
@@ -752,11 +826,10 @@ function toolbar(){
  if(layer.kind==='mixed'){
   button('➕ '+ELEMENT_NAME[active],()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
   button('➕ Verbindung',()=>{tool='drawline';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='drawline');
-  if(tool==='drawline')button('✓ Linie fertig',finishLine,drawing.length<2);
   /* Typ der Verbindung wählen: für neue Verbindungen (Zeichenwerkzeug) oder für die ausgewählte Verbindung */
   const sel=getObj();
   const lineSelected=!!sel&&isLine(sel)&&tool==='select';
-  if(tool==='drawline'||lineSelected){
+  if((tool==='drawline'||lineSelected)&&layer.extras.some(e=>e.key==='typ')){
    const label=document.createElement('span');label.className='layer-name';
    label.textContent=tool==='drawline'?'Typ neue Verbindung:':'Typ der Verbindung:';
    bar.append(label);
@@ -791,7 +864,7 @@ function properties(){
  if(!object){
   const text=document.createElement('div');text.className='hint';
   text.textContent=layer.kind==='mixed'
-   ?'Objekt auswählen und ziehen oder mit „Netzwerkschrank“ bzw. „Verbindung“ anlegen. Ein Klick auf einen Schrank hebt seine Verbindungen hervor; beim Verschieben des Schranks wandern die Verbindungen mit.'
+   ?'Objekt auswählen und ziehen oder mit „Netzwerkschrank“ anlegen. Für eine „Verbindung“ nacheinander zwei Schränke anklicken. Ein Klick auf einen Schrank hebt seine Verbindungen hervor; Verbindungen folgen den Schränken automatisch.'
    :'Objekt auswählen und ziehen oder mit „'+ELEMENT_NAME[active]+'“ anlegen.';
   box.append(text);return;
  }
@@ -799,6 +872,7 @@ function properties(){
   const wrapper=document.createElement('label');wrapper.textContent=label;
   const input=document.createElement('input');input.type=type;input.value=value??'';input.readOnly=readonly;
   if(type==='number')input.step='1';
+  if(!readonly&&(key==='name'||(layer.extras.find(e=>e.key===key)||{}).required)&&!String(value??'').trim())input.classList.add('missing');
   input.onchange=()=>{
    if(readonly)return;
    if(type==='number'&&(!input.value.trim()||!Number.isFinite(Number(input.value)))){
@@ -827,7 +901,7 @@ function properties(){
   select.onchange=()=>{snapshot();object[key]=select.value;changed()};
   wrapper.append(select);box.append(wrapper);
  }
- field('id','ID',object.id,'text',true);
+field('id','ID',object.id,'text',true);
  fieldsFor(layer,object).forEach(([key,label])=>{
   if(isLine(object)&&key==='typ'){
    /* ältere Schreibweisen (z. B. „mono“) werden passend vorausgewählt */
@@ -835,14 +909,27 @@ function properties(){
    selectField(key,label,info?info.value:object.typ,LINE_TYPES);
   }else field(key,label,object[key]);
  });
- if(!isLine(object)){field('x','X',object.x,'number');field('y','Y',object.y,'number')}
- else field('pointCount','Anzahl Punkte',object.points.length,'number',true);
+ /* Ort: Plan(X/Y) bei Objekten, ID/ID bei Verbindungen */
+ {
+  const holder=holderPlan(active,object);
+  const wrapper=document.createElement('label');wrapper.textContent='Ort';
+  const input=document.createElement('input');input.type='text';input.value=ortText(holder,object);
+  input.placeholder=isLine(object)?'001/005':'E1(10/50)';
+  if(!ortValid(active,object))input.classList.add('missing');
+  input.onchange=()=>{
+   const apply=prepareOrt(active,object,input.value);
+   if(!apply){input.value=ortText(holder,object);return}
+   snapshot();const target=apply();const keep=object.id;changed();
+   if(target&&target!==current){loadPlan(target);selected=keep;refreshUI()}
+  };
+  wrapper.append(input);box.append(wrapper);
+ }
  if(!isLine(object)&&layer.kind==='mixed'){
   const info=highlightInfo();
   const note=document.createElement('div');note.className='hint';
   note.textContent=info&&info.lines.size
-   ?'Hervorgehoben: '+info.lines.size+' Verbindung'+(info.lines.size===1?'':'en')+'. Sie bewegen sich mit, wenn der Schrank verschoben wird.'
-   :'Keine Verbindung gefunden. Zuordnung über „Von“/„Nach“ (Name oder ID des Schranks) oder ein Linienende direkt am Schrank.';
+   ?'Hervorgehoben: '+info.lines.size+' Verbindung'+(info.lines.size===1?'':'en')+'. Sie folgen dem Schrank, wenn er verschoben wird.'
+   :'Keine Verbindung gefunden. Zuordnung über den Ort der Verbindung (ID/ID, z. B. 001/005).';
   box.append(note);
  }
  const remove=document.createElement('button');remove.textContent='Objekt löschen';remove.onclick=deleteSelected;box.append(remove);
@@ -866,7 +953,7 @@ function beginObjectGesture(event,object,index=null,insertAfter=null){
   object.points.splice(index,0,{x:Math.round((a.x+b.x)/2),y:Math.round((a.y+b.y)/2)});
  }
  /* Beim Ziehen eines Schranks: angeschlossene Verbindungsenden merken, damit sie mitwandern */
- const links=(index===null&&!isLine(object)&&LAYERS[layer].kind==='mixed')?cabinetLinks(object,current,layer):[];
+ const links=[];
  gesture={
   type:index===null?'object':'vertex',pointerId:event.pointerId,layer,plan:current,
   object,before,start:toSvg(event.clientX,event.clientY),original:copy(object),index,links,
@@ -897,21 +984,24 @@ stage.addEventListener('pointerdown',event=>{
    const object={id:newId(layer),...planPoint(p),name:layer.idPrefix+' '+(countOf(inventory[current][active],false)+1)};
    inventory[current][active].push(object);selected=object.id;changed();
   }else if(event.detail<2){
-   const q=snapToCabinet(planPoint(p),current,active),last=drawing[drawing.length-1];
-   if(!last||last.x!==q.x||last.y!==q.y)drawing.push(q);
-   previewPoint=q;drawPreview();toolbar();
+   const cab=cabinetNear(planPoint(p),current,active);
+   if(!cab){toast('Bitte auf einen Netzwerkschrank klicken.','warn');return}
+   if(!drawing.length){
+    const start={x:Number(cab.x),y:Number(cab.y)};
+    drawing=[{...start,id:cab.id}];previewPoint=start;drawPreview();toolbar();
+   }else if(drawing[0].id!==cab.id)finishLine(cab);
   }
   return;
  }
  if(active&&tool==='select'){
-  const vertex=event.target.closest('[data-vertex]');
-  const midpoint=event.target.closest('[data-midpoint]');
-  if(vertex&&getObj()){beginObjectGesture(event,getObj(),Number(vertex.dataset.vertex));return}
-  if(midpoint&&getObj()){beginObjectGesture(event,getObj(),null,Number(midpoint.dataset.midpoint));return}
   const element=event.target.closest('[data-id]');
   if(element){
    const object=inventory[current][active].find(o=>o.id===element.dataset.id);
-   if(object){beginObjectGesture(event,object);return}
+   if(object){
+    /* Verbindungen sind nicht verschiebbar (sie folgen den Schränken): nur auswählen und Details zeigen */
+    if(isLine(object)){selected=object.id;openPopup(active,object.id,event.clientX,event.clientY);return}
+    beginObjectGesture(event,object);return;
+   }
   }
  }
  selected=null;
@@ -930,7 +1020,7 @@ stage.addEventListener('pointermove',event=>{
    vb=[g.initial[0]-(q.x-g.start.x),g.initial[1]-(q.y-g.start.y),g.initial[2],g.initial[3]];
    applyVB();lastPointer=toSvg(event.clientX,event.clientY);
   }else{
-   if(Math.hypot(event.clientX-g.startX,event.clientY-g.startY)>2)g.started=true;
+   if(!g.started&&Math.hypot(event.clientX-g.startX,event.clientY-g.startY)>2){g.started=true;closePopup(false)}
    if(g.started){
     if(g.type==='vertex'){
      let q=planPoint(p,g.plan);
@@ -948,8 +1038,6 @@ stage.addEventListener('pointermove',event=>{
       g.object.points=g.original.points.map(p=>({x:p.x+dx,y:p.y+dy}));
      }else{
       Object.assign(g.object,planPoint({x:g.original.x+dx,y:g.original.y+dy},g.plan));
-      /* angeschlossene Verbindungen mitbewegen */
-      moveLinks(g);
      }
     }
     renderOverlay();
@@ -963,9 +1051,12 @@ stage.addEventListener('pointermove',event=>{
 stage.addEventListener('pointerup',event=>{
  if(gesture?.pointerId===event.pointerId){
   const g=gesture;finishGesture(false);
-  /* Klick (kaum bewegt) im Ansichtsmodus: Details öffnen bzw. Popup schließen */
-  if(g.type==='pan'&&!active&&Math.hypot(event.clientX-g.startX,event.clientY-g.startY)<=5){
-   if(g.hit)openPopup(g.hit.layer,g.hit.id,event.clientX,event.clientY);else if(popup)closePopup();
+  /* Klick (kaum bewegt): Details öffnen bzw. Popup schließen – im Ansichts- und im Bearbeitungsmodus */
+  const still=Math.hypot(event.clientX-g.startX,event.clientY-g.startY)<=5;
+  if(g.type==='pan'&&still){
+   if(!active&&g.hit)openPopup(g.hit.layer,g.hit.id,event.clientX,event.clientY);else if(popup)closePopup();
+  }else if(g.type==='object'&&!g.started&&still&&active&&tool==='select'){
+   openPopup(g.layer,g.object.id,event.clientX,event.clientY);
   }
  }
 });
@@ -982,13 +1073,7 @@ stage.addEventListener('wheel',event=>{
 },{passive:false});
 stage.addEventListener('dblclick',event=>{
  event.preventDefault();
- if(active&&tool==='drawline'){finishLine();return}
- const vertex=event.target.closest('[data-vertex]');
- if(active&&vertex){
-  const object=getObj();
-  if(object?.points?.length>2){snapshot();object.points.splice(Number(vertex.dataset.vertex),1);changed()}
-  return;
- }
+ if(active&&tool==='drawline')return;
  if(!event.target.closest('[data-id]'))zoomAt(toSvg(event.clientX,event.clientY),1.8);
 });
 $('zin').onclick=()=>zoomCenter(1.4);
@@ -1073,9 +1158,9 @@ function feedback(kind,title,lines=[],actions=[]){if(kind==='success'||kind==='e
  }
 }
 function needXlsx(){
- if(window.XLSX)return true;
+ if(window.ExcelJS)return true;
  feedback('error','Excel-Funktion nicht verfügbar',[
-  'Die Excel-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und die HTML-Datei neu öffnen.'
+  'Die Excel-Bibliothek (ExcelJS) konnte nicht geladen werden. Bitte Internetverbindung prüfen und die HTML-Datei neu öffnen.'
  ]);
  return false;
 }
@@ -1101,13 +1186,33 @@ function formatIssues(issues){
  if(issues.length>15)result.push('… und '+(issues.length-15)+' weitere Hinweise.');
  return result;
 }
+/* Excel-Quellen: Jede importierte Datei wird unverändert (als Rohdaten) gemerkt.
+   Beim Export wird sie neu geladen und nur die Zellwerte werden ersetzt – so bleiben Schrift, Farben, Rahmen,
+   Zahlenformate, Spaltenbreiten, Zeilenhöhen, fixierte Zeilen, Filter und weitere Tabellenblätter identisch. */
+const layerSources={};let sourceCounter=0;
+function cellText(cell){
+ if(!cell)return '';
+ const v=cell.value;
+ if(v===null||v===undefined)return '';
+ let t='';
+ try{t=String(cell.text??'')}catch{t=''}
+ return t.trim();
+}
+const RESERVED_KEYS=new Set(['id','name','ort','x','y','points','von','nach','plan']);
+function extraKey(label,used){
+ let base=normalized(label).replace(/[^a-z0-9äöüß]/g,'');
+ if(!base||RESERVED_KEYS.has(base))base='feld'+(used.size+1);
+ let key=base,n=2;
+ while(used.has(key))key=base+(n++);
+ used.add(key);return key;
+}
 async function prepareImport(file,layerId){
  if(importBusy){
   feedback('pending','Ein Import wird bereits geprüft. Bitte kurz warten.');return;
  }
  pendingImport=null;
- if(!/\.(xlsx|xls)$/i.test(file.name)){
-  feedback('error','Nicht unterstützte Datei',['Bitte eine .xlsx- oder .xls-Datei auswählen.']);return;
+ if(!/\.xlsx$/i.test(file.name)){
+  feedback('error','Nicht unterstützte Datei',['Bitte eine .xlsx-Datei auswählen. Ältere .xls-Dateien bitte in Excel als .xlsx speichern.']);return;
  }
  if(file.size>25*1024*1024){
   feedback('error','Datei zu groß',['Bitte eine Excel-Datei bis 25 MB verwenden.']);return;
@@ -1118,92 +1223,94 @@ async function prepareImport(file,layerId){
  await new Promise(resolve=>setTimeout(resolve,30));
  try{
   const buffer=await file.arrayBuffer();
-  const workbook=XLSX.read(buffer,{type:'array'});
-  const sheetName=workbook.Sheets.Daten?'Daten':workbook.SheetNames[0];
-  if(!sheetName)throw new Error('Die Datei enthält keine Tabellenblätter.');
-  const rows=XLSX.utils.sheet_to_json(workbook.Sheets[sheetName],{header:1,defval:'',blankrows:true});
-  const headerIndex=rows.findIndex(row=>row.some(value=>String(value).trim()!==''));
-  if(headerIndex<0)throw new Error('Das Tabellenblatt ist leer.');
-  const map={};
-  rows[headerIndex].forEach((value,index)=>{map[normalized(value)]=index});
-  const layer=LAYERS[layerId],mixed=layer.kind==='mixed',fields=allFields(layer);
-  const missing=['Plan'].filter(name=>map[normalized(name)]===undefined);
-  if(mixed){
-   const hasXY=map.x!==undefined&&map.y!==undefined,hasPts=map.punkte!==undefined;
-   if(!hasXY&&!hasPts)missing.push('X und Y (Schränke) und/oder Punkte (Verbindungen)');
-  }else{
-   ['X','Y'].forEach(name=>{if(map[normalized(name)]===undefined)missing.push(name)});
+  const wb=new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer.slice(0));
+  const ws=wb.getWorksheet('Daten')||wb.worksheets.find(w=>w.state!=='hidden')||wb.worksheets[0];
+  if(!ws)throw new Error('Die Datei enthält keine Tabellenblätter.');
+  const colCount=ws.columnCount,occupied=[];
+  ws.eachRow({includeEmpty:false},(row,n)=>occupied.push(n));
+  const rowTexts=r=>{const a=[],row=ws.getRow(r);for(let c=1;c<=colCount;c++)a[c]=cellText(row.getCell(c));return a};
+  /* Kopfzeile = erste Zeile, die ID, Name und Ort enthält (Titelzeilen darüber werden ignoriert) */
+  let headerRow=0,headers=[],firstRow=0,firstHeaders=[];
+  for(const r of occupied){
+   const a=rowTexts(r);
+   if(!a.some(Boolean))continue;
+   if(!firstRow){firstRow=r;firstHeaders=a}
+   const n=a.map(normalized);
+   if(['id','name','ort'].every(k=>n.includes(k))){headerRow=r;headers=a;break}
   }
-  if(missing.length)throw new Error('Erforderliche Spalten fehlen: '+missing.join(', ')+'.');
+  if(!firstRow)throw new Error('Das Tabellenblatt ist leer.');
+  if(!headerRow){headerRow=firstRow;headers=firstHeaders}
+  /* Feste Spalten: ID, Name, Ort */
+  const cols={};
+  for(let c=1;c<=colCount;c++){
+   const n=normalized(headers[c]);
+   if((n==='id'||n==='name'||n==='ort')&&cols[n]===undefined)cols[n]=c;
+  }
+  const lacking=[['ID','id'],['Name','name'],['Ort','ort']].filter(([,k])=>cols[k]===undefined).map(([l])=>l);
+  if(lacking.length)throw new Error('Erforderliche Spalten fehlen: '+lacking.join(', ')+'. Die Tabelle braucht die Spalten ID, Name und Ort.');
+  /* Alle übrigen Spalten = Zusatzinformationen (dynamisch aus der Datei) */
+  const layer=LAYERS[layerId],mixed=layer.kind==='mixed';
+  const fixed=new Set([cols.id,cols.name,cols.ort]),keys=new Set(),extras=[];
+  for(let c=1;c<=colCount;c++){
+   if(fixed.has(c)||!headers[c])continue;
+   const key=extraKey(headers[c],keys);
+   extras.push({key,label:headers[c],col:c,required:!isNoteKey(key),point:true,line:true});
+  }
+  const rows=[];
+  occupied.filter(r=>r>headerRow).forEach(r=>{const a=rowTexts(r);if(a.some(Boolean))rows.push({r,a})});
+  if(!rows.length)throw new Error('Keine Datenzeilen gefunden.');
+  const taken=new Set(rows.map(x=>normId(x.a[cols.id])).filter(Boolean));
+  const seen=new Set(),issues=[],objects=[];
   const fresh=Object.fromEntries(PLANS.map(p=>[p.id,[]]));
-  const used=new Set(),issues=[];
-  let ok=0,bad=0,adjusted=0,assigned=0;
-  for(let index=headerIndex+1;index<rows.length;index++){
-   const row=rows[index];
-   if(!row.some(value=>String(value).trim()!==''))continue;
-   const value=key=>map[normalized(key)]===undefined?'':row[map[normalized(key)]];
-   const rowNumber=index+1;
-   const planText=normalized(value('Plan'));
-   const plan=PLANS.find(p=>normalized(p.id)===planText||normalized(p.name)===planText);
-   if(!plan){bad++;issues.push('Zeile '+rowNumber+': unbekannter oder fehlender Plan „'+String(value('Plan'))+'“.');continue}
-   const object={id:String(value('ID')??'').trim()};
-   fields.forEach(([key,label])=>{
-    object[key]=String(value(label)!==''?value(label):value(key));
-   });
-   /* Zeile mit Punkten = Verbindung (nur in gemischter Ebene), sonst Punktobjekt */
-   const raw=String(value('Punkte')).trim();
-   const line=mixed&&raw!=='';
-   /* Verbindungstyp vereinheitlichen (Mono / Multi / Kupfer) */
-   if(line){
-    const type=canonicalLineType(object.typ);
-    if(type&&!LINE_TYPES.some(t=>t.value===type)){
-     issues.push('Zeile '+rowNumber+': Typ „'+type+'“ unbekannt (erlaubt: Mono, Multi, Kupfer). Die Verbindung wird grün dargestellt.');
+  let assigned=0,lines=0;
+  rows.forEach(({r,a})=>{
+   const ort=a[cols.ort]||'';
+   const link=mixed&&ort&&!ort.includes('(')&&ort.includes('/');
+   const o={id:normId(a[cols.id]),name:a[cols.name]||'',_row:r};
+   extras.forEach(e=>{o[e.key]=a[e.col]||''});
+   let holder=current;
+   if(link){
+    /* Verbindung: Ort = ID/ID */
+    const l=parseLinkOrt(ort),parts=ort.split('/');
+    o.von=l?l[0]:normId(parts[0]);o.nach=l?l[1]:normId(parts[1]||'');o.points=[];lines++;
+    if(!l)issues.push('Zeile '+r+': Ort „'+ort+'“ ist keine gültige Verbindung (erwartet ID/ID, z. B. 001/005).');
+   }else if(ort){
+    /* Objekt: Ort = Plan(X/Y) */
+    const pt=parsePointOrt(ort),plan=pt?resolvePlan(pt.plan):null,b=plan?plan.box:null;
+    const inside=!!pt&&!!plan&&Number.isFinite(pt.x)&&Number.isFinite(pt.y)&&pt.x>=b[0]&&pt.x<=b[0]+b[2]&&pt.y>=b[1]&&pt.y<=b[1]+b[3];
+    if(inside){o.x=pt.x;o.y=pt.y}
+    else{
+     o.x='';o.y='';o._ort=ort;
+     issues.push('Zeile '+r+': Ort „'+ort+'“ '+(!pt?'ist ungültig (erwartet Plan(X/Y), z. B. E1(10/50)).':!plan?'enthält einen unbekannten Plan (gültig: '+PLANS.map(planCode).join(', ')+').':'liegt außerhalb des Plans.'));
     }
-    object.typ=type;
+    if(plan)holder=plan.id;
+   }else{o.x='';o.y=''}
+   if(!o.id||seen.has(o.id)){
+    const duplicate=!!o.id;
+    o.id=newId(layer,taken);taken.add(o.id);assigned++;
+    issues.push('Zeile '+r+': '+(duplicate?'doppelte':'fehlende')+' ID durch '+o.id+' ersetzt.');
    }
-   let coordinates;
-   if(!line){
-    const x=numberValue(value('X')),y=numberValue(value('Y'));
-    if(!Number.isFinite(x)||!Number.isFinite(y)){
-     bad++;issues.push('Zeile '+rowNumber+(mixed
-      ?': weder X und Y (Schrank) noch Punkte (Verbindung) sind gültig angegeben.'
-      :': X oder Y fehlt oder ist keine gültige Zahl.'));continue;
-    }
-    coordinates=[{x,y}];
-   }else{
-    const parts=raw.split(';').map(part=>part.trim()).filter(Boolean);
-    coordinates=parts.map(part=>{
-     const pair=part.split(',');
-     return pair.length===2?{x:numberValue(pair[0]),y:numberValue(pair[1])}:{x:NaN,y:NaN};
+   seen.add(o.id);fresh[holder].push(o);objects.push(o);
+  });
+  /* Gemischte Ebene: Eine Zusatzspalte gilt nur für Schränke bzw. Verbindungen, wenn sie dafür überhaupt Werte enthält
+     (sonst würde z. B. „Raum“ bei jeder Verbindung als fehlend gelten). Ist sie sonst überall leer, bleibt sie Pflicht. */
+  if(mixed){
+   const pts=objects.filter(o=>!isLine(o)),lns=objects.filter(isLine);
+   extras.forEach(e=>{
+    const hasP=pts.some(o=>String(o[e.key]??'').trim()),hasL=lns.some(o=>String(o[e.key]??'').trim());
+    if(hasP||hasL){e.point=hasP||!pts.length;e.line=hasL||!lns.length}
+   });
+   if(extras.some(e=>e.key==='typ'&&e.line!==false)){
+    lns.forEach(o=>{
+     if(String(o.typ||'').trim()&&!lineTypeInfo(o.typ))issues.push('Zeile '+o._row+': Typ „'+o.typ+'“ unbekannt (erlaubt: Mono, Multi, Kupfer). Die Verbindung wird grün dargestellt.');
     });
-    if(coordinates.length<2||coordinates.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y))){
-     bad++;issues.push('Zeile '+rowNumber+': Punkte müssen „x,y;x,y;…“ mit mindestens zwei gültigen Punkten enthalten.');continue;
-    }
    }
-   let outside=false;
-   const clamped=coordinates.map(p=>{
-    const q=planPoint(p,plan.id);
-    if(p.x<plan.box[0]||p.x>plan.box[0]+plan.box[2]||p.y<plan.box[1]||p.y>plan.box[1]+plan.box[3])outside=true;
-    return q;
-   });
-   if(outside){adjusted++;issues.push('Zeile '+rowNumber+': Koordinaten auf den Planbereich begrenzt.')}
-   if(!line)Object.assign(object,clamped[0]);
-   else object.points=clamped;
-   if(!object.id||used.has(object.id)){
-    const duplicate=!!object.id;
-    object.id=newId(layer,used,line);assigned++;
-    issues.push('Zeile '+rowNumber+': '+(duplicate?'doppelte':'fehlende')+' ID durch '+object.id+' ersetzt.');
-   }
-   used.add(object.id);fresh[plan.id].push(object);ok++;
   }
   if(token!==importSerial)return;
-  if(!ok){
-   feedback('error','Kein Import durchgeführt',[
-    file.name,'Keine gültigen Datenzeilen gefunden. Bestehende Daten wurden nicht verändert.',
-    ...formatIssues(issues)
-   ]);return;
-  }
-  pendingImport={fileName:file.name,layerId,fresh,ok,bad,adjusted,assigned,issues};
+  const src={id:++sourceCounter,buffer:buffer.slice(0),fileName:file.name,sheetName:ws.name,headerRow,
+   cols:{id:cols.id,name:cols.name,ort:cols.ort},rows:rows.map(x=>x.r),lastRow:rows[rows.length-1].r};
+  pendingImport={fileName:file.name,layerId,fresh,extras,src,count:objects.length,lines,assigned,issues};
   showImportPreview();
  }catch(error){
   if(token!==importSerial)return;
@@ -1214,12 +1321,14 @@ async function prepareImport(file,layerId){
 }
 function showImportPreview(){
  const data=pendingImport;if(!data)return;
+ const layer=LAYERS[data.layerId];
  const existing=PLANS.reduce((sum,p)=>sum+inventory[p.id][data.layerId].length,0);
  const counts=PLANS.filter(p=>data.fresh[p.id].length).map(p=>p.name+': '+data.fresh[p.id].length);
  feedback('pending','Datei geprüft – Bestätigung erforderlich',[
   'Datei: '+data.fileName,
-  'Zielebene: '+LAYERS[data.layerId].label,
-  data.ok+' gültige Objekte, '+data.bad+' ungültige Zeilen.',
+  'Zielebene: '+layer.label,
+  data.count+' Zeilen werden importiert'+(layer.kind==='mixed'?' (davon '+data.lines+' Verbindungen)':'')+'. Zeilen mit fehlenden Angaben werden importiert und unter „Fehlende Angaben“ markiert.',
+  'Zusatzspalten: '+(data.extras.length?data.extras.map(e=>e.label+(e.required?'':' (optional)')).join(', '):'keine'),
   'Verteilung: '+counts.join(' · '),
   'Achtung: Alle '+existing+' vorhandenen Objekte dieser Ebene in allen Plänen werden ersetzt. Andere Ebenen bleiben unverändert.',
   ...formatIssues(data.issues)
@@ -1234,55 +1343,125 @@ function showImportPreview(){
 function commitImport(){
  const data=pendingImport;if(!data)return;
  finishGesture(false);
+ const layer=LAYERS[data.layerId];
  recordHistory(data.layerId,layerState(data.layerId));
  PLANS.forEach(p=>inventory[p.id][data.layerId]=copy(data.fresh[p.id]));
+ layer.extras=data.extras;layer.srcId=data.src.id;layerSources[data.src.id]=data.src;
+ syncLines(data.layerId);
  dirty[data.layerId]=true;visible[data.layerId]=true;pendingImport=null;
  if(active===data.layerId){selected=null;drawing=[];previewPoint=null}
  refreshUI();
+ const incomplete=layerAll(data.layerId).filter(o=>missingKeys(layer,o).length||!ortValid(data.layerId,o)).length;
  feedback('success','Import erfolgreich',[
   'Datei: '+data.fileName,
-  'Ebene: '+LAYERS[data.layerId].label,
-  data.ok+' Objekte importiert; '+data.bad+' Zeilen übersprungen.',
-  data.adjusted+' Objekte mit begrenzten Koordinaten; '+data.assigned+' IDs neu vergeben.',
+  'Ebene: '+layer.label,
+  data.count+' Zeilen importiert; '+incomplete+' mit fehlenden Angaben (Tabelle → Filter „Fehlende Angaben“).',
+  data.assigned+' IDs neu vergeben.',
   'Zum Rückgängigmachen „Zurück“ in der Werkzeugleiste wählen.',
   ...formatIssues(data.issues)
  ]);
 }
-function excelExport(id){
+
+/* ---------- Excel-Export ---------- */
+const EXPORT_NAMES={accesspoints:'accesspoints.xlsx',schraenke:'netzwerkschraenke.xlsx',fernseher:'fernseher.xlsx'};
+/* Zellwert nur ändern, wenn er sich wirklich unterscheidet – Formeln, Formatierung und Schreibweise bleiben sonst unberührt.
+   Hat die Zelle (oder die Vorlagezelle) einen Zahlenwert, wird auch wieder eine Zahl geschrieben (z. B. ID 1 mit Format 000). */
+function writeCell(cell,text,kind,hint){
+ const cur=cellText(cell);
+ if(cur===text)return;
+ if(kind==='id'&&normId(cur)===text)return;
+ if(kind==='ort'&&normalized(cur)===normalized(text))return;
+ if(text===''){cell.value=null;return}
+ const numeric=(typeof cell.value==='number'||hint==='number')&&/^-?\d+(?:[.,]\d+)?$/.test(text);
+ cell.value=numeric?Number(text.replace(',','.')):text;
+}
+function fillRow(row,o,plan,layer,src,hints={}){
+ const put=(col,text,kind)=>{if(col)writeCell(row.getCell(col),text,kind,hints[col])};
+ put(src.cols.id,String(o.id??''),'id');
+ put(src.cols.name,String(o.name??''),'plain');
+ put(src.cols.ort,ortText(plan,o),'ort');
+ const applicable=extrasFor(layer,o);
+ layer.extras.forEach(e=>put(e.col,applicable.includes(e)?String(o[e.key]??''):'','plain'));
+}
+async function exportFromSource(layer,src,recs){
+ const wb=new ExcelJS.Workbook();
+ await wb.xlsx.load(src.buffer.slice(0));
+ const ws=wb.getWorksheet(src.sheetName);
+ if(!ws)throw new Error('Das ursprüngliche Tabellenblatt „'+src.sheetName+'“ wurde nicht gefunden.');
+ const rowSet=new Set(src.rows);
+ const kept=recs.filter(r=>r.o._row&&rowSet.has(r.o._row)).sort((a,b)=>a.o._row-b.o._row);
+ const keptObjects=new Set(kept.map(r=>r.o)),keptRows=new Set(kept.map(r=>r.o._row));
+ const added=recs.filter(r=>!keptObjects.has(r.o)).sort((a,b)=>String(a.o.id).localeCompare(String(b.o.id),undefined,{numeric:true}));
+ /* gelöschte Objekte: Zeile entfernen (von unten nach oben) */
+ const removed=src.rows.filter(n=>!keptRows.has(n)).sort((a,b)=>b-a);
+ removed.forEach(n=>ws.spliceRows(n,1));
+ const shift=n=>n-removed.filter(m=>m<n).length;
+ const tail=src.lastRow-removed.length;
+ const template=tail>src.headerRow?ws.getRow(tail):null;
+ const hints={},height=template?template.height:undefined;
+ if(template){
+  [src.cols.id,src.cols.name,src.cols.ort,...layer.extras.map(e=>e.col)].forEach(c=>{if(c)hints[c]=typeof template.getCell(c).value});
+ }
+ kept.forEach(({o,plan})=>fillRow(ws.getRow(shift(o._row)),o,plan,layer,src));
+ /* neue Objekte: unter der letzten Datenzeile einfügen, Formatierung von der Zeile darüber übernehmen */
+ added.forEach(({o,plan},i)=>{
+  const pos=tail+1+i;
+  ws.insertRow(pos,[],template?'i':'n');
+  const row=ws.getRow(pos);
+  if(height)row.height=height;
+  fillRow(row,o,plan,layer,src,hints);
+ });
+ return wb.xlsx.writeBuffer();
+}
+async function exportFresh(layer,recs){
+ const wb=new ExcelJS.Workbook();
+ const ws=wb.addWorksheet('Daten');
+ const headers=['ID','Name','Ort',...layer.extras.map(e=>e.label)];
+ ws.addRow(headers);
+ const head=ws.getRow(1);
+ head.font={bold:true};
+ head.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEEF2F7'}};c.border={bottom:{style:'thin',color:{argb:'FF9AA5B5'}}}});
+ recs.slice().sort((a,b)=>String(a.o.id).localeCompare(String(b.o.id),undefined,{numeric:true})).forEach(({o,plan})=>{
+  const applicable=extrasFor(layer,o);
+  const row=ws.addRow([String(o.id??''),String(o.name??''),ortText(plan,o),...layer.extras.map(e=>applicable.includes(e)?String(o[e.key]??''):'')]);
+  row.getCell(1).numFmt='@';row.getCell(3).numFmt='@';
+ });
+ headers.forEach((h,i)=>{ws.getColumn(i+1).width=i===0?8:i===1?26:i===2?16:Math.max(14,h.length+4)});
+ ws.views=[{state:'frozen',ySplit:1}];
+ ws.autoFilter={from:{row:1,column:1},to:{row:1,column:headers.length}};
+ const notes=wb.addWorksheet('Hinweise');
+ const lines=[
+  'Hinweise',
+  'Spalten: ID (001, 002, …), Name und Ort sind immer vorhanden; alle weiteren Spalten sind Zusatzinformationen.',
+  'Alle Spalten außer „Notiz“ sind Pflichtangaben. Zeilen mit fehlenden Angaben werden in der Tabelle markiert.',
+  'Ort eines Objekts: Plan(X/Y), z. B. E1(10/50) oder MLK(2/230). Gültige Pläne: '+PLANS.map(p=>planCode(p)+' = '+p.name).join(', ')+'.',
+  'Koordinaten beziehen sich auf die ursprüngliche SVG-viewBox.'
+ ];
+ if(layer.kind==='mixed')lines.push('Ort einer Verbindung: ID/ID der beiden Schränke, z. B. 001/005.');
+ lines.push('Der Import ersetzt nach Bestätigung die gesamte gewählte Ebene in allen Plänen.');
+ lines.forEach(t=>notes.addRow([t]));
+ notes.getRow(1).font={bold:true};notes.getColumn(1).width=110;
+ return wb.xlsx.writeBuffer();
+}
+function downloadBlob(buffer,name){
+ const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=name;document.body.append(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+async function excelExport(id){
  if(!needXlsx())return;
  try{
-  const layer=LAYERS[id],mixed=layer.kind==='mixed',fields=allFields(layer);
-  const headers=['Plan','ID',...fields.map(f=>f[1]),...(mixed?['X','Y','Punkte']:['X','Y'])];
-  const rows=[headers];
-  PLANS.forEach(p=>inventory[p.id][id].forEach(object=>{
-   const line=isLine(object);
-   const coords=mixed
-    ?(line?['','',object.points.map(q=>q.x+','+q.y).join(';')]:[object.x,object.y,''])
-    :[object.x,object.y];
-   rows.push([p.id,object.id,...fields.map(([key])=>object[key]??''),...coords]);
-  }));
-  const workbook=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet(rows);
-  sheet['!cols']=headers.map(h=>({wch:Math.max(12,h.length+3)}));
-  XLSX.utils.book_append_sheet(workbook,sheet,'Daten');
-  const notes=[
-   ['Hinweise'],
-   ['Gültige Pläne: '+PLANS.map(p=>p.id+' = '+p.name).join(', ')],
-   ['Koordinaten beziehen sich auf die ursprüngliche SVG-viewBox.']
-  ];
-  if(mixed){
-   notes.push(['Zeilen mit X und Y = Netzwerkschrank (Punkt). Zeilen mit Punkten = Verbindung (Linie).']);
-   notes.push(['Punkte: x,y;x,y;… (mindestens zwei Punkte; Dezimalpunkt verwenden). Bei Schränken bleibt „Punkte“ leer, bei Verbindungen bleiben X und Y leer.']);
-   notes.push(['Typ bei Verbindungen: Mono (Singlemode) = gelb, Multi (Multimode) = orange, Kupfer = blau.']);
-   notes.push(['Von/Nach: Name oder ID des Schranks. Damit werden beim Klick auf einen Schrank seine Verbindungen hervorgehoben.']);
-  }else{
-   notes.push(['Koordinaten X und Y als Zahlen (Dezimalpunkt verwenden).']);
-  }
-  notes.push(['Der Import ersetzt nach Bestätigung die gesamte gewählte Ebene in allen Plänen.']);
-  XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet(notes),'Hinweise');
-  const names={accesspoints:'accesspoints.xlsx',schraenke:'netzwerkschraenke.xlsx',fernseher:'fernseher.xlsx'};
-  XLSX.writeFile(workbook,names[id]);dirty[id]=false;
+  syncLines(id);
+  const layer=LAYERS[id],recs=allRecords(id);
+  const src=layer.srcId!=null?layerSources[layer.srcId]:null;
+  const fromSource=!!src&&layer.extras.every(e=>e.col);
+  const buffer=fromSource?await exportFromSource(layer,src,recs):await exportFresh(layer,recs);
+  const name=fromSource?src.fileName:EXPORT_NAMES[id];
+  downloadBlob(buffer,name);dirty[id]=false;
   feedback('success','Excel-Export ausgelöst',[
-   names[id],'Bitte prüfen, ob der Browser die Datei heruntergeladen hat. Die Ebene ist als exportiert markiert.'
+   name,fromSource?'Formatierung der importierten Datei wurde übernommen.':'Neue Datei mit Standardformatierung erstellt.',
+   'Bitte prüfen, ob der Browser die Datei heruntergeladen hat. Die Ebene ist als exportiert markiert.'
   ]);
  }catch(error){feedback('error','Export fehlgeschlagen',[error.message||'Datei konnte nicht erstellt werden.'])}
 }
@@ -1402,11 +1581,16 @@ $('print-popup').onclick=event=>{if(event.target===$('print-popup'))closePrintPo
 $('print-confirm').onclick=()=>{closePrintPopup();exportPdf()};
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('print-popup').classList.contains('show')){event.stopImmediatePropagation();closePrintPopup()}},true);
 
-/* ---------- Detail-Popup (nur Ansichtsmodus): Klick auf ein Objekt zeigt alle Daten ---------- */
+/* ---------- Detail-Popup (Ansichts- und Bearbeitungsmodus): Klick auf ein Objekt zeigt alle Daten ---------- */
 let popup=null; /* {layer,id,plan} */
 const KIND_LABEL={accesspoints:'Accesspoint',schraenke:'Netzwerkschrank',fernseher:'Fernseher'};
 function mk(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e}
-function popupObj(){return popup?(inventory[popup.plan]?.[popup.layer]||[]).find(o=>o.id===popup.id)||null:null}
+function popupObj(){
+ if(!popup)return null;
+ const r=findObj(popup.layer,popup.id);
+ if(!r)return null;
+ popup.plan=r.plan;return r.o;
+}
 function gridCell(planId,p){
  const r=gridRef(planId);
  const c=clamp(Math.floor((p.x-r.x0)/r.cell),0,r.cols-1),w=clamp(Math.floor((p.y-r.y0)/r.cell),0,r.rows-1);
@@ -1417,9 +1601,10 @@ function closePopup(render=true){
  popup=null;const box=$('popup');box.classList.remove('show');box.replaceChildren();
  if(render)renderOverlay();
 }
-function cabinetsOf(line,items,size){return items.filter(c=>!isLine(c)&&lineTouches(line,c,size))}
+function cabinetsOf(line,items){return items.filter(c=>!isLine(c)&&lineTouches(line,c))}
 function buildPopup(o,layerId){
- const layer=LAYERS[layerId],box=$('popup'),plan=PLANS.find(p=>p.id===current),line=isLine(o);
+ const layer=LAYERS[layerId],box=$('popup'),line=isLine(o);
+ const planId=popup?popup.plan:current,plan=PLANS.find(p=>p.id===planId);
  const info=line?lineTypeInfo(o.typ):null;
  box.replaceChildren();
  const head=mk('div','pp-head');
@@ -1436,19 +1621,20 @@ function buildPopup(o,layerId){
  };
  row('ID',o.id);
  fieldsFor(layer,o).forEach(([key,label])=>row(label,(line&&key==='typ'&&info)?info.label:o[key]));
- row('Plan',plan.name+(plan.sub?' – '+plan.sub:''));
+ row('Ort',ortText(planId,o));
+ const items=layerAll(layerId);
  if(!line){
-  row('Position (X / Y)',o.x+' / '+o.y);
-  row('Planquadrat',gridCell(current,o));
+  const placed=isNum(o.x)&&isNum(o.y);
+  row('Plan',placed?plan.name+(plan.sub?' – '+plan.sub:''):'');
+  if(placed)row('Planquadrat',gridCell(planId,o));
  }else{
-  const a=o.points[0],z=o.points[o.points.length-1];
-  row('Anzahl Punkte',o.points.length);
-  row('Start (X / Y)',a.x+' / '+a.y+' · '+gridCell(current,a));
-  row('Ende (X / Y)',z.x+' / '+z.y+' · '+gridCell(current,z));
+  const label=(cab,id)=>cab?(cab.name||cab.id)+' ('+cab.id+')':(id?id+' (nicht gefunden)':'');
+  row('Von',label(cabinetById(layerId,o.von),o.von));
+  row('Nach',label(cabinetById(layerId,o.nach),o.nach));
+  row('Plan',o.points&&o.points.length>=2?plan.name+(plan.sub?' – '+plan.sub:''):'Keine Linie im Plan (Schränke auf verschiedenen Plänen oder ohne Ort)');
  }
  body.append(dl);
  if(layer.kind==='mixed'){
-  const items=inventory[current][layerId],size=planSize(current);
   const section=(text)=>body.append(mk('div','pp-sub',text));
   const entry=(item,sub,color,square)=>{
    const b=mk('button','pp-link');b.type='button';
@@ -1458,23 +1644,23 @@ function buildPopup(o,layerId){
    b.append(chip,t);b.onclick=()=>openPopup(layerId,item.id);return b;
   };
   if(!line){
-   const links=items.filter(l=>isLine(l)&&lineTouches(l,o,size));
+   const links=items.filter(l=>isLine(l)&&lineTouches(l,o));
    section('Verbindungen ('+links.length+')');
    if(!links.length)body.append(mk('div','pp-none','Keine Verbindung zugeordnet.'));
    links.forEach(l=>{
-    const other=cabinetsOf(l,items,size).filter(c=>c.id!==o.id).map(c=>c.name||c.id);
+    const other=cabinetsOf(l,items).filter(c=>c.id!==o.id).map(c=>c.name||c.id);
     const li=lineTypeInfo(l.typ);
     body.append(entry(l,(li?li.label:(l.typ||'Typ unbekannt'))+(other.length?' · zu: '+other.join(', '):''),colorFor(layer,l),false));
    });
   }else{
-   const cabs=cabinetsOf(o,items,size);
+   const cabs=cabinetsOf(o,items);
    section('Verbundene Schränke ('+cabs.length+')');
    if(!cabs.length)body.append(mk('div','pp-none','Kein Schrank zugeordnet.'));
    cabs.forEach(c=>body.append(entry(c,[c.typ,c.raum].filter(Boolean).join(' · '),layer.color,true)));
   }
  }
  box.append(head,body);
- box.classList.add('show');box.scrollTop=0;
+ box.classList.add('show');
  return close;
 }
 function positionPopup(cx,cy){
@@ -1486,28 +1672,39 @@ function positionPopup(cx,cy){
  y=Math.max(12,Math.min(y,r.height-h-12));
  box.style.left=x+'px';box.style.top=y+'px';
 }
+/* Inhalt aktualisieren, wenn sich Daten ändern (z. B. beim Bearbeiten); Position und Scrollstand bleiben */
+function refreshPopup(){
+ if(!popup)return;
+ const o=popupObj();
+ if(!o){closePopup(false);return}
+ const box=$('popup'),top=box.scrollTop;
+ buildPopup(o,popup.layer);box.scrollTop=top;
+}
 function openPopup(layerId,id,cx,cy){
- const o=(inventory[current][layerId]||[]).find(x=>x.id===id);
- if(!o||active)return;
- popup={layer:layerId,id,plan:current};
- const close=buildPopup(o,layerId);
+ const r=findObj(layerId,id);
+ if(!r)return;
+ if(r.plan!==current)loadPlan(r.plan);
+ popup={layer:layerId,id,plan:r.plan};
+ if(active===layerId)selected=id;
+ refreshUI();
+ $('popup').scrollTop=0;
  if(cx!==undefined)positionPopup(cx,cy);
- renderOverlay();
- try{close.focus({preventScroll:true})}catch{}
+ try{const c=$('popup').querySelector('.pp-close');if(c)c.focus({preventScroll:true})}catch{}
 }
 /* Markierung des gewählten Objekts (liegt unter den Symbolen) */
 function drawPopupMark(target,planId){
  const g=groupOf(target,'popupmark');if(!g)return;
  g.replaceChildren();g.setAttribute('pointer-events','none');
  const o=popupObj();
- if(!o||active||popup.plan!==planId||!visible[popup.layer])return;
+ if(!o||popup.plan!==planId||!visible[popup.layer])return;
  const size=planSize(planId),layer=LAYERS[popup.layer];
- const halo=l=>g.append(S('polyline',{points:l.points.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:'#ff8c00','stroke-opacity':'.45','stroke-width':size*1.1,'stroke-linecap':'round','stroke-linejoin':'round'}));
- const ring=c=>g.append(S('circle',{cx:c.x,cy:c.y,r:size*1.05,fill:'#ff8c0033',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15}));
- if(isLine(o)){halo(o);cabinetsOf(o,inventory[planId][popup.layer],size).forEach(ring)}
+ const halo=l=>{if(l.points&&l.points.length>=2)g.append(S('polyline',{points:l.points.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:'#ff8c00','stroke-opacity':'.45','stroke-width':size*1.1,'stroke-linecap':'round','stroke-linejoin':'round'}))};
+ const ring=c=>{if(isNum(c.x)&&isNum(c.y))g.append(S('circle',{cx:c.x,cy:c.y,r:size*1.05,fill:'#ff8c0033',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15}))};
+ const items=inventory[planId][popup.layer];
+ if(isLine(o)){halo(o);cabinetsOf(o,items).forEach(ring)}
  else{
   ring(o);
-  if(layer.kind==='mixed')inventory[planId][popup.layer].filter(l=>isLine(l)&&lineTouches(l,o,size)).forEach(halo);
+  if(layer.kind==='mixed')items.filter(l=>isLine(l)&&lineTouches(l,o)).forEach(halo);
  }
 }
 
@@ -1521,7 +1718,6 @@ document.addEventListener('keydown',event=>{
  if(active&&modifier&&key==='z'){event.preventDefault();event.shiftKey?redo():undo();return}
  if(active&&modifier&&key==='y'){event.preventDefault();redo();return}
  if(active&&['Delete','Backspace'].includes(event.key)){event.preventDefault();deleteSelected();return}
- if(active&&event.key==='Enter'&&tool==='drawline'){event.preventDefault();finishLine();return}
  if(modifier||event.altKey)return;
  if(/^[1-5]$/.test(event.key)&&PLANS[Number(event.key)-1])loadPlan(PLANS[Number(event.key)-1].id);
  if(event.key==='+'||event.key==='='){event.preventDefault();zoomCenter(1.4)}
@@ -1537,42 +1733,68 @@ const initial=(location.hash||'').slice(1);
 loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
 </script>
 <script>
-/* Tabellenerweiterung: nur vorhandene Pläne; Import und Export bleiben unverändert. */
+/* Tabellenansicht: feste Spalten ID, Name, Ort + dynamische Zusatzspalten der jeweiligen Ebene. */
 (function(){
  let tableOpen=false, tableFilter='all', placement=null;
- const finite=v=>String(v??'').trim()!==''&&Number.isFinite(Number(v));
- const valid=o=>isLine(o)?Array.isArray(o.points)&&o.points.length>=2&&o.points.every(p=>finite(p.x)&&finite(p.y)):finite(o.x)&&finite(o.y);
- const inBounds=(o,planId)=>{if(!valid(o))return true;const b=PLANS.find(p=>p.id===planId).box;const points=isLine(o)?o.points:[o];return points.every(p=>Number(p.x)>=b[0]&&Number(p.x)<=b[0]+b[2]&&Number(p.y)>=b[1]&&Number(p.y)<=b[1]+b[3])};
- const records=layerId=>PLANS.flatMap(p=>inventory[p.id][layerId].map(o=>({o,plan:p.id})));
  function change(layerId,fn){recordHistory(layerId,layerState(layerId));fn();dirty[layerId]=true;refreshUI()}
- function missingField(key,value){return key!=='notiz'&&!String(value??'').trim()}
  function input(value,label,missing,onchange,readonly=false){const e=document.createElement('input');e.value=value??'';e.readOnly=readonly;e.setAttribute('aria-label',label);if(missing){e.classList.add('missing');e.title='Fehlende Angabe'}if(!readonly)e.onchange=()=>onchange(e.value);return e}
  function tableRender(){
   if(!tableOpen)return;
-  const layerId=$('tbl-layer').value,layer=LAYERS[layerId],query=$('tbl-search').value.toLowerCase(),head=$('table-screen').querySelector('thead'),body=$('table-screen').querySelector('tbody');updateTableControls(layerId);head.replaceChildren();body.replaceChildren();
-  const columns=['Plan','ID','Objektart',...allFields(layer).map(f=>f[1]),'X','Y','Punkte','Aktion'];const trh=document.createElement('tr');columns.forEach(x=>{const th=document.createElement('th');th.textContent=x;trh.append(th)});head.append(trh);
-  const rows=records(layerId).filter(({o,plan})=>{const text=[plan,o.id,...Object.values(o)].join(' ').toLowerCase();return(!query||text.includes(query))&&(tableFilter==='all'||tableFilter==='unplaced'&&!valid(o)||tableFilter==='missing'&&(fieldsFor(layer,o).some(([k])=>missingField(k,o[k]))||!valid(o)))});
+  const layerId=$('tbl-layer').value,layer=LAYERS[layerId],mixed=layer.kind==='mixed',query=$('tbl-search').value.toLowerCase(),head=$('table-screen').querySelector('thead'),body=$('table-screen').querySelector('tbody');
+  syncLines(layerId);updateTableControls(layerId);head.replaceChildren();body.replaceChildren();
+  const columns=['ID','Name','Ort',...(mixed?['Objektart']:[]),...layer.extras.map(e=>e.label),'Aktion'];
+  const trh=document.createElement('tr');columns.forEach(x=>{const th=document.createElement('th');th.textContent=x;trh.append(th)});head.append(trh);
+  const rows=allRecords(layerId).filter(({o,plan})=>{
+   const text=[o.id,o.name,ortText(plan,o),...layer.extras.map(e=>o[e.key])].join(' ').toLowerCase();
+   const unplaced=!ortValid(layerId,o),incomplete=unplaced||missingKeys(layer,o).length>0;
+   return(!query||text.includes(query))&&(tableFilter==='all'||tableFilter==='unplaced'&&unplaced||tableFilter==='missing'&&incomplete);
+  }).sort((a,b)=>String(a.o.id).localeCompare(String(b.o.id),undefined,{numeric:true}));
   rows.forEach(({o,plan})=>{
    const tr=document.createElement('tr'),cell=()=>{const td=document.createElement('td');tr.append(td);return td};
-   const planCell=cell(),select=document.createElement('select');PLANS.forEach(p=>{const op=document.createElement('option');op.value=p.id;op.textContent=p.name;select.append(op)});select.value=plan;select.setAttribute('aria-label','Plan für '+o.id);select.onchange=()=>{const target=select.value;if(!inBounds(o,target)){toast('Planwechsel abgelehnt: gültige Koordinaten liegen außerhalb des Zielplans.','warn');select.value=plan;return}change(layerId,()=>{inventory[plan][layerId]=inventory[plan][layerId].filter(x=>x!==o);inventory[target][layerId].push(o)});toast('Plan geändert.','success')};planCell.append(select);
    cell().append(input(o.id,'ID',false,()=>{},true));
-   const kind=cell();if(layer.kind==='mixed'){const type=document.createElement('select');[['point','Schrank'],['line','Verbindung']].forEach(([v,t])=>{const op=document.createElement('option');op.value=v;op.textContent=t;type.append(op)});type.value=isLine(o)?'line':'point';type.onchange=()=>change(layerId,()=>{if(type.value==='line'){delete o.x;delete o.y;o.points=[];o.typ=''}else{delete o.points;o.x='';o.y=''}});kind.append(type)}else kind.textContent='Punkt';
-   fieldsFor(layer,o).forEach(([key,label])=>cell().append(input(o[key],label,missingField(key,o[key]),value=>change(layerId,()=>o[key]=value))));
-   const coordinate=key=>cell().append(input(o[key],key,!finite(o[key]),value=>{if(value.trim()&&!finite(value)){toast('Koordinate muss eine Zahl sein oder leer bleiben.','warn');tableRender();return}const candidate={...o,[key]:value};if(valid(candidate)&&!inBounds(candidate,plan)){toast('Koordinate liegt außerhalb des gewählten Plans – nicht übernommen.','warn');tableRender();return}change(layerId,()=>o[key]=value)}));
-   if(isLine(o)){cell().textContent='–';cell().textContent='–';cell().append(input(o.points.map(p=>p.x+','+p.y).join(';'),'Punkte',!valid(o),value=>{const points=value.trim()?value.split(';').map(part=>{const a=part.split(',');return{x:a[0]?.trim(),y:a[1]?.trim()}}):[];const candidate={...o,points};if(valid(candidate)&&!inBounds(candidate,plan)){toast('Punkte liegen außerhalb des gewählten Plans – nicht übernommen.','warn');tableRender();return}change(layerId,()=>o.points=points)}));cell().textContent='Punkte in Tabelle bearbeiten'}else{coordinate('x');coordinate('y');cell().textContent='–';const action=cell(),button=document.createElement('button');button.className='table-place';button.textContent='Im Plan platzieren';button.onclick=()=>startPlacement(layerId,o,plan);action.append(button)}
+   cell().append(input(o.name,'Name',!String(o.name??'').trim(),value=>change(layerId,()=>o.name=value)));
+   cell().append(input(ortText(plan,o),'Ort',!ortValid(layerId,o),value=>{
+    const apply=prepareOrt(layerId,o,value);
+    if(!apply){tableRender();return}
+    change(layerId,apply);tableRender();
+   }));
+   if(mixed){
+    const kind=cell(),type=document.createElement('select');
+    [['point','Schrank'],['line','Verbindung']].forEach(([v,t])=>{const op=document.createElement('option');op.value=v;op.textContent=t;type.append(op)});
+    type.value=isLine(o)?'line':'point';
+    type.onchange=()=>{change(layerId,()=>{
+     if(type.value==='line'){delete o.x;delete o.y;delete o._ort;o.points=[];o.von='';o.nach=''}
+     else{delete o.points;delete o.von;delete o.nach;o.x='';o.y=''}
+    });tableRender()};
+    kind.append(type);
+   }
+   const applicable=extrasFor(layer,o);
+   layer.extras.forEach(e=>{
+    const td=cell();
+    if(!applicable.includes(e)){td.textContent='–';return}
+    td.append(input(o[e.key],e.label,e.required&&!String(o[e.key]??'').trim(),value=>change(layerId,()=>o[e.key]=value)));
+   });
+   const action=cell();
+   if(isLine(o))action.textContent='–';
+   else{const button=document.createElement('button');button.className='table-place';button.textContent='Im Plan platzieren';button.onclick=()=>startPlacement(layerId,o,plan);action.append(button)}
    body.append(tr);
   });
-  $('tbl-count').textContent=rows.length+' von '+records(layerId).length+' Datensätzen';['all','unplaced','missing'].forEach(f=>document.querySelector('[data-filter="'+f+'"]').classList.toggle('active',tableFilter===f));
+  $('tbl-count').textContent=rows.length+' von '+allRecords(layerId).length+' Datensätzen';['all','unplaced','missing'].forEach(f=>document.querySelector('[data-filter="'+f+'"]').classList.toggle('active',tableFilter===f));
  }
  function updateTableControls(layerId=$('tbl-layer').value){const layer=LAYERS[layerId],history=historyBy[layerId];$('tbl-undo').disabled=!history.undo.length;$('tbl-redo').disabled=!history.redo.length;$('tbl-new').hidden=layer.kind==='mixed';$('tbl-new').textContent='＋ '+(ELEMENT_NAME[layerId]||'Datensatz');$('tbl-new-cabinet').hidden=layer.kind!=='mixed';$('tbl-new-connection').hidden=layer.kind!=='mixed'}
- function createTableRecord(kind){const layerId=$('tbl-layer').value,layer=LAYERS[layerId],line=kind==='line',o={id:newId(layer,null,line),name:'',notiz:''};if(line)o.points=[];else{o.x='';o.y=''}change(layerId,()=>inventory[current][layerId].push(o));toast((line?'Verbindung':(ELEMENT_NAME[layerId]||'Datensatz'))+' im aktuellen Plan angelegt.','success');tableRender()}
+ function createTableRecord(kind){
+  const layerId=$('tbl-layer').value,layer=LAYERS[layerId],line=kind==='line',o={id:newId(layer),name:''};
+  if(line){o.points=[];o.von='';o.nach=''}else{o.x='';o.y=''}
+  change(layerId,()=>inventory[current][layerId].push(o));
+  toast((line?'Verbindung':(ELEMENT_NAME[layerId]||'Datensatz'))+' im aktuellen Plan angelegt.','success');tableRender();
+ }
  function openTable(){tableOpen=true;$('table-screen').classList.add('show');const s=$('tbl-layer');if(!s.options.length)Object.values(LAYERS).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.label;s.append(o)});if(active)s.value=active;updateTableControls();tableRender()}
  function closeTable(){tableOpen=false;$('table-screen').classList.remove('show');refreshUI()}
  function startPlacement(layerId,o,plan){if(isLine(o))return;placement={layerId,id:o.id,plan};active=layerId;tool='select';drawing=[];previewPoint=null;loadPlan(plan);closeTable();$('status').textContent='Platzierung aktiv: auf den Plan klicken; Esc bricht ab.'}
  $('btn-table').onclick=openTable;$('tbl-close').onclick=closeTable;$('tbl-layer').onchange=()=>{updateTableControls();tableRender()};$('tbl-search').oninput=tableRender;document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{tableFilter=b.dataset.filter;tableRender()});
  $('tbl-new').onclick=()=>createTableRecord('point');$('tbl-new-cabinet').onclick=()=>createTableRecord('point');$('tbl-new-connection').onclick=()=>createTableRecord('line');
  $('tbl-undo').onclick=()=>{active=$('tbl-layer').value;undo();tableRender()};$('tbl-redo').onclick=()=>{active=$('tbl-layer').value;redo();tableRender()};$('tbl-import').onclick=()=>{active=$('tbl-layer').value;closeTable();openPicker(active)};$('tbl-export').onclick=()=>excelExport($('tbl-layer').value);
- stage.addEventListener('pointerdown',event=>{if(!placement)return;event.preventDefault();event.stopImmediatePropagation();const p=placement,o=inventory[p.plan][p.layerId].find(x=>x.id===p.id);if(!o){placement=null;return}const q=planPoint(toSvg(event.clientX,event.clientY),p.plan);change(p.layerId,()=>{o.x=q.x;o.y=q.y});selected=o.id;placement=null;$('status').textContent='Objekt platziert.'},{capture:true});
+ stage.addEventListener('pointerdown',event=>{if(!placement)return;event.preventDefault();event.stopImmediatePropagation();const p=placement,o=inventory[p.plan][p.layerId].find(x=>x.id===p.id);if(!o){placement=null;return}const q=planPoint(toSvg(event.clientX,event.clientY),p.plan);change(p.layerId,()=>{o.x=q.x;o.y=q.y;delete o._ort});selected=o.id;placement=null;$('status').textContent='Objekt platziert.'},{capture:true});
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&placement){placement=null;$('status').textContent='Platzierung abgebrochen.'}},true);
 })();
 </script>
