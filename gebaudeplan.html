@@ -106,6 +106,13 @@ main.file-over #drop-cover{display:flex}
 .pp-link small{display:block;color:var(--muted);font-size:12px}
 .pp-none{color:var(--muted);font-size:12px}
 @media(max-width:760px){#popup{left:12px!important;right:12px;top:auto!important;bottom:12px;width:auto;max-height:55%}}
+#popup .pp-edit{font-size:13px}
+#popup .pp-edit .pp-sub{margin-top:0}
+#popup .pp-edit button{margin-top:8px}
+#popup .pp-edit .hint{margin-top:4px}
+.pp-edit-btn{flex:none;height:30px;padding:0 10px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap}
+.pp-edit-btn:hover{background:#f1f4f9}
+.pp-edit-btn.on{background:var(--accent-soft);border-color:var(--accent);color:#0b4fbf;font-weight:600}
 #print-root{display:none}
 #data-error{display:none;margin:0;padding:14px 18px;background:#fff0ef;border-bottom:2px solid #d73a49;color:#7a1620;font-size:14px;line-height:1.6}
 @media(max-width:760px){
@@ -145,6 +152,17 @@ body>*:not(#print-root){display:none!important}
 #stage [cursor="move"]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grab}
 #stage [cursor="copy"]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%232e9e5b%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 5 3, copy}
 #stage.drawing g[data-id],#stage.drawing [data-editor-ui]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 16 16, crosshair}
+#import-popup{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:#16203380;padding:20px}
+#import-popup.show{display:flex}
+.import-dialog{position:relative;width:min(560px,100%);max-height:calc(100vh - 40px);overflow:auto;background:#fff;border-radius:12px;padding:24px;box-shadow:0 18px 55px #0005}
+.import-dialog:focus{outline:none}
+.import-dialog h2{margin:0 40px 8px 0;font-size:20px;text-transform:none;letter-spacing:0;color:var(--text)}
+.import-dialog .import-target{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.import-dialog .hint{margin:0 0 12px}
+.import-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;padding:0}
+.import-close:hover{background:#f1f4f9}
+#import-drop{display:block;width:100%;padding:22px 12px;border:2px dashed var(--accent);border-radius:10px;background:var(--accent-soft);color:#0b4fbf;font-weight:650;font-size:15px;cursor:pointer;text-align:center}
+#import-drop.over{background:#cfe2ff}
 </style>
 </head>
 <body>
@@ -181,12 +199,6 @@ body>*:not(#print-root){display:none!important}
 <div id="layer-list"></div>
 <div class="legend" id="legend"></div>
 </section>
-<section id="import-section" hidden>
-<h2>Excel-Import</h2>
-<div class="hint">Excel-Datei (.xlsx) auf die Planfläche ziehen. Pflichtspalten: ID, Name, Ort. Alle weiteren Spalten werden als Zusatzinformationen übernommen. Bei „Netzwerkschränke & Verbindungen“ braucht die Datei zwei Tabellenblätter: „Schränke“ und „Verbindungen“. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
-<div id="import-feedback" role="status" aria-live="polite">Noch keine Datei importiert.</div>
-</section>
-<section id="properties" class="prop" hidden></section>
 </aside>
 <main id="main">
 <div id="stage" aria-label="Gebäudeplan"></div>
@@ -203,6 +215,16 @@ body>*:not(#print-root){display:none!important}
 </main>
 </div>
 
+<div id="import-popup" aria-hidden="true">
+ <div class="import-dialog" tabindex="-1" role="dialog" aria-modal="true" aria-label="Excel-Import">
+  <button id="import-close" class="import-close" type="button" aria-label="Schließen">×</button>
+  <h2>Excel-Import</h2>
+  <p class="import-target" id="import-target"></p>
+  <div class="hint">Excel-Datei (.xlsx) hier ablegen oder auswählen (alternativ direkt auf die Planfläche ziehen). Pflichtspalten: ID, Name, Ort. Alle weiteren Spalten werden als Zusatzinformationen übernommen. Bei „Netzwerkschränke &amp; Verbindungen“ braucht die Datei zwei Tabellenblätter: „Schränke“ und „Verbindungen“. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
+  <button id="import-drop" type="button">⬆ Excel-Datei hier ablegen oder klicken zum Auswählen</button>
+  <div id="import-feedback" role="status" aria-live="polite">Noch keine Datei importiert.</div>
+ </div>
+</div>
 <div id="print-popup" aria-hidden="true">
  <div class="print-dialog" tabindex="-1" role="dialog" aria-modal="true" aria-label="Drucken">
   <button id="print-close" class="print-close" type="button" aria-label="Schließen">×</button>
@@ -625,7 +647,7 @@ function layerList(){
 function mode(){
  $('mode-badge').classList.toggle('edit-mode',!!active);
  $('mode-badge').textContent=active?'✏️ Bearbeitungsmodus: '+LAYERS[active].label:'👁 Ansichtsmodus · nur lesen';
- $('import-section').hidden=!active;
+ if(!active)closeImportPopup();
  stage.classList.toggle('drawing',!!active&&isDrawTool());
  updateStatus();
 }
@@ -643,7 +665,7 @@ function loadPlan(id){closePopup(false);
  try{history.replaceState(null,'','#'+id)}catch{}
 }
 /* Import-Zustand zurücksetzen (beim Starten/Beenden der Bearbeitung) */
-function resetImport(){
+function resetImport(){closeImportPopup();
  pendingImport=null;importSerial++;
  feedback('','Noch keine Datei importiert.');
 }
@@ -896,29 +918,28 @@ function toolbar(){
  }else{
   button('➕ '+ELEMENT_NAME[active],()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
  }
- button('🗑 Löschen',deleteSelected,!getObj());
+ button('⬆ Excel-Import',()=>openImportPopup(false));
+  button('🗑 Löschen',deleteSelected,!getObj());
  button('↶ Zurück',undo,!historyBy[active].undo.length).classList.add('push-right');
  button('↷ Vor',redo,!historyBy[active].redo.length);
 }
-function properties(){
- const box=$('properties');box.replaceChildren();box.hidden=!active;
- if(!active)return;
- 
- const object=getObj(),layer=LAYERS[active];
- if(!object){box.replaceChildren();box.hidden=true;return}
- const heading=document.createElement('h2');heading.textContent='Eigenschaften';box.append(heading);
+function properties(){} /* Die Eigenschaften werden jetzt im Popup bearbeitet (siehe buildEditForm) */
+/* Bearbeitungsformular im Popup (früher: Bereich „Eigenschaften“ links) */
+function buildEditForm(object,layer){
+ const box=mk('div','prop pp-edit');
+ box.append(mk('div','pp-sub','Eigenschaften'));
  function field(key,label,value,type='text',readonly=false){
   const wrapper=document.createElement('label');wrapper.textContent=label;
   const input=document.createElement('input');input.type=type;input.value=value??'';input.readOnly=readonly;
   if(type==='number')input.step='1';
-  if(!readonly&&(key==='name'||(layer.extras.find(e=>e.key===key)||{}).required)&&!String(value??'').trim())input.classList.add('missing');
+  const needed=key==='name'||!!(layer.extras.find(e=>e.key===key)||{}).required;
+  if(!readonly&&needed&&!String(value??'').trim())input.classList.add('missing');
   input.onchange=()=>{
    if(readonly)return;
-   if(type==='number'&&(!input.value.trim()||!Number.isFinite(Number(input.value)))){
-    input.value=object[key];return;
-   }
+   if(type==='number'&&(!input.value.trim()||!Number.isFinite(Number(input.value)))){input.value=object[key];return}
    snapshot();object[key]=type==='number'?Math.round(Number(input.value)):input.value;
    if(key==='x'||key==='y')Object.assign(object,planPoint(object));
+   if(needed)input.classList.toggle('missing',!String(input.value??'').trim());
    changed();
   };
   wrapper.append(input);box.append(wrapper);
@@ -940,7 +961,7 @@ function properties(){
   select.onchange=()=>{snapshot();object[key]=select.value;changed()};
   wrapper.append(select);box.append(wrapper);
  }
-field('id','ID',object.id,'text',true);
+ field('id','ID',object.id,'text',true);
  fieldsFor(layer,object).forEach(([key,label])=>{
   if(isLine(object)&&key==='typ'){
    /* ältere Schreibweisen (z. B. „mono“) werden passend vorausgewählt */
@@ -958,8 +979,10 @@ field('id','ID',object.id,'text',true);
   input.onchange=()=>{
    const apply=prepareOrt(active,object,input.value);
    if(!apply){input.value=ortText(holder,object);return}
-   snapshot();const target=apply();const keep=uid(object);changed();
-   if(target&&target!==current){loadPlan(target);selected=keep;refreshUI()}
+   snapshot();const target=apply();const keep=uid(object);
+   input.classList.toggle('missing',!ortValid(active,object));
+   changed();
+   if(target&&target!==current){loadPlan(target);selected=keep;popup={layer:active,id:keep,plan:target,editing:true};refreshUI()}
   };
   wrapper.append(input);box.append(wrapper);
  }
@@ -982,10 +1005,12 @@ field('id','ID',object.id,'text',true);
    :'Keine Verbindung gefunden. Zuordnung über den Ort der Verbindung (ID/ID, z. B. 001/005).';
   box.append(note);
  }
- const remove=document.createElement('button');remove.textContent='Objekt löschen';remove.onclick=deleteSelected;box.append(remove);
+ const remove=document.createElement('button');remove.type='button';remove.textContent='Objekt löschen';
+ remove.onclick=()=>{selected=uid(object);deleteSelected()};box.append(remove);
  const warning=document.createElement('p');warning.className='warning';
  warning.textContent='Änderungen bleiben nur erhalten, wenn Sie die Excel-Datei exportieren.';
  box.append(warning);
+ return box;
 }
 
 /* ---------- Stabiles Dragging: Pointer-Capture liegt auf der Bühne,
@@ -1028,12 +1053,13 @@ function finishGesture(cancelled=false){
 stage.addEventListener('pointerdown',event=>{
  if(event.button!==0||gesture)return;
  event.preventDefault();
+ {const ae=document.activeElement;if(ae&&$('popup').contains(ae)&&/^(INPUT|SELECT)$/.test(ae.tagName))ae.blur()}
  const p=toSvg(event.clientX,event.clientY);
  if(active&&isDrawTool()){
   if(tool==='draw'){
    snapshot();const layer=LAYERS[active];
    const object={id:newId(layer),...planPoint(p),name:layer.idPrefix+' '+(countOf(inventory[current][active],false)+1)};
-   inventory[current][active].push(object);selected=uid(object);changed();
+   inventory[current][active].push(object);selected=uid(object);changed();toast((ELEMENT_NAME[active]||'Objekt')+' auf Plan „'+((PLANS.find(x=>x.id===current)||{}).name||'')+'“ gesetzt.','success',2500);
   }else if(event.detail<2){
    const cab=cabinetNear(planPoint(p),current,active);
    if(!cab){toast('Bitte auf einen Netzwerkschrank klicken.','warn');return}
@@ -1194,8 +1220,8 @@ function toast(message,kind='info',duration=4000){
 }
 window.toast=toast;
 function feedback(kind,title,lines=[],actions=[]){
- if(kind==='success')toast(title,'success');else if(kind==='error')toast(title+(lines.length?' – '+lines.filter(l=>typeof l==='string').slice(0,2).join(' · '):''),'error',8000);else if(kind==='pending')toast(title+(actions.length?' – bitte in der Seitenleiste unter „Excel-Import“ bestätigen.':''),'info',6000);
- const box=$('import-feedback');box.dataset.kind=kind;box.replaceChildren();
+ if(kind==='success')toast(title,'success');else if(kind==='error')toast(title+(lines.length?' – '+lines.filter(l=>typeof l==='string').slice(0,2).join(' · '):''),'error',8000);else if(kind==='pending')toast(title+(actions.length?' – bitte im Fenster „Excel-Import“ bestätigen.':''),'info',6000);
+ if(kind&&!/export/i.test(String(title)))openImportPopup(true);const box=$('import-feedback');box.dataset.kind=kind;box.replaceChildren();
  const p=document.createElement('p'),strong=document.createElement('strong');strong.textContent=title;p.append(strong);box.append(p);
  if(lines.length){
   const ul=document.createElement('ul');
@@ -1208,6 +1234,37 @@ function feedback(kind,title,lines=[],actions=[]){
    const button=document.createElement('button');button.textContent=label;button.classList.toggle('primary',!!primary);button.onclick=run;group.append(button);
   });box.append(group);
  }
+}
+/* ---------- Excel-Import-Fenster (statt Seitenleiste) ---------- */
+function openImportPopup(auto){
+  if(!active){if(!auto)toast('Bitte zuerst eine Technikkategorie zum Bearbeiten wählen.','warn');return}
+  $('import-target').textContent='Zielebene: '+LAYERS[active].label;
+  const box=$('import-popup');box.classList.add('show');box.setAttribute('aria-hidden','false');
+  if(!auto)box.querySelector('.import-dialog').focus();
+}
+function closeImportPopup(){
+  const box=$('import-popup');if(!box)return;
+  box.classList.remove('show');box.setAttribute('aria-hidden','true');
+}
+$('import-close').onclick=closeImportPopup;
+$('import-popup').onclick=event=>{if(event.target===$('import-popup'))closeImportPopup()};
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('import-popup').classList.contains('show')){event.stopImmediatePropagation();closeImportPopup()}},true);
+{
+  const dz=$('import-drop');
+  dz.onclick=()=>openPicker(active);
+  ['dragenter','dragover'].forEach(type=>dz.addEventListener(type,event=>{
+    if(!isFileDrag(event))return;
+    event.preventDefault();event.stopPropagation();event.dataTransfer.dropEffect='copy';dz.classList.add('over');
+  }));
+  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+  dz.addEventListener('drop',event=>{
+    if(!isFileDrag(event))return;
+    event.preventDefault();event.stopPropagation();dz.classList.remove('over');
+    const files=[...event.dataTransfer.files];
+    if(files.length!==1){feedback('error','Bitte genau eine Excel-Datei ablegen',['Es wurden '+files.length+' Dateien erkannt.']);return}
+    if(!active){toast('Bitte zuerst eine Technikkategorie zum Bearbeiten wählen.','warn');return}
+    prepareImport(files[0],active);
+  });
 }
 function needXlsx(){
  if(window.ExcelJS)return true;
@@ -1693,8 +1750,13 @@ function buildPopup(o,layerId){
  title.append(mk('strong','',o.name||o.id),mk('span','pp-kind',line?('Verbindung'+(o.typ?' · '+(info?info.label:o.typ):'')):(KIND_LABEL[layerId]||layer.label)));
  const close=mk('button','pp-close','✕');close.type='button';close.title='Schließen (Esc)';close.setAttribute('aria-label','Schließen');
  close.onclick=()=>closePopup();
- head.append(dot,title,close);
+ const editing=!!(popup&&popup.editing&&active===layerId);
+ const editBtn=mk('button','pp-edit-btn'+(editing?' on':''),editing?'\u2713 Fertig':'\u270f\ufe0f Bearbeiten');editBtn.type='button';
+ editBtn.title=editing?'Bearbeiten beenden':(active===layerId?'Eigenschaften bearbeiten':'Bearbeitungsmodus dieser Kategorie starten und Eigenschaften bearbeiten');
+ editBtn.onclick=()=>toggleEdit();
+ head.append(dot,title,editBtn,close);
  const body=mk('div','pp-body'),dl=mk('dl','pp-list');
+ if(editing){body.append(buildEditForm(o,layer));box.append(head,body);box.classList.add('show');return close}
  const row=(label,value)=>{
   const text=String(value??'').trim(),dd=mk('dd',text?'':'empty',text||'–');
   dl.append(mk('dt','',label),dd);
@@ -1753,22 +1815,53 @@ function positionPopup(cx,cy){
  box.style.left=x+'px';box.style.top=y+'px';
 }
 /* Inhalt aktualisieren, wenn sich Daten ändern (z. B. beim Bearbeiten); Position und Scrollstand bleiben */
+function kindText(o,layerId){
+ if(isLine(o)){const info=lineTypeInfo(o.typ);return 'Verbindung'+(o.typ?' \u00b7 '+(info?info.label:o.typ):'')}
+ return KIND_LABEL[layerId]||LAYERS[layerId].label;
+}
+/* Nur Titelzeile aktualisieren (während im Formular getippt wird, bleibt das Formular unangetastet) */
+function updatePopupHead(o){
+ const box=$('popup'),layerId=popup.layer;
+ const strong=box.querySelector('.pp-title strong');if(strong)strong.textContent=o.name||o.id;
+ const kind=box.querySelector('.pp-kind');if(kind)kind.textContent=kindText(o,layerId);
+ const dot=box.querySelector('.pp-icon');if(dot)dot.style.background=colorFor(LAYERS[layerId],o);
+}
+function clampPopup(){
+ const box=$('popup');if(!box.classList.contains('show')||!box.style.left)return;
+ const r=$('main').getBoundingClientRect(),w=box.offsetWidth,h=box.offsetHeight;
+ const x=Math.max(12,Math.min(parseFloat(box.style.left)||12,r.width-w-12));
+ const y=Math.max(12,Math.min(parseFloat(box.style.top)||12,r.height-h-12));
+ box.style.left=x+'px';box.style.top=y+'px';
+}
+/* Bearbeiten-Button im Popup: startet bei Bedarf den Bearbeitungsmodus der Kategorie und zeigt das Formular */
+function toggleEdit(){
+ if(!popup)return;
+ const L=popup.layer,id=popup.id;
+ if(popup.editing&&active===L){popup.editing=false;refreshPopup();return}
+ if(active!==L)startEdit(L);
+ const r=findObj(L,id);if(!r)return;
+ selected=id;popup={layer:L,id,plan:r.plan,editing:true};
+ refreshUI();
+}
+/* Inhalt aktualisieren, wenn sich Daten ändern (z. B. beim Bearbeiten); Position und Scrollstand bleiben */
 function refreshPopup(){
  if(!popup)return;
  const o=popupObj();
  if(!o){closePopup(false);return}
- const box=$('popup'),top=box.scrollTop;
- buildPopup(o,popup.layer);box.scrollTop=top;
+ const box=$('popup'),top=box.scrollTop,ae=document.activeElement;
+ if(popup.editing&&active===popup.layer&&ae&&box.contains(ae)&&/^(INPUT|SELECT)$/.test(ae.tagName)){updatePopupHead(o);return}
+ buildPopup(o,popup.layer);box.scrollTop=top;clampPopup();
 }
 function openPopup(layerId,id,cx,cy){
  const r=findObj(layerId,id);
  if(!r)return;
+ const keepEdit=!!(popup&&popup.editing&&active===layerId);
  if(r.plan!==current)loadPlan(r.plan);
- popup={layer:layerId,id,plan:r.plan};
+ popup={layer:layerId,id,plan:r.plan,editing:keepEdit};
  if(active===layerId)selected=id;
  refreshUI();
  $('popup').scrollTop=0;
- if(cx!==undefined)positionPopup(cx,cy);
+ if(cx!==undefined)positionPopup(cx,cy);else clampPopup();
  try{const c=$('popup').querySelector('.pp-close');if(c)c.focus({preventScroll:true})}catch{}
 }
 /* Markierung des gewählten Objekts (liegt unter den Symbolen) */
@@ -1856,7 +1949,7 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
   toast((line?'Verbindung':(ELEMENT_NAME[layerId]||'Datensatz'))+' im aktuellen Plan angelegt.','success');tableRender();
  }
  function openTable(){
-  tableOpen=true;$('table-screen').classList.add('show');
+  if(placement){placement=null;toast('Platzierung abgebrochen.','warn')}tableOpen=true;$('table-screen').classList.add('show');
   const s=$('tbl-layer');
   if(!s.options.length)Object.values(LAYERS).forEach(l=>{
    const add=(value,text)=>{const o=document.createElement('option');o.value=value;o.textContent=text;s.append(o)};
@@ -1865,12 +1958,42 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
   if(active)s.value=active;updateTableControls();tableRender();
  }
  function closeTable(){tableOpen=false;$('table-screen').classList.remove('show');refreshUI()}
- function startPlacement(layerId,o,plan){if(isLine(o))return;placement={layerId,id:o.id,plan};active=layerId;tool='select';drawing=[];previewPoint=null;loadPlan(plan);closeTable();$('status').textContent='Platzierung aktiv: auf den Plan klicken; Esc bricht ab.'}
+ function startPlacement(layerId,o,plan){
+    if(isLine(o))return;
+    placement={layerId,id:o.id,plan};
+    if(active!==layerId)startEdit(layerId);
+    tool='select';drawing=[];previewPoint=null;selected=null;
+    closeTable();
+    const label=String(o.name??'').trim()||o.id;
+    $('status').textContent='Platzierung aktiv: auf den Plan klicken; Esc bricht ab.';
+    toast('„'+label+'“ platzieren: auf den Plan „'+((PLANS.find(x=>x.id===current)||{}).name||'')+'“ klicken. Anderen Plan links wählen, falls nötig. Esc bricht ab.','info',7000);
+  }
  $('btn-table').onclick=openTable;$('tbl-close').onclick=closeTable;$('tbl-layer').onchange=()=>{updateTableControls();tableRender()};$('tbl-search').oninput=tableRender;document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{tableFilter=b.dataset.filter;tableRender()});
  $('tbl-new').onclick=createTableRecord;$('tbl-new-cabinet').onclick=createTableRecord;$('tbl-new-connection').onclick=createTableRecord;
- $('tbl-undo').onclick=()=>{active=tbl().layerId;undo();tableRender()};$('tbl-redo').onclick=()=>{active=tbl().layerId;redo();tableRender()};$('tbl-import').onclick=()=>{const id=tbl().layerId;if(active!==id||$('import-section').hidden)startEdit(id);closeTable();openPicker(id)};$('tbl-export').onclick=()=>excelExport(tbl().layerId);
- stage.addEventListener('pointerdown',event=>{if(!placement)return;event.preventDefault();event.stopImmediatePropagation();const p=placement,o=inventory[p.plan][p.layerId].find(x=>!isLine(x)&&x.id===p.id);if(!o){placement=null;return}const q=planPoint(toSvg(event.clientX,event.clientY),p.plan);change(p.layerId,()=>{o.x=q.x;o.y=q.y;delete o._ort});selected=uid(o);placement=null;$('status').textContent='Objekt platziert.'},{capture:true});
- document.addEventListener('keydown',event=>{if(event.key==='Escape'&&placement){placement=null;$('status').textContent='Platzierung abgebrochen.'}},true);
+ $('tbl-undo').onclick=()=>{active=tbl().layerId;undo();tableRender()};$('tbl-redo').onclick=()=>{active=tbl().layerId;redo();tableRender()};$('tbl-import').onclick=()=>{const id=tbl().layerId;if(active!==id)startEdit(id);closeTable();openPicker(id)};$('tbl-export').onclick=()=>excelExport(tbl().layerId);
+ stage.addEventListener('pointerdown',event=>{
+    if(!placement)return;
+    event.preventDefault();event.stopImmediatePropagation();
+    if(event.button!==0)return;
+    const p=placement;
+    if(!active||active!==p.layerId){placement=null;toast('Platzierung abgebrochen (Bearbeitung beendet).','warn');return}
+    const found=findObj(p.layerId,'s:'+p.id);
+    if(!found){placement=null;toast('Das Objekt wurde nicht gefunden – Platzierung abgebrochen.','error');return}
+    const o=found.o,target=current,q=planPoint(toSvg(event.clientX,event.clientY),target);
+    change(p.layerId,()=>{
+      o.x=q.x;o.y=q.y;delete o._ort;
+      if(found.plan!==target){
+        inventory[found.plan][p.layerId]=inventory[found.plan][p.layerId].filter(x=>x!==o);
+        inventory[target][p.layerId].push(o);
+      }
+      selected=uid(o);
+    });
+    placement=null;
+    const plan=PLANS.find(x=>x.id===target),label=String(o.name??'').trim()||o.id;
+    $('status').textContent='Objekt platziert.';
+    toast('„'+label+'“ auf Plan „'+plan.name+'“ platziert: '+planCode(plan)+'('+q.x+'/'+q.y+').','success');
+  },{capture:true});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&placement){placement=null;$('status').textContent='Platzierung abgebrochen.';toast('Platzierung abgebrochen.','warn')}},true);
 })();
 </script>
 </body>
