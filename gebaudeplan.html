@@ -173,7 +173,7 @@ body>*:not(#print-root){display:none!important}
 </section>
 <section id="import-section" hidden>
 <h2>Excel-Import</h2>
-<div class="hint">Excel-Datei (.xlsx) auf die Planfläche ziehen. Pflichtspalten: ID, Name, Ort. Alle weiteren Spalten werden als Zusatzinformationen übernommen. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
+<div class="hint">Excel-Datei (.xlsx) auf die Planfläche ziehen. Pflichtspalten: ID, Name, Ort. Alle weiteren Spalten werden als Zusatzinformationen übernommen. Bei „Netzwerkschränke & Verbindungen“ braucht die Datei zwei Tabellenblätter: „Schränke“ und „Verbindungen“. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
 <div id="import-feedback" role="status" aria-live="polite">Noch keine Datei importiert.</div>
 </section>
 <section id="properties" class="prop" hidden></section>
@@ -252,7 +252,8 @@ const EX=(key,label,flags={})=>({key,label,required:!isNoteKey(key),point:true,l
 const LAYERS={
 accesspoints:{id:'accesspoints',label:'Accesspoints',color:'#1f6feb',kind:'point',idPrefix:'AP',srcId:null,extras:[EX('modell','Modell'),EX('mac','MAC'),EX('ip','IP'),EX('raum','Raum'),EX('notiz','Notiz')]},
 schraenke:{id:'schraenke',label:'Netzwerkschränke & Verbindungen',color:'#d73a49',lineColor:'#2da44e',kind:'mixed',idPrefix:'SK',linePrefix:'VB',srcId:null,
- extras:[EX('typ','Typ'),EX('raum','Raum',{line:false}),EX('notiz','Notiz')]},
+ extras:[EX('typ','Typ'),EX('raum','Raum'),EX('notiz','Notiz')],
+ lineExtras:[EX('typ','Typ'),EX('notiz','Notiz')]},
 fernseher:{id:'fernseher',label:'Fernseher',color:'#e3a008',kind:'point',idPrefix:'TV',srcId:null,extras:[EX('modell','Modell'),EX('zoll','Zoll'),EX('ip','IP'),EX('raum','Raum'),EX('notiz','Notiz')]}
 };
 
@@ -299,7 +300,9 @@ function textColorFor(layer,o){
  if(isLine(o)){const info=lineTypeInfo(o.typ);return info?info.text:(layer.lineColor||layer.color)}
  return layer.color;
 }
-function extrasFor(layer,o){const line=isLine(o);return layer.extras.filter(e=>line?e.line!==false:e.point!==false)}
+function extrasFor(layer,o){return isLine(o)&&layer.lineExtras?layer.lineExtras:layer.extras}
+/* Interne Kennung: Schränke und Verbindungen haben getrennte ID-Nummernkreise (zwei Tabellenblätter) */
+function uid(o){return (isLine(o)?'v:':'s:')+o.id}
 function fieldsFor(layer,o){return [['name','Name'],...extrasFor(layer,o).map(e=>[e.key,e.label])]}
 function countOf(list,line){return list.filter(o=>isLine(o)===line).length}
 function isDrawTool(){return tool==='draw'||tool==='drawline'}
@@ -331,7 +334,7 @@ function parseLinkOrt(text){const m=ORT_LINK.exec(String(text??''));return m?[no
 function allRecords(layerId){return PLANS.flatMap(p=>inventory[p.id][layerId].map(o=>({o,plan:p.id})))}
 function layerAll(layerId){return PLANS.flatMap(p=>inventory[p.id][layerId])}
 function findObj(layerId,id){
- for(const p of PLANS){const o=inventory[p.id][layerId].find(x=>x.id===id);if(o)return {o,plan:p.id}}
+ for(const p of PLANS){const o=inventory[p.id][layerId].find(x=>uid(x)===id);if(o)return {o,plan:p.id}}
  return null;
 }
 function holderPlan(layerId,o){const p=PLANS.find(q=>inventory[q.id][layerId].includes(o));return p?p.id:null}
@@ -394,13 +397,42 @@ function syncLines(layerId){
  lines.forEach(({o,plan})=>{
   const a=cabs.get(normalized(normId(o.von))),b=cabs.get(normalized(normId(o.nach)));
   const ok=a&&b&&a.plan===b.plan&&isNum(a.o.x)&&isNum(a.o.y)&&isNum(b.o.x)&&isNum(b.o.y);
-  o.points=ok?[{x:Number(a.o.x),y:Number(a.o.y)},{x:Number(b.o.x),y:Number(b.o.y)}]:[];
+  o.points=ok?routePoints({x:Number(a.o.x),y:Number(a.o.y)},{x:Number(b.o.x),y:Number(b.o.y)},o):[];
   const home=a?a.plan:(b?b.plan:plan);
   if(home!==plan){
    inventory[plan][layerId]=inventory[plan][layerId].filter(x=>x!==o);
    inventory[home][layerId].push(o);
   }
  });
+}
+/* Rechtwinklige Verlegung: Linie läuft von Schrank A nach Schrank B nur waagerecht/senkrecht (Z-Form).
+   routeDir 'h' = waagerecht – senkrecht – waagerecht (mittleres Stück bei x = routeM),
+   routeDir 'v' = senkrecht – waagerecht – senkrecht (mittleres Stück bei y = routeM).
+   Ohne Angabe: automatisch, mittleres Stück in der Mitte. Wird nicht in Excel gespeichert. */
+function routeParams(a,b,o){
+ const dir=(o&&(o.routeDir==='h'||o.routeDir==='v'))?o.routeDir:(Math.abs(b.x-a.x)>=Math.abs(b.y-a.y)?'h':'v');
+ const m=(o&&isNum(o.routeM))?Number(o.routeM):Math.round(dir==='h'?(a.x+b.x)/2:(a.y+b.y)/2);
+ return {dir,m};
+}
+function routePoints(a,b,o){
+ const {dir,m}=routeParams(a,b,o);
+ const raw=dir==='h'?[a,{x:m,y:a.y},{x:m,y:b.y},b]:[a,{x:a.x,y:m},{x:b.x,y:m},b];
+ const out=[];
+ raw.forEach(p=>{const q=out[out.length-1];if(!q||q.x!==p.x||q.y!==p.y)out.push({x:p.x,y:p.y})});
+ return out.length>=2?out:[{x:a.x,y:a.y},{x:b.x,y:b.y}];
+}
+function labelPoint(points){
+ let best=points[0],len=-1;
+ for(let i=0;i<points.length-1;i++){
+  const l=Math.hypot(points[i+1].x-points[i].x,points[i+1].y-points[i].y);
+  if(l>len){len=l;best={x:(points[i].x+points[i+1].x)/2,y:(points[i].y+points[i+1].y)/2}}
+ }
+ return best;
+}
+function drawRouteHandle(group,o,size){
+ const pts=o.points,a=pts[0],b=pts[pts.length-1],{dir,m}=routeParams(a,b,o);
+ const c=dir==='h'?{x:m,y:(a.y+b.y)/2}:{x:(a.x+b.x)/2,y:m};
+ group.append(S('circle',{cx:c.x,cy:c.y,r:size*.35,fill:'#fff',stroke:colorFor(LAYERS[active],o),'stroke-width':size*.12,'data-routehandle':'true','data-editor-ui':'true',cursor:'move'}));
 }
 function syncAll(){Object.keys(LAYERS).forEach(syncLines)}
 
@@ -491,16 +523,16 @@ let svg,overlay,base,vb,current,active=null,selected=null,tool='select',drawing=
 let gridOn=false,gesture=null,lastPointer=null,previewPoint=null,pendingImport=null,importBusy=false;
 let pickerLayer=null,importSerial=0,drawType=DEFAULT_LINE_TYPE;
 const MIN_ZOOM=2/3,MAX_ZOOM=25;
-function layerState(id){const st=copy(Object.fromEntries(PLANS.map(p=>[p.id,inventory[p.id][id]])));st._meta={extras:copy(LAYERS[id].extras),src:LAYERS[id].srcId??null};return st}
+function layerState(id){const st=copy(Object.fromEntries(PLANS.map(p=>[p.id,inventory[p.id][id]])));st._meta={extras:copy(LAYERS[id].extras),lineExtras:copy(LAYERS[id].lineExtras||null),src:LAYERS[id].srcId??null};return st}
 function recordHistory(id,before){
  const h=historyBy[id];h.undo.push(before);
  if(h.undo.length>100)h.undo.shift();
  h.redo=[];
 }
 function snapshot(){if(active)recordHistory(active,layerState(active))}
-function getObj(){return active&&selected?inventory[current][active].find(o=>o.id===selected):null}
-function newId(layer,used){
- const ids=used||new Set(layerAll(layer.id).map(o=>o.id));
+function getObj(){return active&&selected?inventory[current][active].find(o=>uid(o)===selected):null}
+function newId(layer,used,line){
+ const ids=used||new Set(layerAll(layer.id).filter(o=>isLine(o)===!!line).map(o=>o.id));
  let n=1,id;
  do{id=String(n++).padStart(3,'0')}while(ids.has(id));
  return id;
@@ -633,7 +665,7 @@ function highlightInfo(planId=current){
  const items=inventory[planId][active];
  const lines=items.filter(o=>isLine(o)&&lineTouches(o,sel));
  const partners=items.filter(o=>!isLine(o)&&o.id!==sel.id&&lines.some(l=>lineTouches(l,o)));
- return {lines:new Set(lines.map(l=>l.id)),partners:new Set(partners.map(p=>p.id))};
+ return {lines:new Set(lines.map(uid)),partners:new Set(partners.map(uid))};
 }
 /* Nächstgelegener Schrank innerhalb des Fangradius */
 function cabinetNear(p,planId,layerId){
@@ -686,13 +718,13 @@ function drawGrid(target,planId){
  }
 }
 function draw(layer,o,size,editing,hl=null,hit=editing){
- const g=S('g',{'data-id':o.id});
+ const g=S('g',{'data-id':uid(o)});
  const title=S('title');
  title.textContent=(o.name||o.id)+(isLine(o)&&o.typ?' ('+o.typ+')':'');g.append(title);
  const color=colorFor(layer,o);
  if(isLine(o)){
   const points=o.points.map(p=>p.x+','+p.y).join(' ');
-  const related=!!hl&&hl.lines.has(o.id);
+  const related=!!hl&&hl.lines.has(uid(o));
   const dim=!!hl&&!related;
   const width=related?size*.45:size/4;
   if(dim)g.setAttribute('opacity','.2');
@@ -702,8 +734,8 @@ function draw(layer,o,size,editing,hl=null,hit=editing){
   /* dünne dunkle Kontur, damit auch Gelb auf Weiß gut lesbar ist */
   g.append(S('polyline',{points,fill:'none',stroke:'#000','stroke-opacity':'.4','stroke-width':width+size*.1,'stroke-linecap':'round','stroke-linejoin':'round'}));
   g.append(S('polyline',{points,fill:'none',stroke:color,'stroke-width':width,'stroke-linecap':'round','stroke-linejoin':'round'}));
-  const p=o.points[0];
-  const text=S('text',{x:p.x+size,y:p.y-size/2,fill:textColorFor(layer,o),'font-size':size*.8,class:'ov'});
+  const p=labelPoint(o.points);
+  const text=S('text',{x:p.x+size*.4,y:p.y-size*.5,fill:textColorFor(layer,o),'font-size':size*.8,class:'ov'});
   text.textContent=o.name||o.id;g.append(text);
  }else{
   const x=o.x,y=o.y;
@@ -717,13 +749,13 @@ function draw(layer,o,size,editing,hl=null,hit=editing){
    g.append(S('path',{d:`M ${x-size*.35} ${y+size*.55} h ${size*.7} M ${x} ${y+size*.36} v ${size*.2}`,stroke:color,'stroke-width':size*.15}));
   }
   /* Schränke am anderen Ende hervorgehobener Verbindungen */
-  if(hl&&hl.partners.has(o.id)){
+  if(hl&&hl.partners.has(uid(o))){
    g.append(S('circle',{cx:x,cy:y,r:size*.95,fill:'none',stroke:'#111','stroke-width':size*.14,'data-editor-ui':'true','pointer-events':'none'}));
   }
   const text=S('text',{x:x+size,y:y-size*.45,fill:color,'font-size':size*.8,class:'ov'});
   text.textContent=o.name||o.id;g.append(text);
  }
- if(editing&&selected===o.id){
+ if(editing&&selected===uid(o)){
   const p=isLine(o)?o.points[0]:o;
   g.append(S('circle',{cx:p.x,cy:p.y,r:size*1.05,fill:'none',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15,'data-editor-ui':'true','pointer-events':'none'}));
  }
@@ -747,8 +779,10 @@ if(!exporting)drawPopupMark(target,planId);
   const layerHl=hl&&layer.id===active?hl:null;
   /* Verbindungen zuerst zeichnen (hervorgehobene zuletzt), damit die Schränke darüber liegen */
   const lines=items.filter(isLine);
-  if(layerHl)lines.sort((a,b)=>layerHl.lines.has(a.id)-layerHl.lines.has(b.id));
+  if(layerHl)lines.sort((a,b)=>layerHl.lines.has(uid(a))-layerHl.lines.has(uid(b)));
   [...lines,...items.filter(o=>!isLine(o))].forEach(o=>g.append(draw(layer,o,size,editing,layerHl,hit)));
+  const selLine=editing&&selected&&tool==='select'?getObj():null;
+  if(selLine&&isLine(selLine)&&selLine.points.length>=2)drawRouteHandle(g,selLine,size);
  });
  if(!exporting)drawPreview();
 }
@@ -770,7 +804,7 @@ function drawPreview(){
  if(!active||tool!=='drawline'||!drawing.length)return;
  const info=lineTypeInfo(drawType);
  const color=info?info.color:'#333';
- const points=[...drawing,...(previewPoint?[previewPoint]:[])];
+ const points=previewPoint&&drawing.length?routePoints(drawing[0],previewPoint,{}):[...drawing];
  const ps=points.map(p=>p.x+','+p.y).join(' ');
  g.append(S('polyline',{points:ps,fill:'none',stroke:'#000','stroke-opacity':'.4','stroke-width':base[2]/440+base[2]/1100}));
  g.append(S('polyline',{points:ps,fill:'none',stroke:color,'stroke-width':base[2]/440,'stroke-dasharray':'8 6'}));
@@ -780,7 +814,7 @@ function drawPreview(){
 /* ---------- Historie, Eigenschaften und Werkzeuge ---------- */
 function restore(state,id){
  PLANS.forEach(p=>inventory[p.id][id]=copy(state[p.id]));
- if(state._meta){LAYERS[id].extras=copy(state._meta.extras);LAYERS[id].srcId=state._meta.src}
+ if(state._meta){LAYERS[id].extras=copy(state._meta.extras);if(state._meta.lineExtras)LAYERS[id].lineExtras=copy(state._meta.lineExtras);LAYERS[id].srcId=state._meta.src}
  if(selected&&!getObj())selected=null;
  dirty[id]=true;refreshUI();
 }
@@ -799,7 +833,7 @@ function redo(){
 function changed(){if(active)dirty[active]=true;refreshUI()}
 function deleteSelected(){
  if(!getObj())return;
- snapshot();inventory[current][active]=inventory[current][active].filter(o=>o.id!==selected);
+ snapshot();inventory[current][active]=inventory[current][active].filter(o=>uid(o)!==selected);
  selected=null;changed();
 }
 /* Verbindung anlegen: erst Start-Schrank, dann Ziel-Schrank anklicken */
@@ -807,9 +841,9 @@ function finishLine(target){
  if(!active||tool!=='drawline'||!drawing.length||!target)return;
  snapshot();
  const layer=LAYERS[active];
- const object={id:newId(layer),name:'VB '+(countOf(inventory[current][active],true)+1),von:drawing[0].id,nach:target.id,points:[]};
- if(layer.extras.some(e=>e.key==='typ'))object.typ=drawType;
- inventory[current][active].push(object);selected=object.id;drawing=[];previewPoint=null;changed();
+ const object={id:newId(layer,null,true),name:'VB '+(countOf(inventory[current][active],true)+1),von:drawing[0].id,nach:target.id,points:[]};
+ if((layer.lineExtras||[]).some(e=>e.key==='typ'))object.typ=drawType;
+ inventory[current][active].push(object);selected=uid(object);drawing=[];previewPoint=null;changed();
 }
 function toolbar(){
  const bar=$('editbar');bar.replaceChildren();bar.classList.toggle('show',!!active);
@@ -829,7 +863,7 @@ function toolbar(){
   /* Typ der Verbindung wählen: für neue Verbindungen (Zeichenwerkzeug) oder für die ausgewählte Verbindung */
   const sel=getObj();
   const lineSelected=!!sel&&isLine(sel)&&tool==='select';
-  if((tool==='drawline'||lineSelected)&&layer.extras.some(e=>e.key==='typ')){
+  if((tool==='drawline'||lineSelected)&&(layer.lineExtras||[]).some(e=>e.key==='typ')){
    const label=document.createElement('span');label.className='layer-name';
    label.textContent=tool==='drawline'?'Typ neue Verbindung:':'Typ der Verbindung:';
    bar.append(label);
@@ -864,7 +898,7 @@ function properties(){
  if(!object){
   const text=document.createElement('div');text.className='hint';
   text.textContent=layer.kind==='mixed'
-   ?'Objekt auswählen und ziehen oder mit „Netzwerkschrank“ anlegen. Für eine „Verbindung“ nacheinander zwei Schränke anklicken. Ein Klick auf einen Schrank hebt seine Verbindungen hervor; Verbindungen folgen den Schränken automatisch.'
+   ?'Objekt auswählen und ziehen oder mit „Netzwerkschrank“ anlegen. Für eine „Verbindung“ nacheinander zwei Schränke anklicken. Ein Klick auf einen Schrank hebt seine Verbindungen hervor; Verbindungen verlaufen rechtwinklig und folgen den Schränken; zum Verschieben die Linie ziehen.'
    :'Objekt auswählen und ziehen oder mit „'+ELEMENT_NAME[active]+'“ anlegen.';
   box.append(text);return;
  }
@@ -919,10 +953,21 @@ field('id','ID',object.id,'text',true);
   input.onchange=()=>{
    const apply=prepareOrt(active,object,input.value);
    if(!apply){input.value=ortText(holder,object);return}
-   snapshot();const target=apply();const keep=object.id;changed();
+   snapshot();const target=apply();const keep=uid(object);changed();
    if(target&&target!==current){loadPlan(target);selected=keep;refreshUI()}
   };
   wrapper.append(input);box.append(wrapper);
+ }
+ if(isLine(object)){
+  const wrapper=document.createElement('label');wrapper.textContent='Verlauf (nicht in Excel gespeichert)';
+  const select=document.createElement('select');
+  [['','Automatisch'],['h','Waagerecht zuerst'],['v','Senkrecht zuerst']].forEach(([v,t])=>{const op=document.createElement('option');op.value=v;op.textContent=t;select.append(op)});
+  select.value=object.routeDir||'';
+  select.onchange=()=>{snapshot();if(select.value)object.routeDir=select.value;else delete object.routeDir;delete object.routeM;changed()};
+  wrapper.append(select);box.append(wrapper);
+  const hint=document.createElement('div');hint.className='hint';
+  hint.textContent='Verlegung nur rechtwinklig. Zum Verschieben die Linie oder den weißen Anfasspunkt ziehen.';
+  box.append(hint);
  }
  if(!isLine(object)&&layer.kind==='mixed'){
   const info=highlightInfo();
@@ -946,7 +991,7 @@ function capturePointer(event){
 }
 function beginObjectGesture(event,object,index=null,insertAfter=null){
  const layer=active,before=layerState(layer);
- selected=object.id;
+ selected=uid(object);
  if(insertAfter!==null){
   const a=object.points[insertAfter],b=object.points[insertAfter+1];
   index=insertAfter+1;
@@ -957,7 +1002,8 @@ function beginObjectGesture(event,object,index=null,insertAfter=null){
  gesture={
   type:index===null?'object':'vertex',pointerId:event.pointerId,layer,plan:current,
   object,before,start:toSvg(event.clientX,event.clientY),original:copy(object),index,links,
-  startX:event.clientX,startY:event.clientY,started:insertAfter!==null
+  startX:event.clientX,startY:event.clientY,started:insertAfter!==null,
+  route:(isLine(object)&&object.points.length>=2)?routeParams(object.points[0],object.points[object.points.length-1],object):null
  };
  capturePointer(event);renderOverlay();properties();toolbar();
 }
@@ -982,7 +1028,7 @@ stage.addEventListener('pointerdown',event=>{
   if(tool==='draw'){
    snapshot();const layer=LAYERS[active];
    const object={id:newId(layer),...planPoint(p),name:layer.idPrefix+' '+(countOf(inventory[current][active],false)+1)};
-   inventory[current][active].push(object);selected=object.id;changed();
+   inventory[current][active].push(object);selected=uid(object);changed();
   }else if(event.detail<2){
    const cab=cabinetNear(planPoint(p),current,active);
    if(!cab){toast('Bitte auf einen Netzwerkschrank klicken.','warn');return}
@@ -994,14 +1040,11 @@ stage.addEventListener('pointerdown',event=>{
   return;
  }
  if(active&&tool==='select'){
+  if(event.target.closest('[data-routehandle]')&&getObj()){beginObjectGesture(event,getObj());return}
   const element=event.target.closest('[data-id]');
   if(element){
-   const object=inventory[current][active].find(o=>o.id===element.dataset.id);
-   if(object){
-    /* Verbindungen sind nicht verschiebbar (sie folgen den Schränken): nur auswählen und Details zeigen */
-    if(isLine(object)){selected=object.id;openPopup(active,object.id,event.clientX,event.clientY);return}
-    beginObjectGesture(event,object);return;
-   }
+   const object=inventory[current][active].find(o=>uid(o)===element.dataset.id);
+   if(object){beginObjectGesture(event,object);return}
   }
  }
  selected=null;
@@ -1032,10 +1075,13 @@ stage.addEventListener('pointermove',event=>{
      const b=PLANS.find(p=>p.id===g.plan).box;
      let dx=Math.round(p.x-g.start.x),dy=Math.round(p.y-g.start.y);
      if(isLine(g.object)){
-      const xs=g.original.points.map(p=>p.x),ys=g.original.points.map(p=>p.y);
-      dx=clamp(dx,b[0]-Math.min(...xs),b[0]+b[2]-Math.max(...xs));
-      dy=clamp(dy,b[1]-Math.min(...ys),b[1]+b[3]-Math.max(...ys));
-      g.object.points=g.original.points.map(p=>({x:p.x+dx,y:p.y+dy}));
+      /* Verbindung verschieben: das mittlere Stück wandert quer zu seiner Richtung */
+      if(g.route){
+       const horiz=g.route.dir==='h';
+       const m=g.route.m+(horiz?p.x-g.start.x:p.y-g.start.y);
+       g.object.routeDir=g.route.dir;
+       g.object.routeM=Math.round(clamp(m,horiz?b[0]:b[1],horiz?b[0]+b[2]:b[1]+b[3]));
+      }
      }else{
       Object.assign(g.object,planPoint({x:g.original.x+dx,y:g.original.y+dy},g.plan));
      }
@@ -1056,7 +1102,7 @@ stage.addEventListener('pointerup',event=>{
   if(g.type==='pan'&&still){
    if(!active&&g.hit)openPopup(g.hit.layer,g.hit.id,event.clientX,event.clientY);else if(popup)closePopup();
   }else if(g.type==='object'&&!g.started&&still&&active&&tool==='select'){
-   openPopup(g.layer,g.object.id,event.clientX,event.clientY);
+   openPopup(g.layer,uid(g.object),event.clientX,event.clientY);
   }
  }
 });
@@ -1206,6 +1252,73 @@ function extraKey(label,used){
  while(used.has(key))key=base+(n++);
  used.add(key);return key;
 }
+function readTable(ws){
+ const colCount=ws.columnCount,occupied=[];
+ ws.eachRow({includeEmpty:false},(row,n)=>occupied.push(n));
+ const rowTexts=r=>{const a=[],row=ws.getRow(r);for(let c=1;c<=colCount;c++)a[c]=cellText(row.getCell(c));return a};
+ /* Kopfzeile = erste Zeile, die ID, Name und Ort enthält (Titelzeilen darüber werden ignoriert) */
+ let headerRow=0,headers=[],firstRow=0,firstHeaders=[];
+ for(const r of occupied){
+  const a=rowTexts(r);
+  if(!a.some(Boolean))continue;
+  if(!firstRow){firstRow=r;firstHeaders=a}
+  const n=a.map(normalized);
+  if(['id','name','ort'].every(k=>n.includes(k))){headerRow=r;headers=a;break}
+ }
+ if(!firstRow)throw new Error('Das Tabellenblatt „'+ws.name+'“ ist leer.');
+ if(!headerRow){headerRow=firstRow;headers=firstHeaders}
+ const cols={};
+ for(let c=1;c<=colCount;c++){
+  const n=normalized(headers[c]);
+  if((n==='id'||n==='name'||n==='ort')&&cols[n]===undefined)cols[n]=c;
+ }
+ const lacking=[['ID','id'],['Name','name'],['Ort','ort']].filter(([,k])=>cols[k]===undefined).map(([l])=>l);
+ if(lacking.length)throw new Error('Tabellenblatt „'+ws.name+'“: Erforderliche Spalten fehlen: '+lacking.join(', ')+'. Nötig sind ID, Name und Ort.');
+ /* Alle übrigen Spalten = Zusatzinformationen (dynamisch aus dem Tabellenblatt) */
+ const fixed=new Set([cols.id,cols.name,cols.ort]),keys=new Set(),extras=[];
+ for(let c=1;c<=colCount;c++){
+  if(fixed.has(c)||!headers[c])continue;
+  const key=extraKey(headers[c],keys);
+  extras.push({key,label:headers[c],col:c,required:!isNoteKey(key)});
+ }
+ const rows=[];
+ occupied.filter(r=>r>headerRow).forEach(r=>{const a=rowTexts(r);if(a.some(Boolean))rows.push({r,a})});
+ return {sheetName:ws.name,headerRow,cols:{id:cols.id,name:cols.name,ort:cols.ort},extras,rows,lastRow:rows.length?rows[rows.length-1].r:headerRow};
+}
+/* Zeilen eines Tabellenblatts in Objekte umwandeln (line=false: Objekte mit Ort Plan(X/Y); line=true: Verbindungen mit Ort ID/ID) */
+function buildObjects(table,line,layer,fresh,issues,stats,tag){
+ const taken=new Set(table.rows.map(x=>normId(x.a[table.cols.id])).filter(Boolean));
+ const seen=new Set(),objects=[];
+ table.rows.forEach(({r,a})=>{
+  const ort=a[table.cols.ort]||'';
+  const o={id:normId(a[table.cols.id]),name:a[table.cols.name]||'',_row:r};
+  table.extras.forEach(e=>{o[e.key]=a[e.col]||''});
+  let holder=current;
+  if(line){
+   const l=parseLinkOrt(ort),parts=ort.split('/');
+   o.von=l?l[0]:normId(parts[0]);o.nach=l?l[1]:normId(parts[1]||'');o.points=[];
+   if(ort&&!l)issues.push(tag+'Zeile '+r+': Ort „'+ort+'“ ist keine gültige Verbindung (erwartet ID/ID, z. B. 001/005).');
+   if(table.extras.some(e=>e.key==='typ')&&String(o.typ||'').trim()&&!lineTypeInfo(o.typ))issues.push(tag+'Zeile '+r+': Typ „'+o.typ+'“ unbekannt (erlaubt: Mono, Multi, Kupfer). Die Verbindung wird grün dargestellt.');
+  }else if(ort){
+   const pt=parsePointOrt(ort),plan=pt?resolvePlan(pt.plan):null,b=plan?plan.box:null;
+   const inside=!!pt&&!!plan&&Number.isFinite(pt.x)&&Number.isFinite(pt.y)&&pt.x>=b[0]&&pt.x<=b[0]+b[2]&&pt.y>=b[1]&&pt.y<=b[1]+b[3];
+   if(inside){o.x=pt.x;o.y=pt.y}
+   else{
+    o.x='';o.y='';o._ort=ort;
+    issues.push(tag+'Zeile '+r+': Ort „'+ort+'“ '+(!pt?'ist ungültig (erwartet Plan(X/Y), z. B. E1(10/50)).':!plan?'enthält einen unbekannten Plan (gültig: '+PLANS.map(planCode).join(', ')+').':'liegt außerhalb des Plans.'));
+   }
+   if(plan)holder=plan.id;
+  }else{o.x='';o.y=''}
+  if(!o.id||seen.has(o.id)){
+   const duplicate=!!o.id;
+   o.id=newId(layer,taken,line);taken.add(o.id);stats.assigned++;
+   issues.push(tag+'Zeile '+r+': '+(duplicate?'doppelte':'fehlende')+' ID durch '+o.id+' ersetzt.');
+  }
+  seen.add(o.id);fresh[holder].push(o);objects.push(o);
+ });
+ return objects;
+}
+const tableMeta=t=>({sheetName:t.sheetName,headerRow:t.headerRow,cols:t.cols,rows:t.rows.map(x=>x.r),lastRow:t.lastRow});
 async function prepareImport(file,layerId){
  if(importBusy){
   feedback('pending','Ein Import wird bereits geprüft. Bitte kurz warten.');return;
@@ -1225,92 +1338,28 @@ async function prepareImport(file,layerId){
   const buffer=await file.arrayBuffer();
   const wb=new ExcelJS.Workbook();
   await wb.xlsx.load(buffer.slice(0));
-  const ws=wb.getWorksheet('Daten')||wb.worksheets.find(w=>w.state!=='hidden')||wb.worksheets[0];
-  if(!ws)throw new Error('Die Datei enthält keine Tabellenblätter.');
-  const colCount=ws.columnCount,occupied=[];
-  ws.eachRow({includeEmpty:false},(row,n)=>occupied.push(n));
-  const rowTexts=r=>{const a=[],row=ws.getRow(r);for(let c=1;c<=colCount;c++)a[c]=cellText(row.getCell(c));return a};
-  /* Kopfzeile = erste Zeile, die ID, Name und Ort enthält (Titelzeilen darüber werden ignoriert) */
-  let headerRow=0,headers=[],firstRow=0,firstHeaders=[];
-  for(const r of occupied){
-   const a=rowTexts(r);
-   if(!a.some(Boolean))continue;
-   if(!firstRow){firstRow=r;firstHeaders=a}
-   const n=a.map(normalized);
-   if(['id','name','ort'].every(k=>n.includes(k))){headerRow=r;headers=a;break}
-  }
-  if(!firstRow)throw new Error('Das Tabellenblatt ist leer.');
-  if(!headerRow){headerRow=firstRow;headers=firstHeaders}
-  /* Feste Spalten: ID, Name, Ort */
-  const cols={};
-  for(let c=1;c<=colCount;c++){
-   const n=normalized(headers[c]);
-   if((n==='id'||n==='name'||n==='ort')&&cols[n]===undefined)cols[n]=c;
-  }
-  const lacking=[['ID','id'],['Name','name'],['Ort','ort']].filter(([,k])=>cols[k]===undefined).map(([l])=>l);
-  if(lacking.length)throw new Error('Erforderliche Spalten fehlen: '+lacking.join(', ')+'. Die Tabelle braucht die Spalten ID, Name und Ort.');
-  /* Alle übrigen Spalten = Zusatzinformationen (dynamisch aus der Datei) */
   const layer=LAYERS[layerId],mixed=layer.kind==='mixed';
-  const fixed=new Set([cols.id,cols.name,cols.ort]),keys=new Set(),extras=[];
-  for(let c=1;c<=colCount;c++){
-   if(fixed.has(c)||!headers[c])continue;
-   const key=extraKey(headers[c],keys);
-   extras.push({key,label:headers[c],col:c,required:!isNoteKey(key),point:true,line:true});
-  }
-  const rows=[];
-  occupied.filter(r=>r>headerRow).forEach(r=>{const a=rowTexts(r);if(a.some(Boolean))rows.push({r,a})});
-  if(!rows.length)throw new Error('Keine Datenzeilen gefunden.');
-  const taken=new Set(rows.map(x=>normId(x.a[cols.id])).filter(Boolean));
-  const seen=new Set(),issues=[],objects=[];
-  const fresh=Object.fromEntries(PLANS.map(p=>[p.id,[]]));
-  let assigned=0,lines=0;
-  rows.forEach(({r,a})=>{
-   const ort=a[cols.ort]||'';
-   const link=mixed&&ort&&!ort.includes('(')&&ort.includes('/');
-   const o={id:normId(a[cols.id]),name:a[cols.name]||'',_row:r};
-   extras.forEach(e=>{o[e.key]=a[e.col]||''});
-   let holder=current;
-   if(link){
-    /* Verbindung: Ort = ID/ID */
-    const l=parseLinkOrt(ort),parts=ort.split('/');
-    o.von=l?l[0]:normId(parts[0]);o.nach=l?l[1]:normId(parts[1]||'');o.points=[];lines++;
-    if(!l)issues.push('Zeile '+r+': Ort „'+ort+'“ ist keine gültige Verbindung (erwartet ID/ID, z. B. 001/005).');
-   }else if(ort){
-    /* Objekt: Ort = Plan(X/Y) */
-    const pt=parsePointOrt(ort),plan=pt?resolvePlan(pt.plan):null,b=plan?plan.box:null;
-    const inside=!!pt&&!!plan&&Number.isFinite(pt.x)&&Number.isFinite(pt.y)&&pt.x>=b[0]&&pt.x<=b[0]+b[2]&&pt.y>=b[1]&&pt.y<=b[1]+b[3];
-    if(inside){o.x=pt.x;o.y=pt.y}
-    else{
-     o.x='';o.y='';o._ort=ort;
-     issues.push('Zeile '+r+': Ort „'+ort+'“ '+(!pt?'ist ungültig (erwartet Plan(X/Y), z. B. E1(10/50)).':!plan?'enthält einen unbekannten Plan (gültig: '+PLANS.map(planCode).join(', ')+').':'liegt außerhalb des Plans.'));
-    }
-    if(plan)holder=plan.id;
-   }else{o.x='';o.y=''}
-   if(!o.id||seen.has(o.id)){
-    const duplicate=!!o.id;
-    o.id=newId(layer,taken);taken.add(o.id);assigned++;
-    issues.push('Zeile '+r+': '+(duplicate?'doppelte':'fehlende')+' ID durch '+o.id+' ersetzt.');
-   }
-   seen.add(o.id);fresh[holder].push(o);objects.push(o);
-  });
-  /* Gemischte Ebene: Eine Zusatzspalte gilt nur für Schränke bzw. Verbindungen, wenn sie dafür überhaupt Werte enthält
-     (sonst würde z. B. „Raum“ bei jeder Verbindung als fehlend gelten). Ist sie sonst überall leer, bleibt sie Pflicht. */
+  const visible=wb.worksheets.filter(w=>w.state!=='hidden');
+  let wsP=null,wsL=null;
   if(mixed){
-   const pts=objects.filter(o=>!isLine(o)),lns=objects.filter(isLine);
-   extras.forEach(e=>{
-    const hasP=pts.some(o=>String(o[e.key]??'').trim()),hasL=lns.some(o=>String(o[e.key]??'').trim());
-    if(hasP||hasL){e.point=hasP||!pts.length;e.line=hasL||!lns.length}
-   });
-   if(extras.some(e=>e.key==='typ'&&e.line!==false)){
-    lns.forEach(o=>{
-     if(String(o.typ||'').trim()&&!lineTypeInfo(o.typ))issues.push('Zeile '+o._row+': Typ „'+o.typ+'“ unbekannt (erlaubt: Mono, Multi, Kupfer). Die Verbindung wird grün dargestellt.');
-    });
-   }
+   /* zwei Tabellenblätter: „Schränke“ und „Verbindungen“ (sonst: erstes und zweites sichtbares Blatt) */
+   wsP=visible.find(w=>/schr/.test(normalized(w.name)))||null;
+   wsL=visible.find(w=>/verbind/.test(normalized(w.name)))||null;
+   if(!wsP&&!wsL&&visible.length>=2){wsP=visible[0];wsL=visible[1]}
+   if(!wsP||!wsL)throw new Error('Für diese Ebene braucht die Datei zwei Tabellenblätter: „Schränke“ und „Verbindungen“.');
+  }else{
+   wsP=wb.getWorksheet('Daten')||visible[0]||wb.worksheets[0];
+   if(!wsP)throw new Error('Die Datei enthält keine Tabellenblätter.');
   }
+  const tp=readTable(wsP),tl=mixed?readTable(wsL):null;
+  const fresh=Object.fromEntries(PLANS.map(p=>[p.id,[]])),issues=[],stats={assigned:0};
+  const pts=buildObjects(tp,false,layer,fresh,issues,stats,mixed?'Schränke, ':'');
+  const lns=tl?buildObjects(tl,true,layer,fresh,issues,stats,'Verbindungen, '):[];
+  const count=pts.length+lns.length;
+  if(!count)throw new Error('Keine Datenzeilen gefunden.');
   if(token!==importSerial)return;
-  const src={id:++sourceCounter,buffer:buffer.slice(0),fileName:file.name,sheetName:ws.name,headerRow,
-   cols:{id:cols.id,name:cols.name,ort:cols.ort},rows:rows.map(x=>x.r),lastRow:rows[rows.length-1].r};
-  pendingImport={fileName:file.name,layerId,fresh,extras,src,count:objects.length,lines,assigned,issues};
+  const src={id:++sourceCounter,buffer:buffer.slice(0),fileName:file.name,sheets:{point:tableMeta(tp),line:tl?tableMeta(tl):null}};
+  pendingImport={fileName:file.name,layerId,fresh,extras:tp.extras,lineExtras:tl?tl.extras:null,src,count,lines:lns.length,assigned:stats.assigned,issues};
   showImportPreview();
  }catch(error){
   if(token!==importSerial)return;
@@ -1321,14 +1370,16 @@ async function prepareImport(file,layerId){
 }
 function showImportPreview(){
  const data=pendingImport;if(!data)return;
- const layer=LAYERS[data.layerId];
+ const layer=LAYERS[data.layerId],mixed=layer.kind==='mixed';
  const existing=PLANS.reduce((sum,p)=>sum+inventory[p.id][data.layerId].length,0);
  const counts=PLANS.filter(p=>data.fresh[p.id].length).map(p=>p.name+': '+data.fresh[p.id].length);
+ const cols=list=>list&&list.length?list.map(e=>e.label+(e.required?'':' (optional)')).join(', '):'keine';
  feedback('pending','Datei geprüft – Bestätigung erforderlich',[
   'Datei: '+data.fileName,
   'Zielebene: '+layer.label,
-  data.count+' Zeilen werden importiert'+(layer.kind==='mixed'?' (davon '+data.lines+' Verbindungen)':'')+'. Zeilen mit fehlenden Angaben werden importiert und unter „Fehlende Angaben“ markiert.',
-  'Zusatzspalten: '+(data.extras.length?data.extras.map(e=>e.label+(e.required?'':' (optional)')).join(', '):'keine'),
+  data.count+' Zeilen werden importiert'+(mixed?' ('+(data.count-data.lines)+' Schränke, '+data.lines+' Verbindungen)':'')+'. Zeilen mit fehlenden Angaben werden importiert und unter „Fehlende Angaben“ markiert.',
+  (mixed?'Zusatzspalten Schränke: ':'Zusatzspalten: ')+cols(data.extras),
+  ...(mixed?['Zusatzspalten Verbindungen: '+cols(data.lineExtras)]:[]),
   'Verteilung: '+counts.join(' · '),
   'Achtung: Alle '+existing+' vorhandenen Objekte dieser Ebene in allen Plänen werden ersetzt. Andere Ebenen bleiben unverändert.',
   ...formatIssues(data.issues)
@@ -1346,7 +1397,8 @@ function commitImport(){
  const layer=LAYERS[data.layerId];
  recordHistory(data.layerId,layerState(data.layerId));
  PLANS.forEach(p=>inventory[p.id][data.layerId]=copy(data.fresh[p.id]));
- layer.extras=data.extras;layer.srcId=data.src.id;layerSources[data.src.id]=data.src;
+ layer.extras=data.extras;if(layer.kind==='mixed')layer.lineExtras=data.lineExtras;
+ layer.srcId=data.src.id;layerSources[data.src.id]=data.src;
  syncLines(data.layerId);
  dirty[data.layerId]=true;visible[data.layerId]=true;pendingImport=null;
  if(active===data.layerId){selected=null;drawing=[];previewPoint=null}
@@ -1375,60 +1427,73 @@ function writeCell(cell,text,kind,hint){
  const numeric=(typeof cell.value==='number'||hint==='number')&&/^-?\d+(?:[.,]\d+)?$/.test(text);
  cell.value=numeric?Number(text.replace(',','.')):text;
 }
-function fillRow(row,o,plan,layer,src,hints={}){
+function fillRow(row,o,plan,layer,sheet,hints={}){
  const put=(col,text,kind)=>{if(col)writeCell(row.getCell(col),text,kind,hints[col])};
- put(src.cols.id,String(o.id??''),'id');
- put(src.cols.name,String(o.name??''),'plain');
- put(src.cols.ort,ortText(plan,o),'ort');
- const applicable=extrasFor(layer,o);
- layer.extras.forEach(e=>put(e.col,applicable.includes(e)?String(o[e.key]??''):'','plain'));
+ put(sheet.cols.id,String(o.id??''),'id');
+ put(sheet.cols.name,String(o.name??''),'plain');
+ put(sheet.cols.ort,ortText(plan,o),'ort');
+ extrasFor(layer,o).forEach(e=>put(e.col,String(o[e.key]??''),'plain'));
 }
-async function exportFromSource(layer,src,recs){
- const wb=new ExcelJS.Workbook();
- await wb.xlsx.load(src.buffer.slice(0));
- const ws=wb.getWorksheet(src.sheetName);
- if(!ws)throw new Error('Das ursprüngliche Tabellenblatt „'+src.sheetName+'“ wurde nicht gefunden.');
- const rowSet=new Set(src.rows);
+/* Ein Tabellenblatt der Originaldatei mit den aktuellen Daten füllen */
+function fillSheet(ws,sheet,layer,recs){
+ const rowSet=new Set(sheet.rows);
  const kept=recs.filter(r=>r.o._row&&rowSet.has(r.o._row)).sort((a,b)=>a.o._row-b.o._row);
  const keptObjects=new Set(kept.map(r=>r.o)),keptRows=new Set(kept.map(r=>r.o._row));
  const added=recs.filter(r=>!keptObjects.has(r.o)).sort((a,b)=>String(a.o.id).localeCompare(String(b.o.id),undefined,{numeric:true}));
  /* gelöschte Objekte: Zeile entfernen (von unten nach oben) */
- const removed=src.rows.filter(n=>!keptRows.has(n)).sort((a,b)=>b-a);
+ const removed=sheet.rows.filter(n=>!keptRows.has(n)).sort((a,b)=>b-a);
  removed.forEach(n=>ws.spliceRows(n,1));
  const shift=n=>n-removed.filter(m=>m<n).length;
- const tail=src.lastRow-removed.length;
- const template=tail>src.headerRow?ws.getRow(tail):null;
+ const tail=sheet.lastRow-removed.length;
+ const template=tail>sheet.headerRow?ws.getRow(tail):null;
  const hints={},height=template?template.height:undefined;
+ const sample=recs.length?recs[0].o:null;
  if(template){
-  [src.cols.id,src.cols.name,src.cols.ort,...layer.extras.map(e=>e.col)].forEach(c=>{if(c)hints[c]=typeof template.getCell(c).value});
+  const list=[sheet.cols.id,sheet.cols.name,sheet.cols.ort,...(sample?extrasFor(layer,sample):[]).map(e=>e.col)];
+  list.forEach(c=>{if(c)hints[c]=typeof template.getCell(c).value});
  }
- kept.forEach(({o,plan})=>fillRow(ws.getRow(shift(o._row)),o,plan,layer,src));
+ kept.forEach(({o,plan})=>fillRow(ws.getRow(shift(o._row)),o,plan,layer,sheet));
  /* neue Objekte: unter der letzten Datenzeile einfügen, Formatierung von der Zeile darüber übernehmen */
  added.forEach(({o,plan},i)=>{
   const pos=tail+1+i;
   ws.insertRow(pos,[],template?'i':'n');
   const row=ws.getRow(pos);
   if(height)row.height=height;
-  fillRow(row,o,plan,layer,src,hints);
+  fillRow(row,o,plan,layer,sheet,hints);
  });
+}
+async function exportFromSource(layer,src,recs){
+ const wb=new ExcelJS.Workbook();
+ await wb.xlsx.load(src.buffer.slice(0));
+ for(const kind of ['point','line']){
+  const sheet=src.sheets[kind];if(!sheet)continue;
+  const ws=wb.getWorksheet(sheet.sheetName);
+  if(!ws)throw new Error('Das ursprüngliche Tabellenblatt „'+sheet.sheetName+'“ wurde nicht gefunden.');
+  fillSheet(ws,sheet,layer,recs.filter(r=>isLine(r.o)===(kind==='line')));
+ }
  return wb.xlsx.writeBuffer();
 }
-async function exportFresh(layer,recs){
- const wb=new ExcelJS.Workbook();
- const ws=wb.addWorksheet('Daten');
- const headers=['ID','Name','Ort',...layer.extras.map(e=>e.label)];
+function addTableSheet(wb,name,extras,recs,layer){
+ const ws=wb.addWorksheet(name);
+ const headers=['ID','Name','Ort',...extras.map(e=>e.label)];
  ws.addRow(headers);
  const head=ws.getRow(1);
  head.font={bold:true};
  head.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEEF2F7'}};c.border={bottom:{style:'thin',color:{argb:'FF9AA5B5'}}}});
  recs.slice().sort((a,b)=>String(a.o.id).localeCompare(String(b.o.id),undefined,{numeric:true})).forEach(({o,plan})=>{
-  const applicable=extrasFor(layer,o);
-  const row=ws.addRow([String(o.id??''),String(o.name??''),ortText(plan,o),...layer.extras.map(e=>applicable.includes(e)?String(o[e.key]??''):'')]);
+  const row=ws.addRow([String(o.id??''),String(o.name??''),ortText(plan,o),...extras.map(e=>String(o[e.key]??''))]);
   row.getCell(1).numFmt='@';row.getCell(3).numFmt='@';
  });
  headers.forEach((h,i)=>{ws.getColumn(i+1).width=i===0?8:i===1?26:i===2?16:Math.max(14,h.length+4)});
  ws.views=[{state:'frozen',ySplit:1}];
  ws.autoFilter={from:{row:1,column:1},to:{row:1,column:headers.length}};
+}
+async function exportFresh(layer,recs){
+ const wb=new ExcelJS.Workbook();
+ if(layer.kind==='mixed'){
+  addTableSheet(wb,'Schränke',layer.extras,recs.filter(r=>!isLine(r.o)),layer);
+  addTableSheet(wb,'Verbindungen',layer.lineExtras,recs.filter(r=>isLine(r.o)),layer);
+ }else addTableSheet(wb,'Daten',layer.extras,recs,layer);
  const notes=wb.addWorksheet('Hinweise');
  const lines=[
   'Hinweise',
@@ -1437,7 +1502,10 @@ async function exportFresh(layer,recs){
   'Ort eines Objekts: Plan(X/Y), z. B. E1(10/50) oder MLK(2/230). Gültige Pläne: '+PLANS.map(p=>planCode(p)+' = '+p.name).join(', ')+'.',
   'Koordinaten beziehen sich auf die ursprüngliche SVG-viewBox.'
  ];
- if(layer.kind==='mixed')lines.push('Ort einer Verbindung: ID/ID der beiden Schränke, z. B. 001/005.');
+ if(layer.kind==='mixed'){
+  lines.push('Tabellenblatt „Schränke“: Netzwerkschränke. Tabellenblatt „Verbindungen“: Verbindungen (je eigene ID-Nummern).');
+  lines.push('Ort einer Verbindung: ID/ID der beiden Schränke, z. B. 001/005. Verbindungen werden rechtwinklig verlegt; der Verlauf wird nicht gespeichert.');
+ }
  lines.push('Der Import ersetzt nach Bestätigung die gesamte gewählte Ebene in allen Plänen.');
  lines.forEach(t=>notes.addRow([t]));
  notes.getRow(1).font={bold:true};notes.getColumn(1).width=110;
@@ -1455,7 +1523,7 @@ async function excelExport(id){
   syncLines(id);
   const layer=LAYERS[id],recs=allRecords(id);
   const src=layer.srcId!=null?layerSources[layer.srcId]:null;
-  const fromSource=!!src&&layer.extras.every(e=>e.col);
+  const fromSource=!!src&&layer.extras.every(e=>e.col)&&(layer.kind!=='mixed'||(layer.lineExtras||[]).every(e=>e.col));
   const buffer=fromSource?await exportFromSource(layer,src,recs):await exportFresh(layer,recs);
   const name=fromSource?src.fileName:EXPORT_NAMES[id];
   downloadBlob(buffer,name);dirty[id]=false;
@@ -1641,7 +1709,7 @@ function buildPopup(o,layerId){
    const chip=mk('i',square?'sq':'');chip.style.background=color;
    const t=mk('span','',item.name||item.id);
    if(sub)t.append(mk('small','',sub));
-   b.append(chip,t);b.onclick=()=>openPopup(layerId,item.id);return b;
+   b.append(chip,t);b.onclick=()=>openPopup(layerId,uid(item));return b;
   };
   if(!line){
    const links=items.filter(l=>isLine(l)&&lineTouches(l,o));
@@ -1733,19 +1801,21 @@ const initial=(location.hash||'').slice(1);
 loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
 </script>
 <script>
-/* Tabellenansicht: feste Spalten ID, Name, Ort + dynamische Zusatzspalten der jeweiligen Ebene. */
+/* Tabellenansicht: feste Spalten ID, Name, Ort + dynamische Zusatzspalten. Netzwerkschränke und Verbindungen haben je eine eigene Tabellenseite. */
 (function(){
  let tableOpen=false, tableFilter='all', placement=null;
+ function tbl(){const [layerId,part]=$('tbl-layer').value.split('|');return {layerId,line:part==='line',mixed:LAYERS[layerId].kind==='mixed'}}
  function change(layerId,fn){recordHistory(layerId,layerState(layerId));fn();dirty[layerId]=true;refreshUI()}
  function input(value,label,missing,onchange,readonly=false){const e=document.createElement('input');e.value=value??'';e.readOnly=readonly;e.setAttribute('aria-label',label);if(missing){e.classList.add('missing');e.title='Fehlende Angabe'}if(!readonly)e.onchange=()=>onchange(e.value);return e}
  function tableRender(){
   if(!tableOpen)return;
-  const layerId=$('tbl-layer').value,layer=LAYERS[layerId],mixed=layer.kind==='mixed',query=$('tbl-search').value.toLowerCase(),head=$('table-screen').querySelector('thead'),body=$('table-screen').querySelector('tbody');
-  syncLines(layerId);updateTableControls(layerId);head.replaceChildren();body.replaceChildren();
-  const columns=['ID','Name','Ort',...(mixed?['Objektart']:[]),...layer.extras.map(e=>e.label),'Aktion'];
+  const {layerId,line}=tbl(),layer=LAYERS[layerId],extras=line&&layer.lineExtras?layer.lineExtras:layer.extras,query=$('tbl-search').value.toLowerCase(),head=$('table-screen').querySelector('thead'),body=$('table-screen').querySelector('tbody');
+  syncLines(layerId);updateTableControls();head.replaceChildren();body.replaceChildren();
+  const columns=['ID','Name','Ort',...extras.map(e=>e.label),'Aktion'];
   const trh=document.createElement('tr');columns.forEach(x=>{const th=document.createElement('th');th.textContent=x;trh.append(th)});head.append(trh);
-  const rows=allRecords(layerId).filter(({o,plan})=>{
-   const text=[o.id,o.name,ortText(plan,o),...layer.extras.map(e=>o[e.key])].join(' ').toLowerCase();
+  const all=allRecords(layerId).filter(r=>isLine(r.o)===line);
+  const rows=all.filter(({o,plan})=>{
+   const text=[o.id,o.name,ortText(plan,o),...extras.map(e=>o[e.key])].join(' ').toLowerCase();
    const unplaced=!ortValid(layerId,o),incomplete=unplaced||missingKeys(layer,o).length>0;
    return(!query||text.includes(query))&&(tableFilter==='all'||tableFilter==='unplaced'&&unplaced||tableFilter==='missing'&&incomplete);
   }).sort((a,b)=>String(a.o.id).localeCompare(String(b.o.id),undefined,{numeric:true}));
@@ -1758,43 +1828,36 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
     if(!apply){tableRender();return}
     change(layerId,apply);tableRender();
    }));
-   if(mixed){
-    const kind=cell(),type=document.createElement('select');
-    [['point','Schrank'],['line','Verbindung']].forEach(([v,t])=>{const op=document.createElement('option');op.value=v;op.textContent=t;type.append(op)});
-    type.value=isLine(o)?'line':'point';
-    type.onchange=()=>{change(layerId,()=>{
-     if(type.value==='line'){delete o.x;delete o.y;delete o._ort;o.points=[];o.von='';o.nach=''}
-     else{delete o.points;delete o.von;delete o.nach;o.x='';o.y=''}
-    });tableRender()};
-    kind.append(type);
-   }
-   const applicable=extrasFor(layer,o);
-   layer.extras.forEach(e=>{
-    const td=cell();
-    if(!applicable.includes(e)){td.textContent='–';return}
-    td.append(input(o[e.key],e.label,e.required&&!String(o[e.key]??'').trim(),value=>change(layerId,()=>o[e.key]=value)));
-   });
+   extras.forEach(e=>cell().append(input(o[e.key],e.label,e.required&&!String(o[e.key]??'').trim(),value=>change(layerId,()=>o[e.key]=value))));
    const action=cell();
    if(isLine(o))action.textContent='–';
    else{const button=document.createElement('button');button.className='table-place';button.textContent='Im Plan platzieren';button.onclick=()=>startPlacement(layerId,o,plan);action.append(button)}
    body.append(tr);
   });
-  $('tbl-count').textContent=rows.length+' von '+allRecords(layerId).length+' Datensätzen';['all','unplaced','missing'].forEach(f=>document.querySelector('[data-filter="'+f+'"]').classList.toggle('active',tableFilter===f));
+  $('tbl-count').textContent=rows.length+' von '+all.length+' Datensätzen';['all','unplaced','missing'].forEach(f=>document.querySelector('[data-filter="'+f+'"]').classList.toggle('active',tableFilter===f));
  }
- function updateTableControls(layerId=$('tbl-layer').value){const layer=LAYERS[layerId],history=historyBy[layerId];$('tbl-undo').disabled=!history.undo.length;$('tbl-redo').disabled=!history.redo.length;$('tbl-new').hidden=layer.kind==='mixed';$('tbl-new').textContent='＋ '+(ELEMENT_NAME[layerId]||'Datensatz');$('tbl-new-cabinet').hidden=layer.kind!=='mixed';$('tbl-new-connection').hidden=layer.kind!=='mixed'}
- function createTableRecord(kind){
-  const layerId=$('tbl-layer').value,layer=LAYERS[layerId],line=kind==='line',o={id:newId(layer),name:''};
+ function updateTableControls(){const {layerId,line,mixed}=tbl(),history=historyBy[layerId];$('tbl-undo').disabled=!history.undo.length;$('tbl-redo').disabled=!history.redo.length;$('tbl-new').hidden=mixed;$('tbl-new').textContent='＋ '+(ELEMENT_NAME[layerId]||'Datensatz');$('tbl-new-cabinet').hidden=!(mixed&&!line);$('tbl-new-connection').hidden=!(mixed&&line)}
+ function createTableRecord(){
+  const {layerId,line}=tbl(),layer=LAYERS[layerId],o={id:newId(layer,null,line),name:''};
   if(line){o.points=[];o.von='';o.nach=''}else{o.x='';o.y=''}
   change(layerId,()=>inventory[current][layerId].push(o));
   toast((line?'Verbindung':(ELEMENT_NAME[layerId]||'Datensatz'))+' im aktuellen Plan angelegt.','success');tableRender();
  }
- function openTable(){tableOpen=true;$('table-screen').classList.add('show');const s=$('tbl-layer');if(!s.options.length)Object.values(LAYERS).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.label;s.append(o)});if(active)s.value=active;updateTableControls();tableRender()}
+ function openTable(){
+  tableOpen=true;$('table-screen').classList.add('show');
+  const s=$('tbl-layer');
+  if(!s.options.length)Object.values(LAYERS).forEach(l=>{
+   const add=(value,text)=>{const o=document.createElement('option');o.value=value;o.textContent=text;s.append(o)};
+   if(l.kind==='mixed'){add(l.id,'Netzwerkschränke');add(l.id+'|line','Verbindungen')}else add(l.id,l.label);
+  });
+  if(active)s.value=active;updateTableControls();tableRender();
+ }
  function closeTable(){tableOpen=false;$('table-screen').classList.remove('show');refreshUI()}
  function startPlacement(layerId,o,plan){if(isLine(o))return;placement={layerId,id:o.id,plan};active=layerId;tool='select';drawing=[];previewPoint=null;loadPlan(plan);closeTable();$('status').textContent='Platzierung aktiv: auf den Plan klicken; Esc bricht ab.'}
  $('btn-table').onclick=openTable;$('tbl-close').onclick=closeTable;$('tbl-layer').onchange=()=>{updateTableControls();tableRender()};$('tbl-search').oninput=tableRender;document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{tableFilter=b.dataset.filter;tableRender()});
- $('tbl-new').onclick=()=>createTableRecord('point');$('tbl-new-cabinet').onclick=()=>createTableRecord('point');$('tbl-new-connection').onclick=()=>createTableRecord('line');
- $('tbl-undo').onclick=()=>{active=$('tbl-layer').value;undo();tableRender()};$('tbl-redo').onclick=()=>{active=$('tbl-layer').value;redo();tableRender()};$('tbl-import').onclick=()=>{active=$('tbl-layer').value;closeTable();openPicker(active)};$('tbl-export').onclick=()=>excelExport($('tbl-layer').value);
- stage.addEventListener('pointerdown',event=>{if(!placement)return;event.preventDefault();event.stopImmediatePropagation();const p=placement,o=inventory[p.plan][p.layerId].find(x=>x.id===p.id);if(!o){placement=null;return}const q=planPoint(toSvg(event.clientX,event.clientY),p.plan);change(p.layerId,()=>{o.x=q.x;o.y=q.y;delete o._ort});selected=o.id;placement=null;$('status').textContent='Objekt platziert.'},{capture:true});
+ $('tbl-new').onclick=createTableRecord;$('tbl-new-cabinet').onclick=createTableRecord;$('tbl-new-connection').onclick=createTableRecord;
+ $('tbl-undo').onclick=()=>{active=tbl().layerId;undo();tableRender()};$('tbl-redo').onclick=()=>{active=tbl().layerId;redo();tableRender()};$('tbl-import').onclick=()=>{active=tbl().layerId;closeTable();openPicker(active)};$('tbl-export').onclick=()=>excelExport(tbl().layerId);
+ stage.addEventListener('pointerdown',event=>{if(!placement)return;event.preventDefault();event.stopImmediatePropagation();const p=placement,o=inventory[p.plan][p.layerId].find(x=>!isLine(x)&&x.id===p.id);if(!o){placement=null;return}const q=planPoint(toSvg(event.clientX,event.clientY),p.plan);change(p.layerId,()=>{o.x=q.x;o.y=q.y;delete o._ort});selected=uid(o);placement=null;$('status').textContent='Objekt platziert.'},{capture:true});
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&placement){placement=null;$('status').textContent='Platzierung abgebrochen.'}},true);
 })();
 </script>
