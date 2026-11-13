@@ -62,6 +62,7 @@ svg.hide-labels text:not(.ov){display:none}
 button:disabled{opacity:.45;cursor:not-allowed}
 .editbar button.chosen{background:var(--accent-soft);border-color:var(--accent)}
 .editbar .layer-name{font-weight:650;margin-right:5px}
+.editbar .push-right{margin-left:auto}
 .editbar .typebtn i{display:inline-block;width:18px;height:6px;border-radius:3px;margin-right:6px;vertical-align:middle;box-shadow:0 0 0 1px #0004}
 .editbar .typebtn.chosen{font-weight:650;box-shadow:0 0 0 2px var(--accent) inset}
 .prop{font-size:13px}
@@ -117,19 +118,19 @@ aside section:first-child{min-width:280px}
 .tools #zreset{max-width:120px;min-height:38px}
 .status{left:20px;bottom:20px}
 }
-@page{size:A4 landscape;margin:0}
+@page{size:A4 landscape;margin:8mm}
 @media print{
 html,body{height:auto!important;background:#fff!important;display:block!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body>*:not(#print-root){display:none!important}
 #print-root{display:block!important}
-.print-page{width:100%;box-sizing:border-box;height:auto;padding:8mm 10mm;display:block;page-break-after:always;break-after:page;overflow:hidden;font-family:system-ui,Arial,sans-serif}
+.print-page{width:100%;box-sizing:border-box;height:172mm;max-height:172mm;padding:0;margin:0;display:block;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;overflow:hidden;font-family:system-ui,Arial,sans-serif}
 .print-page:last-child{page-break-after:auto;break-after:auto}
-.print-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #999;padding-bottom:2mm;margin-bottom:4mm;font-size:12pt}
+.print-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #999;padding-bottom:1.5mm;margin-bottom:3mm;font-size:12pt}
 .print-head strong{font-size:15pt}
 .print-head span{color:#555;font-size:10pt}
-.print-page img{display:block;width:100%;height:auto;max-height:175mm;object-fit:contain;margin:0 auto}
-@media (orientation:portrait){.print-page img{max-height:255mm}}
-@media (orientation:landscape){.print-page img{max-height:175mm}}
+.print-page img{display:block;width:100%;height:auto;max-height:155mm;object-fit:contain;margin:0 auto}
+@media (orientation:portrait){.print-page{height:259mm;max-height:259mm}.print-page img{max-height:240mm}}
+@media (orientation:landscape){.print-page{height:172mm;max-height:172mm}.print-page img{max-height:155mm}}
 }
 
 /* Druckdialog */
@@ -173,7 +174,7 @@ body>*:not(#print-root){display:none!important}
 </section>
 <section id="import-section" hidden>
 <h2>Excel-Import</h2>
-<div class="hint">Excel-Datei (.xlsx oder .xls) auf die Planfläche ziehen oder in der Werkzeugleiste „⬆ Excel importieren“ wählen. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
+<div class="hint">Excel-Datei (.xlsx oder .xls) auf die Planfläche ziehen. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
 <div id="import-feedback" role="status" aria-live="polite">Noch keine Datei importiert.</div>
 </section>
 <section id="properties" class="prop" hidden></section>
@@ -203,13 +204,13 @@ body>*:not(#print-root){display:none!important}
 </div>
 
 <style>
-#table-screen{position:fixed;inset:0;z-index:100;background:#f3f5f8;display:none;flex-direction:column;color:#1c2430}#table-screen.show{display:flex}.tbl-head{display:block;padding:12px 16px;background:#fff;border-bottom:1px solid #d9dee6}.tbl-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.tbl-head h2{margin:0;font-size:18px}.tbl-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.tbl-tools label{white-space:nowrap}.tbl-head select,.tbl-head input,.tbl-head button{padding:7px 9px;border:1px solid #bcc6d3;border-radius:6px;background:#fff;font:inherit}.tbl-tools select{max-width:190px}.tbl-head input,.tbl-tools input{width:auto;min-width:190px;flex:0 1 190px}.tbl-tools button{padding:6px;font-size:12px}.tbl-head button{cursor:pointer}.tbl-head button.active{background:#e6f0ff;border-color:#1f6feb}.tbl-status{font-size:13px;color:#556272;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tbl-wrap{overflow:auto;flex:1;padding:12px 16px}.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:#fff;border:1px solid #d9dee6;font-size:13px}.data-table th{position:sticky;top:0;z-index:2;background:#eef2f7;text-align:left;padding:8px;border-bottom:1px solid #cbd3de;white-space:nowrap}.data-table td{padding:5px;border-bottom:1px solid #e5e9ef;vertical-align:top}.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid #bcc6d3;border-radius:4px;background:#fff;font:inherit}.data-table input[readonly]{background:#f3f5f8;color:#5d6877}.data-table .missing{border:2px solid #f08a24!important;background:#fff3e4!important}.table-place{white-space:nowrap;padding:6px;border:1px solid #1f6feb;border-radius:5px;background:#e6f0ff;cursor:pointer}.table-close{position:static;padding:7px 14px!important;background:#a13b16!important;color:#fff!important;border-color:#7d2d10!important;font-weight:700;cursor:pointer}.table-close:hover{background:#7d2d10!important}.tbl-head button:disabled{opacity:.4;background:#e1e5ea!important;color:#66707c!important;border-color:#c5ccd5!important;cursor:not-allowed}
+#table-screen{position:fixed;inset:0;z-index:100;background:#f3f5f8;display:none;flex-direction:column;color:#1c2430}#table-screen.show{display:flex}.tbl-head{display:block;padding:12px 16px;background:#fff;border-bottom:1px solid #d9dee6}.tbl-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.tbl-head h2{margin:0;font-size:18px}.tbl-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.tbl-tools label{white-space:nowrap}.tbl-head select,.tbl-head input,.tbl-head button{padding:7px 9px;border:1px solid #bcc6d3;border-radius:6px;background:#fff;font:inherit}.tbl-tools select{max-width:190px}.tbl-head input,.tbl-tools input{width:auto;min-width:190px;flex:0 1 190px}.tbl-tools button{padding:6px;font-size:12px}.tbl-head button{cursor:pointer}.tbl-head button.active{background:#e6f0ff;border-color:#1f6feb}.tbl-status{font-size:13px;color:#556272;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tbl-wrap{overflow:auto;flex:1;padding:12px 16px}.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:#fff;border:1px solid #d9dee6;font-size:13px}.data-table th{position:sticky;top:0;z-index:2;background:#eef2f7;text-align:left;padding:8px;border-bottom:1px solid #cbd3de;white-space:nowrap}.data-table td{padding:5px;border-bottom:1px solid #e5e9ef;vertical-align:top}.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid #bcc6d3;border-radius:4px;background:#fff;font:inherit}.data-table input[readonly]{background:#f3f5f8;color:#5d6877}.data-table .missing{border:2px solid #f08a24!important;background:#fff3e4!important}.table-place{white-space:nowrap;padding:6px;border:1px solid #1f6feb;border-radius:5px;background:#e6f0ff;cursor:pointer}.table-close{position:static;padding:7px 14px!important;cursor:pointer}.table-close:hover{background:#f1f4f9}.tbl-head button:disabled{opacity:.4;background:#e1e5ea!important;color:#66707c!important;border-color:#c5ccd5!important;cursor:not-allowed}
 
 /* Table toolbar: align all direct controls on one visual row at wide viewports. */
 .tbl-tools{align-items:center;margin-bottom:8px}.tbl-tools:last-child{margin-bottom:0}.tbl-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}.tbl-title select{max-width:260px}.tbl-tools-row3 .tbl-status{flex:none;margin-left:8px;white-space:nowrap}.tbl-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}.tbl-right button[hidden]{display:none}
 </style>
 <div id="table-screen" role="dialog" aria-modal="true" aria-label="Daten als Tabelle">
- <div class="tbl-head"><div class="tbl-top"><div class="tbl-title"><h2>Daten als Tabelle</h2><select id="tbl-layer" aria-label="Technikkategorie auswählen"></select></div><button id="tbl-close" class="table-close">× Zurück zum Plan</button></div><div class="tbl-tools"><input id="tbl-search" type="search" placeholder="Suchen …" aria-label="Tabelle durchsuchen"><button data-filter="all">Alle</button><button data-filter="unplaced">Ohne Ort</button><button data-filter="missing">Fehlende Angaben</button><span class="tbl-right"><button id="tbl-new">＋ Neuer Datensatz</button><button id="tbl-new-cabinet" hidden>＋ Schrank</button><button id="tbl-new-connection" hidden>＋ Verbindung</button><button id="tbl-undo">↶ Zurück</button><button id="tbl-redo">↷ Vor</button></span></div><div class="tbl-tools tbl-tools-row3"><button id="tbl-import">⬆ Import</button><button id="tbl-export">⬇ Export</button><span id="tbl-count" class="tbl-status"></span></div></div>
+ <div class="tbl-head"><div class="tbl-top"><div class="tbl-title"><h2>Daten als Tabelle</h2><select id="tbl-layer" aria-label="Technikkategorie auswählen"></select></div><button id="tbl-close" class="table-close">× Zurück zum Plan</button></div><div class="tbl-tools"><input id="tbl-search" type="search" placeholder="Suchen …" aria-label="Tabelle durchsuchen"><button data-filter="all">Alle</button><button data-filter="unplaced">Ohne Ort</button><button data-filter="missing">Fehlende Angaben</button><span class="tbl-right"><button id="tbl-new">＋ Accesspoint</button><button id="tbl-new-cabinet" hidden>＋ Netzwerkschrank</button><button id="tbl-new-connection" hidden>＋ Verbindung</button><button id="tbl-undo">↶ Zurück</button><button id="tbl-redo">↷ Vor</button></span></div><div class="tbl-tools tbl-tools-row3"><button id="tbl-import">⬆ Import</button><button id="tbl-export">⬇ Export</button><span id="tbl-count" class="tbl-status"></span></div></div>
   <div class="tbl-wrap"><table class="data-table"><thead></thead><tbody></tbody></table></div>
 </div>
 
@@ -255,6 +256,8 @@ fernseher:{id:'fernseher',label:'Fernseher',color:'#e3a008',kind:'point',idPrefi
 
 /* Verbindungstypen: Mono (Singlemode) = gelb, Multi (Multimode) = orange, Kupfer = blau.
    „text“ ist eine dunklere Variante für die Beschriftung (gut lesbar auf Weiß). */
+/* Elementnamen für „Neu“-Buttons (Werkzeugleiste und Tabelle) */
+const ELEMENT_NAME={accesspoints:'Accesspoint',schraenke:'Netzwerkschrank',fernseher:'Fernseher'};
 const LINE_TYPES=[
  {value:'Mono',label:'Mono (Singlemode)',color:'#f5c400',text:'#8a6d00'},
  {value:'Multi',label:'Multi (Multimode)',color:'#ff8c00',text:'#b35f00'},
@@ -740,17 +743,17 @@ function toolbar(){
  const bar=$('editbar');bar.replaceChildren();bar.classList.toggle('show',!!active);
  if(!active)return;
  const layer=LAYERS[active];
- const title=document.createElement('span');title.className='layer-name';title.textContent=layer.label;bar.append(title);
+ 
  function button(text,handler,disabled=false,chosen=false){
   const b=document.createElement('button');b.textContent=text;b.disabled=disabled;
-  b.classList.toggle('chosen',chosen);b.onclick=handler;bar.append(b);
+  b.classList.toggle('chosen',chosen);b.onclick=handler;bar.append(b);return b;
  }
- button('↶ Zurück',undo,!historyBy[active].undo.length);
- button('↷ Vor',redo,!historyBy[active].redo.length);
+ 
+ 
  button('🖱 Auswählen / Verschieben',()=>{tool='select';drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='select');
  if(layer.kind==='mixed'){
-  button('➕ Schrank setzen',()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
-  button('➕ Verbindung zeichnen',()=>{tool='drawline';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='drawline');
+  button('➕ '+ELEMENT_NAME[active],()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
+  button('➕ Verbindung',()=>{tool='drawline';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='drawline');
   if(tool==='drawline')button('✓ Linie fertig',finishLine,drawing.length<2);
   /* Typ der Verbindung wählen: für neue Verbindungen (Zeichenwerkzeug) oder für die ausgewählte Verbindung */
   const sel=getObj();
@@ -776,11 +779,11 @@ function toolbar(){
    });
   }
  }else{
-  button('➕ Neu zeichnen',()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
+  button('➕ '+ELEMENT_NAME[active],()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
  }
  button('🗑 Löschen',deleteSelected,!getObj());
- button('⬇ Excel exportieren',()=>excelExport(active));
- button('⬆ Excel importieren',()=>openPicker(active),importBusy);
+ button('↶ Zurück',undo,!historyBy[active].undo.length).classList.add('push-right');
+ button('↷ Vor',redo,!historyBy[active].redo.length);
 }
 function properties(){
  const box=$('properties');box.replaceChildren();box.hidden=!active;
@@ -790,8 +793,8 @@ function properties(){
  if(!object){
   const text=document.createElement('div');text.className='hint';
   text.textContent=layer.kind==='mixed'
-   ?'Objekt auswählen und ziehen oder mit „Schrank setzen“ bzw. „Verbindung zeichnen“ anlegen. Ein Klick auf einen Schrank hebt seine Verbindungen hervor; beim Verschieben des Schranks wandern die Verbindungen mit.'
-   :'Objekt auswählen und ziehen oder mit „Neu zeichnen“ anlegen.';
+   ?'Objekt auswählen und ziehen oder mit „Netzwerkschrank“ bzw. „Verbindung“ anlegen. Ein Klick auf einen Schrank hebt seine Verbindungen hervor; beim Verschieben des Schranks wandern die Verbindungen mit.'
+   :'Objekt auswählen und ziehen oder mit „'+ELEMENT_NAME[active]+'“ anlegen.';
   box.append(text);return;
  }
  function field(key,label,value,type='text',readonly=false){
@@ -1563,8 +1566,8 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
   });
   $('tbl-count').textContent=rows.length+' von '+records(layerId).length+' Datensätzen';['all','unplaced','missing'].forEach(f=>document.querySelector('[data-filter="'+f+'"]').classList.toggle('active',tableFilter===f));
  }
- function updateTableControls(layerId=$('tbl-layer').value){const layer=LAYERS[layerId],history=historyBy[layerId];$('tbl-undo').disabled=!history.undo.length;$('tbl-redo').disabled=!history.redo.length;$('tbl-new').hidden=layer.kind==='mixed';$('tbl-new-cabinet').hidden=layer.kind!=='mixed';$('tbl-new-connection').hidden=layer.kind!=='mixed'}
- function createTableRecord(kind){const layerId=$('tbl-layer').value,layer=LAYERS[layerId],line=kind==='line',o={id:newId(layer,null,line),name:'',notiz:''};if(line)o.points=[];else{o.x='';o.y=''}change(layerId,()=>inventory[current][layerId].push(o));toast('Neuer Datensatz im aktuellen Plan angelegt.','success');tableRender()}
+ function updateTableControls(layerId=$('tbl-layer').value){const layer=LAYERS[layerId],history=historyBy[layerId];$('tbl-undo').disabled=!history.undo.length;$('tbl-redo').disabled=!history.redo.length;$('tbl-new').hidden=layer.kind==='mixed';$('tbl-new').textContent='＋ '+(ELEMENT_NAME[layerId]||'Datensatz');$('tbl-new-cabinet').hidden=layer.kind!=='mixed';$('tbl-new-connection').hidden=layer.kind!=='mixed'}
+ function createTableRecord(kind){const layerId=$('tbl-layer').value,layer=LAYERS[layerId],line=kind==='line',o={id:newId(layer,null,line),name:'',notiz:''};if(line)o.points=[];else{o.x='';o.y=''}change(layerId,()=>inventory[current][layerId].push(o));toast((line?'Verbindung':(ELEMENT_NAME[layerId]||'Datensatz'))+' im aktuellen Plan angelegt.','success');tableRender()}
  function openTable(){tableOpen=true;$('table-screen').classList.add('show');const s=$('tbl-layer');if(!s.options.length)Object.values(LAYERS).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.label;s.append(o)});if(active)s.value=active;updateTableControls();tableRender()}
  function closeTable(){tableOpen=false;$('table-screen').classList.remove('show');refreshUI()}
  function startPlacement(layerId,o,plan){if(isLine(o))return;placement={layerId,id:o.id,plan};active=layerId;tool='select';drawing=[];previewPoint=null;loadPlan(plan);closeTable();$('status').textContent='Platzierung aktiv: auf den Plan klicken; Esc bricht ab.'}
