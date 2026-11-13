@@ -122,12 +122,14 @@ aside section:first-child{min-width:280px}
 html,body{height:auto!important;background:#fff!important;display:block!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body>*:not(#print-root){display:none!important}
 #print-root{display:block!important}
-.print-page{width:297mm;height:209mm;padding:10mm;display:flex;flex-direction:column;page-break-after:always;break-after:page;overflow:hidden;font-family:system-ui,Arial,sans-serif}
+.print-page{width:100%;box-sizing:border-box;height:auto;padding:8mm 10mm;display:block;page-break-after:always;break-after:page;overflow:hidden;font-family:system-ui,Arial,sans-serif}
 .print-page:last-child{page-break-after:auto;break-after:auto}
 .print-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #999;padding-bottom:2mm;margin-bottom:4mm;font-size:12pt}
 .print-head strong{font-size:15pt}
 .print-head span{color:#555;font-size:10pt}
-.print-page img{flex:1;min-height:0;width:100%;object-fit:contain;display:block}
+.print-page img{display:block;width:100%;height:auto;max-height:175mm;object-fit:contain;margin:0 auto}
+@media (orientation:portrait){.print-page img{max-height:255mm}}
+@media (orientation:landscape){.print-page img{max-height:175mm}}
 }
 
 /* Druckdialog */
@@ -779,7 +781,6 @@ function toolbar(){
  button('🗑 Löschen',deleteSelected,!getObj());
  button('⬇ Excel exportieren',()=>excelExport(active));
  button('⬆ Excel importieren',()=>openPicker(active),importBusy);
- button('✓ Beenden',endEdit);
 }
 function properties(){
  const box=$('properties');box.replaceChildren();box.hidden=!active;
@@ -1329,8 +1330,34 @@ function svgUrl(element,view,labels){
  }
  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(element));
 }
+/* SVG -> PNG (Canvas): iOS/Safari druckt eingebettete SVG-Datenadressen oft leer oder falsch skaliert. Ein Pixelbild ist dort zuverlässig. Fällt bei Fehlern auf die SVG-Quelle zurück. */
+let printBlobUrls=[];
+function rasterizeSvg(src,view){
+ return new Promise(resolve=>{
+  const img=new Image();
+  img.onload=()=>{
+   try{
+    const ratio=view[3]/view[2];
+    let w=3000,h=Math.max(1,Math.round(w*ratio));
+    const maxPixels=12e6;
+    if(w*h>maxPixels){const f=Math.sqrt(maxPixels/(w*h));w=Math.round(w*f);h=Math.round(h*f)}
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+    ctx.drawImage(img,0,0,w,h);
+    canvas.toBlob(blob=>{
+     if(!blob){resolve(src);return}
+     const url=URL.createObjectURL(blob);printBlobUrls.push(url);resolve(url);
+    },'image/png');
+   }catch(e){resolve(src)}
+  };
+  img.onerror=()=>resolve(src);
+  img.src=src;
+ });
+}
 async function exportPdf(){
  const button=$('btn-pdf');button.disabled=true;
+ printBlobUrls.forEach(u=>URL.revokeObjectURL(u));printBlobUrls=[];
  let root=null;
  try{
   const mode=$('pdf-mode').value,labels=$('chk-labels').checked;
@@ -1346,15 +1373,16 @@ async function exportPdf(){
    const subtitle=document.createElement('span');subtitle.textContent=plan.sub+' · Stand '+new Date().toLocaleDateString('de-DE');
    heading.append(title,subtitle);
    const image=new Image();image.alt='Gebäudeplan '+plan.name;
-   loading.push(new Promise((resolve,reject)=>{
-    image.onload=resolve;image.onerror=()=>reject(new Error('Ein Planbild konnte nicht für den Druck geladen werden.'));
-   }));
-   image.src=svgUrl(element,view,labels);page.append(heading,image);root.append(page);
+   loading.push(rasterizeSvg(svgUrl(element,view,labels),view).then(src=>new Promise((resolve,reject)=>{
+     image.onload=resolve;image.onerror=()=>reject(new Error('Ein Planbild konnte nicht für den Druck geladen werden.'));
+     image.src=src;
+   })));
+   page.append(heading,image);root.append(page);
   }
   document.body.append(root);await Promise.all(loading);
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-  const printRoot=root;
-  window.addEventListener('afterprint',()=>printRoot.remove(),{once:true});
+  /* Wichtig für iOS: Druckvorschau wird beim Wechsel Hoch-/Querformat neu aufgebaut. Der Druckinhalt darf daher nach dem Drucken nicht sofort entfernt werden (sonst bleibt die Seite weiß). Er ist am Bildschirm ausgeblendet und wird beim nächsten Druck ersetzt. */
+  await new Promise(resolve=>setTimeout(resolve,150));
   window.print();
  }catch(error){
   root?.remove();
