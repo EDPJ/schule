@@ -135,6 +135,16 @@ body>*:not(#print-root){display:none!important}
 /* Druckdialog */
 #print-popup{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:#16203380;padding:20px}#print-popup.show{display:flex}.print-dialog:focus{outline:none}.print-dialog{position:relative;width:min(440px,100%);background:#fff;border-radius:12px;padding:24px;box-shadow:0 18px 55px #0005}.print-dialog h2{margin:0 34px 8px 0;font-size:20px}.print-dialog p{margin:0 0 18px;color:var(--muted);font-size:14px}.print-dialog label{display:block;font-weight:650;margin-bottom:18px}.print-dialog select{display:block;width:100%;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;font:inherit}.print-actions{display:flex;justify-content:flex-end;gap:8px}.print-actions button,.print-close{padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;font:inherit}.print-actions .primary{background:var(--accent);border-color:var(--accent);color:#fff}.print-close{position:absolute;right:12px;top:12px;border:0;font-size:22px;line-height:1;padding:4px 8px}
 #toast-region{position:fixed;right:16px;bottom:16px;z-index:400;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;max-width:min(380px,calc(100vw - 32px))} .toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:#1c2430;color:#fff;border-left:5px solid #1f6feb;box-shadow:0 8px 24px #0004;font-size:14px;line-height:1.35;animation:toast-in .2s ease-out} .toast-success{border-left-color:#2e9e5b} .toast-warn{border-left-color:#f08a24} .toast-error{border-left-color:#d64545} .toast.leaving{opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s} .toast-close{border:0;background:transparent;color:inherit;font-size:18px;line-height:1;cursor:pointer;padding:0 2px;opacity:.7} .toast-close:hover{opacity:1} @keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}} @media print{#toast-region{display:none!important}} @media (prefers-reduced-motion:reduce){.toast{animation:none}.toast.leaving{transition:none}}
+
+/* High-contrast editor cursors */
+#stage{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grab}
+#stage.dragging{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%231f6feb%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grabbing}
+#stage.drawing{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 16 16, crosshair}
+#stage:not(.drawing) g[data-id]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 5 3, pointer}
+#stage.dragging g[data-id]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%231f6feb%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grabbing}
+#stage [cursor="move"]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grab}
+#stage [cursor="copy"]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%232e9e5b%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 5 3, copy}
+#stage.drawing g[data-id],#stage.drawing [data-editor-ui]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 16 16, crosshair}
 </style>
 </head>
 <body>
@@ -893,15 +903,10 @@ function toolbar(){
 function properties(){
  const box=$('properties');box.replaceChildren();box.hidden=!active;
  if(!active)return;
- const heading=document.createElement('h2');heading.textContent='Eigenschaften';box.append(heading);
+ 
  const object=getObj(),layer=LAYERS[active];
- if(!object){
-  const text=document.createElement('div');text.className='hint';
-  text.textContent=layer.kind==='mixed'
-   ?'Objekt auswählen und ziehen oder mit „Netzwerkschrank“ anlegen. Für eine „Verbindung“ nacheinander zwei Schränke anklicken. Ein Klick auf einen Schrank hebt seine Verbindungen hervor; Verbindungen verlaufen rechtwinklig und folgen den Schränken; zum Verschieben die Linie ziehen.'
-   :'Objekt auswählen und ziehen oder mit „'+ELEMENT_NAME[active]+'“ anlegen.';
-  box.append(text);return;
- }
+ if(!object){box.replaceChildren();box.hidden=true;return}
+ const heading=document.createElement('h2');heading.textContent='Eigenschaften';box.append(heading);
  function field(key,label,value,type='text',readonly=false){
   const wrapper=document.createElement('label');wrapper.textContent=label;
   const input=document.createElement('input');input.type=type;input.value=value??'';input.readOnly=readonly;
@@ -1188,7 +1193,8 @@ function toast(message,kind='info',duration=4000){
  return dismiss;
 }
 window.toast=toast;
-function feedback(kind,title,lines=[],actions=[]){if(kind==='success'||kind==='error')toast(title,kind);
+function feedback(kind,title,lines=[],actions=[]){
+ if(kind==='success')toast(title,'success');else if(kind==='error')toast(title+(lines.length?' – '+lines.filter(l=>typeof l==='string').slice(0,2).join(' · '):''),'error',8000);else if(kind==='pending')toast(title+(actions.length?' – bitte in der Seitenleiste unter „Excel-Import“ bestätigen.':''),'info',6000);
  const box=$('import-feedback');box.dataset.kind=kind;box.replaceChildren();
  const p=document.createElement('p'),strong=document.createElement('strong');strong.textContent=title;p.append(strong);box.append(p);
  if(lines.length){
@@ -1211,14 +1217,20 @@ function needXlsx(){
  return false;
 }
 function openPicker(id){
- if(importBusy||!active)return;
- pickerLayer=id||active;$('xlsx-file').click();
+ if(importBusy){toast('Ein Import wird bereits geprüft. Bitte kurz warten.','warn');return}
+ const layerId=id||active;
+ if(!layerId){toast('Bitte zuerst eine Technikkategorie zum Bearbeiten wählen.','warn');return}
+ pickerLayer=layerId;
+ try{$('xlsx-file').click();toast('Bitte eine Excel-Datei (.xlsx) auswählen …','info',3000)}
+ catch(error){pickerLayer=null;toast('Dateiauswahl konnte nicht geöffnet werden: '+(error.message||'Unbekannter Fehler'),'error',8000)}
 }
 $('xlsx-file').onchange=event=>{
  const file=event.target.files[0],id=pickerLayer||active;
  event.target.value='';pickerLayer=null;
  if(file&&id)prepareImport(file,id);
+ else toast('Keine Datei ausgewählt – es wurde nichts importiert.','warn');
 };
+$('xlsx-file').addEventListener('cancel',()=>{pickerLayer=null;toast('Import abgebrochen – keine Datei ausgewählt.','warn')});
 function normalized(value){return String(value??'').trim().toLowerCase().replace(/\s+/g,'')}
 function numberValue(value){
  if(typeof value==='number')return Number.isFinite(value)?value:NaN;
@@ -1387,7 +1399,7 @@ function showImportPreview(){
   {label:'Import bestätigen',primary:true,run:commitImport},
   {label:'Abbrechen',run:()=>{
    pendingImport=null;
-   feedback('','Import abgebrochen',['Bestehende Daten wurden nicht verändert.']);
+   feedback('','Import abgebrochen',['Bestehende Daten wurden nicht verändert.']);toast('Import abgebrochen – bestehende Daten wurden nicht verändert.','warn');
   }}
  ]);
 }
@@ -1836,7 +1848,7 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
   });
   $('tbl-count').textContent=rows.length+' von '+all.length+' Datensätzen';['all','unplaced','missing'].forEach(f=>document.querySelector('[data-filter="'+f+'"]').classList.toggle('active',tableFilter===f));
  }
- function updateTableControls(){const {layerId,line,mixed}=tbl(),history=historyBy[layerId];$('tbl-undo').disabled=!history.undo.length;$('tbl-redo').disabled=!history.redo.length;$('tbl-new').hidden=mixed;$('tbl-new').textContent='＋ '+(ELEMENT_NAME[layerId]||'Datensatz');$('tbl-new-cabinet').hidden=!(mixed&&!line);$('tbl-new-connection').hidden=!(mixed&&line)}
+ function updateTableControls(){const {layerId,line,mixed}=tbl(),history=historyBy[layerId];$('tbl-undo').disabled=!history.undo.length;$('tbl-redo').disabled=!history.redo.length;$('tbl-new').hidden=mixed;$('tbl-new').textContent='➕ '+(ELEMENT_NAME[layerId]||'Datensatz');$('tbl-new-cabinet').hidden=!(mixed&&!line);$('tbl-new-connection').hidden=!(mixed&&line)}
  function createTableRecord(){
   const {layerId,line}=tbl(),layer=LAYERS[layerId],o={id:newId(layer,null,line),name:''};
   if(line){o.points=[];o.von='';o.nach=''}else{o.x='';o.y=''}
@@ -1856,7 +1868,7 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
  function startPlacement(layerId,o,plan){if(isLine(o))return;placement={layerId,id:o.id,plan};active=layerId;tool='select';drawing=[];previewPoint=null;loadPlan(plan);closeTable();$('status').textContent='Platzierung aktiv: auf den Plan klicken; Esc bricht ab.'}
  $('btn-table').onclick=openTable;$('tbl-close').onclick=closeTable;$('tbl-layer').onchange=()=>{updateTableControls();tableRender()};$('tbl-search').oninput=tableRender;document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{tableFilter=b.dataset.filter;tableRender()});
  $('tbl-new').onclick=createTableRecord;$('tbl-new-cabinet').onclick=createTableRecord;$('tbl-new-connection').onclick=createTableRecord;
- $('tbl-undo').onclick=()=>{active=tbl().layerId;undo();tableRender()};$('tbl-redo').onclick=()=>{active=tbl().layerId;redo();tableRender()};$('tbl-import').onclick=()=>{active=tbl().layerId;closeTable();openPicker(active)};$('tbl-export').onclick=()=>excelExport(tbl().layerId);
+ $('tbl-undo').onclick=()=>{active=tbl().layerId;undo();tableRender()};$('tbl-redo').onclick=()=>{active=tbl().layerId;redo();tableRender()};$('tbl-import').onclick=()=>{const id=tbl().layerId;if(active!==id||$('import-section').hidden)startEdit(id);closeTable();openPicker(id)};$('tbl-export').onclick=()=>excelExport(tbl().layerId);
  stage.addEventListener('pointerdown',event=>{if(!placement)return;event.preventDefault();event.stopImmediatePropagation();const p=placement,o=inventory[p.plan][p.layerId].find(x=>!isLine(x)&&x.id===p.id);if(!o){placement=null;return}const q=planPoint(toSvg(event.clientX,event.clientY),p.plan);change(p.layerId,()=>{o.x=q.x;o.y=q.y;delete o._ort});selected=uid(o);placement=null;$('status').textContent='Objekt platziert.'},{capture:true});
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&placement){placement=null;$('status').textContent='Platzierung abgebrochen.'}},true);
 })();
