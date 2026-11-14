@@ -113,6 +113,8 @@ main.file-over #drop-cover{display:flex}
 .pp-edit-btn{flex:none;height:30px;padding:0 10px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap}
 .pp-edit-btn:hover{background:#f1f4f9}
 .pp-edit-btn.on{background:var(--accent-soft);border-color:var(--accent);color:#0b4fbf;font-weight:600}
+.pp-resolve-btn{color:#b42318;border-color:#f0b4ae}
+.pp-resolve-btn:hover{background:#fdecea}
 #print-root{display:none}
 #data-error{display:none;margin:0;padding:14px 18px;background:#fff0ef;border-bottom:2px solid #d73a49;color:#7a1620;font-size:14px;line-height:1.6}
 @media(max-width:760px){
@@ -152,7 +154,7 @@ body>*:not(#print-root){display:none!important}
 #stage [cursor="move"]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grab}
 #stage [cursor="copy"]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%232e9e5b%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 5 3, copy}
 #stage.drawing g[data-id],#stage.drawing [data-editor-ui]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 16 16, crosshair}
-#import-popup{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:#16203380;padding:20px}
+#import-popup{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:#16203380;padding:20px}
 #import-popup.show{display:flex}
 .import-dialog{position:relative;width:min(560px,100%);max-height:calc(100vh - 40px);overflow:auto;background:#fff;border-radius:12px;padding:24px;box-shadow:0 18px 55px #0005}
 .import-dialog:focus{outline:none}
@@ -235,7 +237,7 @@ body>*:not(#print-root){display:none!important}
 </div>
 
 <style>
-#table-screen{position:fixed;inset:0;z-index:100;background:#f3f5f8;display:none;flex-direction:column;color:#1c2430}#table-screen.show{display:flex}.tbl-head{display:block;padding:12px 16px;background:#fff;border-bottom:1px solid #d9dee6}.tbl-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.tbl-head h2{margin:0;font-size:18px}.tbl-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.tbl-tools label{white-space:nowrap}.tbl-head select,.tbl-head input,.tbl-head button{padding:7px 9px;border:1px solid #bcc6d3;border-radius:6px;background:#fff;font:inherit}.tbl-tools select{max-width:190px}.tbl-head input,.tbl-tools input{width:auto;min-width:190px;flex:0 1 190px}.tbl-tools button{padding:6px;font-size:12px}.tbl-head button{cursor:pointer}.tbl-head button.active{background:#e6f0ff;border-color:#1f6feb}.tbl-status{font-size:13px;color:#556272;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tbl-wrap{overflow:auto;flex:1;padding:12px 16px}.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:#fff;border:1px solid #d9dee6;font-size:13px}.data-table th{position:sticky;top:0;z-index:2;background:#eef2f7;text-align:left;padding:8px;border-bottom:1px solid #cbd3de;white-space:nowrap}.data-table td{padding:5px;border-bottom:1px solid #e5e9ef;vertical-align:top}.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid #bcc6d3;border-radius:4px;background:#fff;font:inherit}.data-table input[readonly]{background:#f3f5f8;color:#5d6877}.data-table .missing{border:2px solid #f08a24!important;background:#fff3e4!important}.table-place{white-space:nowrap;padding:6px;border:1px solid #1f6feb;border-radius:5px;background:#e6f0ff;cursor:pointer}.table-close{position:static;padding:7px 14px!important;cursor:pointer}.table-close:hover{background:#f1f4f9}.tbl-head button:disabled{opacity:.4;background:#e1e5ea!important;color:#66707c!important;border-color:#c5ccd5!important;cursor:not-allowed}
+#table-screen{position:fixed;inset:0;z-index:100;background:#f3f5f8;display:none;flex-direction:column;color:#1c2430}#table-screen.show{display:flex}.tbl-head{display:block;padding:12px 16px;background:#fff;border-bottom:1px solid #d9dee6}.tbl-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.tbl-head h2{margin:0;font-size:18px}.tbl-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.tbl-tools label{white-space:nowrap}.tbl-head select,.tbl-head input,.tbl-head button{padding:7px 9px;border:1px solid #bcc6d3;border-radius:6px;background:#fff;font:inherit}.tbl-tools select{max-width:190px}.tbl-head input,.tbl-tools input{width:auto;min-width:190px;flex:0 1 190px}.tbl-tools button{padding:6px;font-size:12px}.tbl-head button{cursor:pointer}.tbl-head button.active{background:#e6f0ff;border-color:#1f6feb}.tbl-status{font-size:13px;color:#556272;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tbl-wrap{overflow:auto;flex:1;padding:12px 16px}.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:#fff;border:1px solid #d9dee6;font-size:13px}.data-table th{position:sticky;top:0;z-index:2;background:#eef2f7;text-align:left;padding:8px;border-bottom:1px solid #cbd3de;white-space:nowrap}.data-table td{padding:5px;border-bottom:1px solid #e5e9ef;vertical-align:top}.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid #bcc6d3;border-radius:4px;background:#fff;font:inherit}.data-table input[readonly]{background:#f3f5f8;color:#5d6877}.data-table .missing{border:2px solid #f08a24!important;background:#fff3e4!important}.table-place{white-space:nowrap;padding:6px;border:1px solid #1f6feb;border-radius:5px;background:#e6f0ff;cursor:pointer}.table-actions{display:flex;gap:6px;align-items:center}.table-del{white-space:nowrap;padding:6px;border:1px solid #f0b4ae;border-radius:5px;background:#fff;color:#b42318;cursor:pointer}.table-del:hover{background:#fdecea}.table-close{position:static;padding:7px 14px!important;cursor:pointer}.table-close:hover{background:#f1f4f9}.tbl-head button:disabled{opacity:.4;background:#e1e5ea!important;color:#66707c!important;border-color:#c5ccd5!important;cursor:not-allowed}
 
 /* Table toolbar: align all direct controls on one visual row at wide viewports. */
 .tbl-tools{align-items:center;margin-bottom:8px}.tbl-tools:last-child{margin-bottom:0}.tbl-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}.tbl-title select{max-width:260px}.tbl-tools-row3 .tbl-status{flex:none;margin-left:8px;white-space:nowrap}.tbl-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}.tbl-right button[hidden]{display:none}
@@ -282,11 +284,11 @@ const EX=(key,label,flags={})=>({key,label,required:!isNoteKey(key),point:true,l
 /* Feste Spalten jeder Ebene: ID, Name, Ort. Die Zusatzspalten (extras) werden beim Excel-Import aus der Datei ermittelt;
    die hier eingetragenen gelten nur, solange noch nichts importiert wurde. */
 const LAYERS={
-accesspoints:{id:'accesspoints',label:'Accesspoints',color:'#1f6feb',kind:'point',idPrefix:'AP',srcId:null,extras:[EX('modell','Modell'),EX('mac','MAC'),EX('ip','IP'),EX('raum','Raum'),EX('notiz','Notiz')]},
+accesspoints:{id:'accesspoints',label:'Accesspoints',color:'#1f6feb',kind:'point',idPrefix:'AP',srcId:null,extras:[EX('notiz','Notiz')]},
 schraenke:{id:'schraenke',label:'Netzwerkschränke & Verbindungen',color:'#d73a49',lineColor:'#2da44e',kind:'mixed',idPrefix:'SK',linePrefix:'VB',srcId:null,
- extras:[EX('typ','Typ'),EX('raum','Raum'),EX('notiz','Notiz')],
+ extras:[EX('notiz','Notiz')],
  lineExtras:[EX('typ','Typ'),EX('notiz','Notiz')]},
-fernseher:{id:'fernseher',label:'Fernseher',color:'#e3a008',kind:'point',idPrefix:'TV',srcId:null,extras:[EX('modell','Modell'),EX('zoll','Zoll'),EX('ip','IP'),EX('raum','Raum'),EX('notiz','Notiz')]}
+fernseher:{id:'fernseher',label:'Fernseher',color:'#e3a008',kind:'point',idPrefix:'TV',srcId:null,extras:[EX('notiz','Notiz')]}
 };
 
 /* Verbindungstypen: Mono (Singlemode) = gelb, Multi (Multimode) = orange, Kupfer = blau.
@@ -918,8 +920,7 @@ function toolbar(){
  }else{
   button('➕ '+ELEMENT_NAME[active],()=>{tool='draw';selected=null;drawing=[];previewPoint=null;mode();refreshUI()},false,tool==='draw');
  }
- button('⬆ Excel-Import',()=>openImportPopup(false));
-  button('🗑 Löschen',deleteSelected,!getObj());
+
  button('↶ Zurück',undo,!historyBy[active].undo.length).classList.add('push-right');
  button('↷ Vor',redo,!historyBy[active].redo.length);
 }
@@ -1005,8 +1006,6 @@ function buildEditForm(object,layer){
    :'Keine Verbindung gefunden. Zuordnung über den Ort der Verbindung (ID/ID, z. B. 001/005).';
   box.append(note);
  }
- const remove=document.createElement('button');remove.type='button';remove.textContent='Objekt löschen';
- remove.onclick=()=>{selected=uid(object);deleteSelected()};box.append(remove);
  const warning=document.createElement('p');warning.className='warning';
  warning.textContent='Änderungen bleiben nur erhalten, wenn Sie die Excel-Datei exportieren.';
  box.append(warning);
@@ -1472,6 +1471,7 @@ function commitImport(){
  dirty[data.layerId]=true;visible[data.layerId]=true;pendingImport=null;
  if(active===data.layerId){selected=null;drawing=[];previewPoint=null}
  refreshUI();
+ document.dispatchEvent(new Event('inventoryimported'));
  const incomplete=layerAll(data.layerId).filter(o=>missingKeys(layer,o).length||!ortValid(data.layerId,o)).length;
  feedback('success','Import erfolgreich',[
   'Datei: '+data.fileName,
@@ -1754,7 +1754,9 @@ function buildPopup(o,layerId){
  const editBtn=mk('button','pp-edit-btn'+(editing?' on':''),editing?'\u2713 Fertig':'\u270f\ufe0f Bearbeiten');editBtn.type='button';
  editBtn.title=editing?'Bearbeiten beenden':(active===layerId?'Eigenschaften bearbeiten':'Bearbeitungsmodus dieser Kategorie starten und Eigenschaften bearbeiten');
  editBtn.onclick=()=>toggleEdit();
- head.append(dot,title,editBtn,close);
+ const resolveBtn=mk('button','pp-edit-btn pp-resolve-btn','Löschen');resolveBtn.type='button';resolveBtn.title='Objekt löschen';
+ resolveBtn.onclick=()=>{if(active!==layerId)startEdit(layerId);selected=uid(o);deleteSelected();closePopup(false)};
+ head.append(dot,title,editBtn,resolveBtn,close);
  const body=mk('div','pp-body'),dl=mk('dl','pp-list');
  if(editing){body.append(buildEditForm(o,layer));box.append(head,body);box.classList.add('show');return close}
  const row=(label,value)=>{
@@ -1911,6 +1913,15 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
  let tableOpen=false, tableFilter='all', placement=null;
  function tbl(){const [layerId,part]=$('tbl-layer').value.split('|');return {layerId,line:part==='line',mixed:LAYERS[layerId].kind==='mixed'}}
  function change(layerId,fn){recordHistory(layerId,layerState(layerId));fn();dirty[layerId]=true;refreshUI()}
+ function deleteRecord(layerId,o,plan){
+  const label=String(o.name??'').trim()||o.id;
+  if(!confirm('„'+label+'“ wirklich löschen?'))return;
+  recordHistory(layerId,layerState(layerId));
+  inventory[plan][layerId]=inventory[plan][layerId].filter(x=>x!==o);
+  if(popup&&popup.layer===layerId&&popup.id===uid(o))closePopup(false);
+  if(active===layerId&&selected===uid(o))selected=null;
+  dirty[layerId]=true;refreshUI();tableRender();
+ }
  function input(value,label,missing,onchange,readonly=false){const e=document.createElement('input');e.value=value??'';e.readOnly=readonly;e.setAttribute('aria-label',label);if(missing){e.classList.add('missing');e.title='Fehlende Angabe'}if(!readonly)e.onchange=()=>onchange(e.value);return e}
  function tableRender(){
   if(!tableOpen)return;
@@ -1934,9 +1945,9 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
     change(layerId,apply);tableRender();
    }));
    extras.forEach(e=>cell().append(input(o[e.key],e.label,e.required&&!String(o[e.key]??'').trim(),value=>change(layerId,()=>o[e.key]=value))));
-   const action=cell();
-   if(isLine(o))action.textContent='–';
-   else{const button=document.createElement('button');button.className='table-place';button.textContent='Im Plan platzieren';button.onclick=()=>startPlacement(layerId,o,plan);action.append(button)}
+   const action=cell(),actions=document.createElement('div');actions.className='table-actions';
+   if(!isLine(o)){const button=document.createElement('button');button.className='table-place';button.textContent='Im Plan platzieren';button.onclick=()=>startPlacement(layerId,o,plan);actions.append(button)}
+   const del=document.createElement('button');del.className='table-del';del.type='button';del.textContent='Löschen';del.title='Datensatz löschen';del.setAttribute('aria-label','Datensatz löschen');del.onclick=()=>deleteRecord(layerId,o,plan);actions.append(del);action.append(actions);
    body.append(tr);
   });
   $('tbl-count').textContent=rows.length+' von '+all.length+' Datensätzen';['all','unplaced','missing'].forEach(f=>document.querySelector('[data-filter="'+f+'"]').classList.toggle('active',tableFilter===f));
@@ -1970,7 +1981,8 @@ loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
   }
  $('btn-table').onclick=openTable;$('tbl-close').onclick=closeTable;$('tbl-layer').onchange=()=>{updateTableControls();tableRender()};$('tbl-search').oninput=tableRender;document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{tableFilter=b.dataset.filter;tableRender()});
  $('tbl-new').onclick=createTableRecord;$('tbl-new-cabinet').onclick=createTableRecord;$('tbl-new-connection').onclick=createTableRecord;
- $('tbl-undo').onclick=()=>{active=tbl().layerId;undo();tableRender()};$('tbl-redo').onclick=()=>{active=tbl().layerId;redo();tableRender()};$('tbl-import').onclick=()=>{const id=tbl().layerId;if(active!==id)startEdit(id);closeTable();openPicker(id)};$('tbl-export').onclick=()=>excelExport(tbl().layerId);
+ $('tbl-undo').onclick=()=>{active=tbl().layerId;undo();tableRender()};$('tbl-redo').onclick=()=>{active=tbl().layerId;redo();tableRender()};$('tbl-import').onclick=()=>{const id=tbl().layerId;if(active!==id)startEdit(id);openImportPopup(false)};$('tbl-export').onclick=()=>excelExport(tbl().layerId);
+ document.addEventListener('inventoryimported',()=>{if(tableOpen){updateTableControls();tableRender()}});
  stage.addEventListener('pointerdown',event=>{
     if(!placement)return;
     event.preventDefault();event.stopImmediatePropagation();
