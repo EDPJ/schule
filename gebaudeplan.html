@@ -422,13 +422,12 @@ function prepareOrt(layerId,o,text){
 }
 /* Verbindungen werden dem Plan ihres „Von“-Schranks zugeordnet. Zwischen Ebenen
    derselben Gebäudegruppe führen sie über die festen Ebenenports links im Plan. */
-function groupPlans(planId){const p=PLANS.find(x=>x.id===planId);return p?PLANS.filter(x=>x.group===p.group):[]}
+function groupPlans(planId){return PLANS.some(x=>x.id===planId)?PLANS.slice():[]} /* Ebenenkette: alle Pläne, MLK ist Ebene 5 */
 function planIndex(planId){return groupPlans(planId).findIndex(p=>p.id===planId)}
-function portPoint(planId,dir){const p=PLANS.find(x=>x.id===planId),z=planSize(planId)*1.5;return dir==='up'?{x:p.box[0]+z,y:p.box[1]+z}:{x:p.box[0]+z,y:p.box[1]+p.box[3]-z}}
+function portPoint(planId,dir){const p=PLANS.find(x=>x.id===planId),z=planSize(planId)*2.2;return dir==='up'?{x:p.box[0]+z,y:p.box[1]+z}:{x:p.box[0]+z,y:p.box[1]+p.box[3]-z}}
 function portFor(planId,otherId){return planIndex(otherId)<planIndex(planId)?'up':'down'}
 function connectionPlanText(a,b){
  if(!a||!b)return 'Keine Linie im Plan (Schränke fehlen oder haben keinen gültigen Ort)';
- if(a.group!==b.group)return 'Keine Linie im Plan (verschiedene Gebäudegruppen)';
  return a.id===b.id?a.name+(a.sub?' – '+a.sub:''):a.name+' → '+b.name+' (über Ebenenport)';
 }
 function syncLines(layerId){
@@ -440,7 +439,7 @@ function syncLines(layerId){
   const valid=a&&b&&isNum(a.o.x)&&isNum(a.o.y)&&isNum(b.o.x)&&isNum(b.o.y),home=a?a.plan.id:(b?b.plan.id:plan);
   o.points=[];o.segs=[];
   if(valid&&a.plan.id===b.plan.id)o.points=routePoints(a.o,b.o,o);
-  else if(valid&&a.plan.group===b.plan.group){
+  else if(valid){
    const group=groupPlans(a.plan.id),ia=group.findIndex(p=>p.id===a.plan.id),ib=group.findIndex(p=>p.id===b.plan.id),step=ib>ia?1:-1;
    for(let i=ia;i!==ib+step;i+=step){const q=group[i],first=i===ia,last=i===ib;
     const from=first?{x:Number(a.o.x),y:Number(a.o.y)}:portPoint(q.id,step>0?'up':'down');
@@ -496,10 +495,9 @@ function frameBox(plan){
  let x0=box[0],y0=box[1],x1=x0+box[2],y1=y0+box[3];
  ['up','down'].forEach(dir=>{
   const j=i+(dir==='up'?-1:1);if(j<0||j>=group.length)return;
-  const pt=portPoint(plan.id,dir),label=(dir==='up'?'▲ ':'▼ ')+group[j].name;
-  /* Text beginnt rechts vom Port; 0,8 em/Zeichen ist bewusst großzügig. */
-  x0=Math.min(x0,pt.x-size*.65);x1=Math.max(x1,pt.x+size*(.9+.8*label.length));
-  y0=Math.min(y0,pt.y-size*.7);y1=Math.max(y1,pt.y+size*.7);
+  const pt=portPoint(plan.id,dir),label=group[j].name;
+  x0=Math.min(x0,pt.x-size*1.3); x1=Math.max(x1,pt.x+size*(1.7+.75*label.length));
+  y0=Math.min(y0,pt.y-size*1.3);y1=Math.max(y1,pt.y+size*1.3);
  });
  return [x0,y0,x1-x0,y1-y0];
 }
@@ -852,8 +850,11 @@ function drawPorts(target,planId,size,exporting){
  const group=groupPlans(planId),i=planIndex(planId);if(group.length<2)return;
  ['up','down'].forEach(dir=>{const j=i+(dir==='up'?-1:1);if(j<0||j>=group.length)return;const other=group[j],pt=portPoint(planId,dir);
   const count=layerAll('schraenke').filter(o=>{if(!isLine(o))return false;const seq=[holderPlan('schraenke',o),...(o.segs||[]).map(s=>s.plan)];return seq.some((x,k)=>(x===planId&&seq[k+1]===other.id)||(x===other.id&&seq[k+1]===planId))}).length;
-  g.append(S('rect',{x:pt.x-size*.55,y:pt.y-size*.55,width:size*1.1,height:size*1.1,rx:size*.18,fill:'transparent',stroke:'#334155','stroke-width':size*.12}));
-  const t=S('text',{x:pt.x+size*.8,y:pt.y+size*.25,'font-size':size*.7,fill:'#334155',class:'ov'});t.textContent=(dir==='up'?'▲ ':'▼ ')+other.name+(count?' · '+count:'');g.append(t);
+  const r=S('rect',{x:pt.x-size*1.1,y:pt.y-size*1.1,width:size*2.2,height:size*2.2,rx:size*.35,fill:'transparent',stroke:'#334155','stroke-width':size*.2,'pointer-events':'all'});
+  const a=S('text',{x:pt.x,y:pt.y,'text-anchor':'middle','dominant-baseline':'central','font-size':size*1.3,fill:'#334155',class:'ov'});a.textContent=dir==='up'?'▲':'▼';
+  const t=S('text',{x:pt.x+size*1.5,y:pt.y+size*.4,'font-size':size*1.1,fill:'#334155',class:'ov'});t.textContent=other.name+(count?' · '+count:'');
+  if(!exporting){[r,a,t].forEach(el=>{el.style.cursor='pointer';el.onpointerdown=e=>e.stopPropagation();el.onclick=e=>{e.stopPropagation();if(!isDrawTool())loadPlan(other.id)}})}
+  g.append(r,a,t);
  });
 }
 function renderOverlay(target=svg,planId=current,exporting=false){
@@ -939,7 +940,7 @@ function finishLine(target){
  if(!active||tool!=='drawline'||!drawing.length||!target)return;
  snapshot();
  const layer=LAYERS[active];
- const object={id:newId(layer,null,true),name:'VB '+(countOf(inventory[current][active],true)+1),von:drawing[0].id,nach:target.id,points:[]};
+ const id=newId(layer,null,true);const object={id,name:'VB '+(Number(id)||layerAll(layer.id).filter(o=>isLine(o)).length+1),von:drawing[0].id,nach:target.id,points:[]};
  if((layer.lineExtras||[]).some(e=>e.key==='typ'))object.typ=drawType;
  inventory[current][active].push(object);selected=uid(object);drawing=[];previewPoint=null;changed();
 }
@@ -1121,7 +1122,7 @@ stage.addEventListener('pointerdown',event=>{
  if(active&&isDrawTool()){
   if(tool==='draw'){
    snapshot();const layer=LAYERS[active];
-   const object={id:newId(layer),...planPoint(p),name:layer.idPrefix+' '+(countOf(inventory[current][active],false)+1)};
+   const id=newId(layer);const object={id,...planPoint(p),name:layer.idPrefix+' '+(Number(id)||layerAll(layer.id).filter(o=>!isLine(o)).length+1)};
    inventory[current][active].push(object);selected=uid(object);changed();toast((ELEMENT_NAME[active]||'Objekt')+' auf Plan „'+((PLANS.find(x=>x.id===current)||{}).name||'')+'“ gesetzt.','success',2500);
   }else if(event.detail<2){
    const cab=cabinetNear(planPoint(p),current,active);
