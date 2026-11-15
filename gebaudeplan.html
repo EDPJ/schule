@@ -1515,7 +1515,7 @@ function showImportPreview(){
   (mixed?'Zusatzspalten Schränke: ':'Zusatzspalten: ')+cols(data.extras),
   ...(mixed?['Zusatzspalten Verbindungen: '+cols(data.lineExtras)]:[]),
   'Verteilung: '+counts.join(' · '),
-  'Achtung: Alle '+existing+' vorhandenen Objekte dieser Art in allen Plänen werden ersetzt. Andere Ebenen bleiben unverändert.',
+  'Achtung: Alle '+existing+' vorhandenen Objekte dieser Art in allen Ebenen werden ersetzt.',
   ...formatIssues(data.issues)
  ],[
   {label:'Import bestätigen',primary:true,run:commitImport},
