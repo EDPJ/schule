@@ -41,6 +41,10 @@ svg.hide-labels text:not(.ov){display:none}
 .tools button:hover{background:#f1f4f9}
 .tools #zreset{font-size:12px;max-width:100px;height:auto;min-height:42px}
 .status{position:absolute;left:24px;bottom:24px;background:#fffffff0;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);z-index:2;font-variant-numeric:tabular-nums;pointer-events:none;max-width:calc(100% - 48px)}
+#dirty-badge{font-size:12px;padding:5px 8px;border-radius:999px;background:#fff0d8;color:#a84c00;font-weight:600}
+#dirty-badge[hidden]{display:none}
+#draft-popup{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;background:#16203380;padding:20px}
+#draft-popup.show{display:flex}
 #mode-badge{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2f7;color:#465365;font-weight:600}
 .edit-mode{background:#fff0d8!important;color:#a84c00!important}
 /* Technikkategorien: jede Ebene als eigene Karte, Text darf umbrechen */
@@ -53,7 +57,7 @@ svg.hide-labels text:not(.ov){display:none}
 .layer-row button,.editbar button,.prop button,.import-actions button{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 8px;cursor:pointer}
 .layer-row button{grid-column:1/-1;width:100%;padding:7px 8px}
 .layer-row button:hover,.editbar button:hover{background:#f1f4f9}
-.legend{display:flex;flex-direction:column;gap:5px;margin-top:12px;font-size:12px;color:var(--muted)}
+.legend{position:absolute;right:24px;bottom:24px;z-index:2;display:flex;flex-direction:column;gap:5px;padding:8px 10px;background:#fffffff0;border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--muted);pointer-events:none}
 .legend strong{color:var(--text);font-size:12px}
 .legend span{display:flex;align-items:center;gap:7px}
 .legend i.bar{width:22px;height:5px;border-radius:3px;display:inline-block;box-shadow:0 0 0 1px #0004}
@@ -118,6 +122,7 @@ main.file-over #drop-cover{display:flex}
 #print-root{display:none}
 #data-error{display:none;margin:0;padding:14px 18px;background:#fff0ef;border-bottom:2px solid #d73a49;color:#7a1620;font-size:14px;line-height:1.6}
 @media(max-width:760px){
+.legend{right:auto;left:20px;bottom:64px;gap:3px;max-width:calc(100% - 250px);padding:5px 8px}
 .layout{flex-direction:column}
 aside{width:auto;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line);max-height:40vh}
 aside section{min-width:220px;flex:1}
@@ -173,6 +178,7 @@ body>*:not(#print-root){display:none!important}
 <header>
 <h1>Gebäudeplan – Technik-Viewer</h1>
 <span id="mode-badge">👁 Ansichtsmodus · nur lesen</span>
+<span id="dirty-badge" hidden title="Änderungen sind nur im Browser zwischengespeichert. Über „Daten als Tabelle“ → „Export“ als Excel-Datei sichern.">⚠ Nicht exportierte Änderungen</span>
 <div class="header-actions">
 <button id="btn-table" title="Daten als Tabelle bearbeiten">▦ Daten als Tabelle</button>
 <button id="btn-pdf" title="A4 quer · im Druckdialog „Als PDF speichern“ wählen">🖨 Drucken / PDF</button>
@@ -188,8 +194,8 @@ body>*:not(#print-root){display:none!important}
 </section>
 <section>
 <h2>Raum suchen</h2>
-<input type="search" id="search" placeholder="z. B. Mensa, Kino, ...">
-<div class="hint" id="search-hint">Enter springt zum ersten Treffer.</div>
+<input type="search" id="search" placeholder="z. B. Mensa, Kino, ..." enterkeyhint="next" autocomplete="off">
+<div class="hint" id="search-hint" role="status" aria-live="polite"></div>
 </section>
 <section>
 <h2>Anzeige</h2>
@@ -199,7 +205,6 @@ body>*:not(#print-root){display:none!important}
 <section>
 <h2>Technikkategorien</h2>
 <div id="layer-list"></div>
-<div class="legend" id="legend"></div>
 </section>
 </aside>
 <main id="main">
@@ -212,6 +217,7 @@ body>*:not(#print-root){display:none!important}
 <div class="editbar" id="editbar"></div>
 <input id="xlsx-file" type="file" accept=".xlsx" hidden>
 <div class="status" id="status"></div>
+<div class="legend" id="legend" aria-label="Legende der Verbindungstypen"></div>
 <div id="popup" role="dialog" aria-label="Objektdetails"></div>
 <div id="drop-cover">Excel-Datei hier ablegen</div>
 </main>
@@ -222,9 +228,17 @@ body>*:not(#print-root){display:none!important}
   <button id="import-close" class="import-close" type="button" aria-label="Schließen">×</button>
   <h2>Excel-Import</h2>
   <p class="import-target" id="import-target"></p>
-  <div class="hint">Excel-Datei (.xlsx) hier ablegen oder auswählen (alternativ direkt auf die Planfläche ziehen). Pflichtspalten: ID, Name, Ort. Alle weiteren Spalten werden als Zusatzinformationen übernommen. Bei „Netzwerkschränke &amp; Verbindungen“ braucht die Datei zwei Tabellenblätter: „Schränke“ und „Verbindungen“. Der Import ersetzt nach Bestätigung die bearbeitete Ebene in allen Plänen.</div>
+  <div class="hint">Excel-Datei (.xlsx) hier ablegen oder auswählen (alternativ direkt auf die Planfläche ziehen). Pflichtspalten: ID, Name, Ort. Alle weiteren Spalten werden als Zusatzinformationen übernommen. Bei „Netzwerkschränke &amp; Verbindungen“ braucht die Datei zwei Tabellenblätter: „Netzwerkschränke“ und „Verbindungen“. Der Import ersetzt nach Bestätigung die bearbeitete Technikkategorie in allen Plänen.</div>
   <button id="import-drop" type="button">⬆ Excel-Datei hier ablegen oder klicken zum Auswählen</button>
   <div id="import-feedback" role="status" aria-live="polite">Noch keine Datei importiert.</div>
+ </div>
+</div>
+<div id="draft-popup" aria-hidden="true">
+ <div class="print-dialog" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="draft-title" aria-describedby="draft-text">
+  <h2 id="draft-title">Nicht exportierte Änderungen gefunden</h2>
+  <p id="draft-text"></p>
+  <p>Nach dem Wiederherstellen die Daten bitte über „Daten als Tabelle“ → „Export“ als Excel-Datei sichern. Der Export erzeugt dann eine neue Excel-Datei; die Formatierung der ursprünglich importierten Datei ist nicht mehr verfügbar.</p>
+  <div class="print-actions"><button id="draft-discard" type="button">Verwerfen</button><button id="draft-restore" class="primary" type="button">Wiederherstellen</button></div>
  </div>
 </div>
 <div id="print-popup" aria-hidden="true">
@@ -344,7 +358,7 @@ function isDrawTool(){return tool==='draw'||tool==='drawline'}
 /* ---------- Ort, IDs und Verbindungen ----------
    Jedes Objekt hat die festen Spalten ID (001, 002, …), Name und Ort.
    Ort eines Objekts:      Plan(X/Y)  z. B. E1(10/50) oder MLK(2/230)
-   Ort einer Verbindung:   ID/ID      z. B. 001/005 (die IDs der beiden Schränke) */
+   Ort einer Verbindung:   ID/ID      z. B. 001/005 (die IDs der beiden Netzwerkschränke) */
 const isNum=v=>String(v??'').trim()!==''&&Number.isFinite(Number(v));
 function normId(value){
  const t=String(value??'').trim();
@@ -427,7 +441,7 @@ function planIndex(planId){return groupPlans(planId).findIndex(p=>p.id===planId)
 function portPoint(planId,dir){const p=PLANS.find(x=>x.id===planId),s=planSize(planId),left=gridOn?Math.min(p.box[0],gridRef(planId).box[0]):p.box[0];const x=left-s*5.2;return dir==='up'?{x:x,y:p.box[1]+s*2.2}:{x:x,y:p.box[1]+p.box[3]-s*2.2}}
 function portFor(planId,otherId){return planIndex(otherId)<planIndex(planId)?'up':'down'}
 function connectionPlanText(a,b){
- if(!a||!b)return 'Keine Linie im Plan (Schränke fehlen oder haben keinen gültigen Ort)';
+ if(!a||!b)return 'Keine Linie im Plan (Netzwerkschränke fehlen oder haben keinen gültigen Ort)';
  return a.id===b.id?a.name+(a.sub?' – '+a.sub:''):a.name+' → '+b.name+' (über Ebenenport)';
 }
 function syncLines(layerId){
@@ -450,6 +464,65 @@ function syncLines(layerId){
   if(home!==plan){inventory[plan][layerId]=inventory[plan][layerId].filter(x=>x!==o);inventory[home][layerId].push(o)}
  });
 }
+/* ---------- Verbindungen nebeneinander statt übereinander ----------
+   Liegen Teilstücke mehrerer Verbindungen auf derselben Linie (oder nahezu), werden sie nur für
+   die Darstellung auf parallele Spuren verteilt. Die gespeicherten Daten bleiben unverändert.
+   Start und Ziel bleiben in der Mitte der Netzwerkschränke; dort entsteht nur ein kleiner Versatz unter dem Symbol. */
+function simplifyOrtho(points){
+ const pts=[];
+ points.forEach(p=>{const q={x:Number(p.x),y:Number(p.y)},l=pts[pts.length-1];if(!l||Math.abs(l.x-q.x)>1e-9||Math.abs(l.y-q.y)>1e-9)pts.push(q)});
+ for(let i=1;i<pts.length-1;){
+  const a=pts[i-1],b=pts[i],c=pts[i+1];
+  const sameX=Math.abs(a.x-b.x)<1e-9&&Math.abs(b.x-c.x)<1e-9,sameY=Math.abs(a.y-b.y)<1e-9&&Math.abs(b.y-c.y)<1e-9;
+  if(sameX||sameY)pts.splice(i,1);else i++;
+ }
+ return pts;
+}
+function spreadLines(lines,size){
+ const result=new Map(),gap=size*.55,tol=size*.45,minOverlap=size*.15;
+ const polys=lines.map(o=>({key:uid(o),pts:simplifyOrtho(o.points)})).filter(q=>q.pts.length>=2);
+ const segs=[],byPoly=polys.map(()=>[]);
+ polys.forEach((q,pi)=>{
+  for(let k=0;k<q.pts.length-1;k++){
+   const a=q.pts[k],b=q.pts[k+1],h=Math.abs(a.y-b.y)<1e-9,v=Math.abs(a.x-b.x)<1e-9;
+   if(h===v)continue;
+   const seg={pi,k,h,key:q.key,c:h?a.y:a.x,lo:h?Math.min(a.x,b.x):Math.min(a.y,b.y),hi:h?Math.max(a.x,b.x):Math.max(a.y,b.y),d:0,lane:0};
+   segs.push(seg);byPoly[pi].push(seg);
+  }
+ });
+ const parent=segs.map((_,i)=>i);
+ const find=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i]}return i};
+ for(let i=0;i<segs.length;i++)for(let j=i+1;j<segs.length;j++){
+  const a=segs[i],b=segs[j];
+  if(a.h!==b.h||a.pi===b.pi||Math.abs(a.c-b.c)>tol)continue;
+  if(Math.min(a.hi,b.hi)-Math.max(a.lo,b.lo)<=minOverlap)continue;
+  parent[find(i)]=find(j);
+ }
+ const groups=new Map();
+ segs.forEach((sg,i)=>{const r=find(i);if(!groups.has(r))groups.set(r,[]);groups.get(r).push(sg)});
+ groups.forEach(list=>{
+  if(new Set(list.map(sg=>sg.pi)).size<2)return;
+  list.sort((a,b)=>a.lo-b.lo||String(a.key).localeCompare(String(b.key)));
+  const laneEnd=[];
+  list.forEach(sg=>{
+   let lane=laneEnd.findIndex(end=>end<=sg.lo+minOverlap);
+   if(lane<0){lane=laneEnd.length;laneEnd.push(sg.hi)}else laneEnd[lane]=sg.hi;
+   sg.lane=lane;
+  });
+  const mean=list.reduce((t,sg)=>t+sg.c,0)/list.length,n=laneEnd.length;
+  list.forEach(sg=>{sg.d=mean+(sg.lane-(n-1)/2)*gap-sg.c});
+ });
+ const moved=(a,b)=>Math.abs(a.x-b.x)>1e-9||Math.abs(a.y-b.y)>1e-9;
+ polys.forEach((q,pi)=>{
+  const first=q.pts[0],last=q.pts[q.pts.length-1],v=q.pts.map(c=>({x:c.x,y:c.y}));
+  byPoly[pi].filter(sg=>sg.d).forEach(sg=>[sg.k,sg.k+1].forEach(i=>{if(sg.h)v[i].y+=sg.d;else v[i].x+=sg.d}));
+  const out=v.slice();
+  if(moved(v[0],first))out.unshift({x:first.x,y:first.y});
+  if(moved(v[v.length-1],last))out.push({x:last.x,y:last.y});
+  result.set(q.key,out);
+ });
+ return result;
+}
 /* Anzeigeobjekte: Fremdsegmente bleiben mit ihrem Original verbunden, werden aber lokal gezeichnet. */
 function itemsOnPlan(planId,layerId){
  const own=inventory[planId][layerId].slice();
@@ -469,7 +542,25 @@ function routePoints(a,b,o){
  return out.length>=2?out:[{x:a.x,y:a.y},{x:b.x,y:b.y}];
 }
 function labelPoint(points){let best=points[0],len=-1;for(let i=0;i<points.length-1;i++){const l=Math.hypot(points[i+1].x-points[i].x,points[i+1].y-points[i].y);if(l>len){len=l;best={x:(points[i].x+points[i+1].x)/2,y:(points[i].y+points[i+1].y)/2}}}return best}
-function drawRouteHandle(group,o,size){const pts=o.points,a=pts[0],b=pts[pts.length-1],{dir,m}=routeParams(a,b,o),c=dir==='h'?{x:m,y:(a.y+b.y)/2}:{x:(a.x+b.x)/2,y:m};group.append(S('circle',{cx:c.x,cy:c.y,r:size*.35,fill:'#fff',stroke:colorFor(LAYERS[active],o),'stroke-width':size*.12,'data-routehandle':'true','data-editor-ui':'true',cursor:'move'}))}
+function nearestOnPolyline(pts,c){
+ let best=pts[0],bd=Infinity;
+ for(let i=0;i<pts.length-1;i++){
+  const a=pts[i],b=pts[i+1],dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;
+  const t=l2?clamp(((c.x-a.x)*dx+(c.y-a.y)*dy)/l2,0,1):0;
+  const q={x:a.x+dx*t,y:a.y+dy*t},d=Math.hypot(q.x-c.x,q.y-c.y);
+  if(d<bd){bd=d;best=q}
+ }
+ return best;
+}
+function drawRouteHandle(group,o,size,shown){
+ const pts=o.points,a=pts[0],b=pts[pts.length-1],{dir,m}=routeParams(a,b,o);
+ let c=dir==='h'?{x:m,y:(a.y+b.y)/2}:{x:(a.x+b.x)/2,y:m};
+ if(shown&&shown.length>=2)c=nearestOnPolyline(shown,c);
+ const common={cx:c.x,cy:c.y,'data-routehandle':'true','data-editor-ui':'true',cursor:'move'};
+ /* unsichtbare, große Trefferfläche (ca. 20 px Radius) und darüber der sichtbare weiße Punkt */
+ group.append(S('circle',{...common,r:size*.9,fill:'transparent','pointer-events':'all','data-pxr':20,'data-minr':size*.9}));
+ group.append(S('circle',{...common,r:size*.35,fill:'#fff',stroke:colorFor(LAYERS[active],o),'stroke-width':size*.12,'data-pxr':9,'data-minr':size*.35,'data-pxw':3,'data-minw':size*.12}));
+}
 function syncAll(){Object.keys(LAYERS).forEach(syncLines)}
 
 /* ---------- Planquadrat-Raster ----------
@@ -575,7 +666,7 @@ function recordHistory(id,before){
  h.redo=[];
 }
 function snapshot(){if(active)recordHistory(active,layerState(active))}
-function getObj(){return active&&selected?inventory[current][active].find(o=>uid(o)===selected):null}
+function getObj(){if(!active||!selected)return null;const r=findObj(active,selected);return r?r.o:null}
 function newId(layer,used,line){
  const ids=used||new Set(layerAll(layer.id).filter(o=>isLine(o)===!!line).map(o=>o.id));
  let n=1,id;
@@ -592,11 +683,23 @@ function updateStatus(){
  const zoom=base[2]/vb[2]*100;
  const coordinates=lastPointer?'x: '+Math.round(lastPointer.x)+' · y: '+Math.round(lastPointer.y)+' | ':'';
  let instruction=active&&isDrawTool()
- ?(tool==='drawline'?(drawing.length?('Start: Schrank '+drawing[0].id+' ('+((PLANS.find(p=>p.id===drawing[0].plan)||{}).name||'anderer Plan')+') – Ziel auswählen · Esc: abbrechen'):'Klicken: erst Start-Schrank, dann Ziel-Schrank · Esc: abbrechen'):'Klicken: Objekt setzen')
+ ?(tool==='drawline'?(drawing.length?('Start: Netzwerkschrank '+drawing[0].id+' ('+((PLANS.find(p=>p.id===drawing[0].plan)||{}).name||'anderer Plan')+') – Ziel auswählen · Esc: abbrechen'):'Klicken: erst Start-Netzwerkschrank, dann Ziel-Netzwerkschrank · Esc: abbrechen'):'Klicken: Objekt setzen')
  :'Mausrad: Zoom · Ziehen: Verschieben · Klick auf Objekt: Details';
  $('status').textContent=coordinates+'Zoom: '+new Intl.NumberFormat('de-DE',{maximumFractionDigits:1}).format(zoom)+' % | '+instruction;
 }
-function applyVB(){if(svg&&vb){svg.setAttribute('viewBox',vb.join(' '));updateStatus()}}
+/* Größe eines Bildschirmpixels in Planeinheiten – damit Trefferflächen und Anfasser bei jedem Zoom (auch auf dem iPad mit dem Finger) gut treffbar bleiben */
+function uiUnit(){
+ if(!svg||!vb)return 0;
+ const r=svg.getBoundingClientRect();
+ if(!r.width||!r.height)return 0;
+ return 1/Math.min(r.width/vb[2],r.height/vb[3]);
+}
+function scaleUi(){
+ const u=uiUnit();if(!u)return;
+ svg.querySelectorAll('[data-pxw]').forEach(el=>el.setAttribute('stroke-width',Math.max(Number(el.getAttribute('data-minw'))||0,Number(el.getAttribute('data-pxw'))*u)));
+ svg.querySelectorAll('[data-pxr]').forEach(el=>el.setAttribute('r',Math.max(Number(el.getAttribute('data-minr'))||0,Number(el.getAttribute('data-pxr'))*u)));
+}
+function applyVB(){if(svg&&vb){svg.setAttribute('viewBox',vb.join(' '));scaleUi();updateStatus()}}
 function toSvg(x,y){
  const matrix=svg?.getScreenCTM();
  if(!matrix)return {x:0,y:0};
@@ -615,7 +718,7 @@ function zoomCenter(factor){zoomAt({x:vb[0]+vb[2]/2,y:vb[1]+vb[3]/2},factor)}
 /* Sichtbare Bedienelemente liegen über dem SVG. Aus ihren Bildschirm-Rechtecken
    wird das größte rechteckige, kollisionsfreie Sichtfenster ermittelt. */
 function visiblePlanOverlays(){
- return [...document.querySelectorAll('.tools,#status,#editbar,#popup,#drop-cover')].filter(el=>{
+ return [...document.querySelectorAll('.tools,#status,#legend,#editbar,#popup,#drop-cover')].filter(el=>{
   const cs=getComputedStyle(el),r=el.getBoundingClientRect();
   return cs.display!=='none'&&cs.visibility!=='hidden'&&r.width>0&&r.height>0;
  });
@@ -668,7 +771,9 @@ function buildButtons(){
   const bar=document.createElement('i');bar.className='bar';bar.style.background=t.color;
   row.append(bar,document.createTextNode(t.label));legend.append(row);
  });
+ legendVisibility();
 }
+function legendVisibility(){const l=$('legend');if(l)l.style.display=visible.schraenke?'':'none'}
 function layerList(){
  const box=$('layer-list');box.replaceChildren();
  Object.values(LAYERS).forEach(l=>{
@@ -676,7 +781,7 @@ function layerList(){
   row.classList.toggle('editing',active===l.id);
   const check=document.createElement('input');check.type='checkbox';check.checked=visible[l.id];
   check.setAttribute('aria-label',l.label+' anzeigen');
-  check.onchange=()=>{visible[l.id]=check.checked;renderOverlay()};
+  check.onchange=()=>{visible[l.id]=check.checked;legendVisibility();renderOverlay()};
   const dot=document.createElement('i');dot.className='dot';dot.style.background=l.color;
   const text=document.createElement('div');
   const name=document.createElement('span');name.className='lname';name.textContent=l.label;
@@ -684,7 +789,7 @@ function layerList(){
   const list=inventory[current][l.id];
   if(l.kind==='mixed'){
    const cabinets=countOf(list,false),lines=countOf(list,true);
-   count.textContent=cabinets+(cabinets===1?' Schrank':' Schränke')+' · '+lines+(lines===1?' Verbindung':' Verbindungen');
+   count.textContent=cabinets+(cabinets===1?' Netzwerkschrank':' Netzwerkschränke')+' · '+lines+(lines===1?' Verbindung':' Verbindungen');
   }else count.textContent=list.length+(list.length===1?' Objekt':' Objekte');
   text.append(name,count);
   const button=document.createElement('button');button.textContent=active===l.id?'✓ Beenden':'✏️ Bearbeiten';
@@ -700,6 +805,7 @@ function mode(){
  updateStatus();
 }
 function loadPlan(id){closePopup(false);
+ if(!searchJumping)searchPos=-1;
  finishGesture(true);
  current=id;selected=null;/* Eine begonnene Verbindung bleibt bewusst über Planwechsel erhalten. */
  if(!(active&&tool==='drawline'&&drawing.length)){drawing=[];previewPoint=null;}
@@ -733,15 +839,15 @@ function endEdit(){
  clearDrop();
  mode();refreshUI();
 }
-function refreshUI(){renderOverlay();layerList();toolbar();properties();updateStatus();refreshPopup()}
+function refreshUI(){renderOverlay();layerList();toolbar();properties();updateStatus();refreshPopup();draftChanged()}
 
 /* ---------- Zuordnung Schrank ↔ Verbindung ----------
-   Eine Verbindung verweist über ihren Ort („001/005“) auf die IDs zweier Schränke.
-   Die Linie im Plan wird daraus berechnet und folgt den Schränken automatisch. */
+   Eine Verbindung verweist über ihren Ort („001/005“) auf die IDs zweier Netzwerkschränke.
+   Die Linie im Plan wird daraus berechnet und folgt den Netzwerkschränken automatisch. */
 function refersTo(text,cab){const t=normalized(normId(text));return !!t&&t===normalized(cab.id)}
 function lineTouches(line,cab){return refersTo(line.von,cab)||refersTo(line.nach,cab)}
 /* Liefert die hervorzuhebenden Verbindungen und die Schränke am anderen Ende
-   (nur im Werkzeug „Auswählen“ und wenn ein Schrank gewählt ist). */
+   (nur im Werkzeug „Auswählen“ und wenn ein Netzwerkschrank gewählt ist). */
 function highlightInfo(planId=current){
  if(!active||tool!=='select'||LAYERS[active].kind!=='mixed')return null;
  const sel=getObj();
@@ -801,28 +907,31 @@ function drawGrid(target,planId){
   t.textContent=String.fromCharCode(65+i)+(j+1);g.append(t);
  }
 }
-function draw(layer,o,size,editing,hl=null,hit=editing){
+function draw(layer,o,size,editing,hl=null,hit=editing,dispPts=null){
  const g=S('g',{'data-id':uid(o)});
  const title=S('title');
  title.textContent=(o.name||o.id)+(isLine(o)&&o.typ?' ('+o.typ+')':'');g.append(title);
  const color=colorFor(layer,o);
  if(isLine(o)){
-  const points=o.points.map(p=>p.x+','+p.y).join(' ');
+  const shown=dispPts||o.points;
+  const points=shown.map(p=>p.x+','+p.y).join(' ');
   const related=!!hl&&hl.lines.has(uid(o));
   const dim=!!hl&&!related;
   const width=related?size*.45:size/4;
   if(dim)g.setAttribute('opacity','.2');
-  if(editing||hit)g.append(S('polyline',{points,fill:'none',stroke:'transparent','stroke-width':size*1.4,'pointer-events':'stroke'}));
+  if(editing||hit)g.append(S('polyline',{points,fill:'none',stroke:'transparent','stroke-width':size*1.4,'stroke-linecap':'round','stroke-linejoin':'round','pointer-events':'stroke','data-pxw':28,'data-minw':size*1.4}));
   /* Schein bei hervorgehobener Verbindung */
   if(related)g.append(S('polyline',{points,fill:'none',stroke:'#111','stroke-opacity':'.22','stroke-width':width+size*.9,'stroke-linecap':'round','stroke-linejoin':'round'}));
   /* dünne dunkle Kontur, damit auch Gelb auf Weiß gut lesbar ist */
   g.append(S('polyline',{points,fill:'none',stroke:'#000','stroke-opacity':'.4','stroke-width':width+size*.1,'stroke-linecap':'round','stroke-linejoin':'round'}));
   g.append(S('polyline',{points,fill:'none',stroke:color,'stroke-width':width,'stroke-linecap':'round','stroke-linejoin':'round'}));
-  const p=labelPoint(o.points);
+  const p=labelPoint(shown);
   const text=S('text',{x:p.x+size*.4,y:p.y-size*.5,fill:textColorFor(layer,o),'font-size':size*.8,class:'ov'});
   text.textContent=o.name||o.id;g.append(text);
  }else{
   const x=o.x,y=o.y;
+  /* unsichtbare Trefferfläche, damit auch kleine Symbole mit dem Finger getroffen werden */
+  if(editing||hit)g.append(S('circle',{cx:x,cy:y,r:size*.9,fill:'transparent','pointer-events':'all','data-pxr':15,'data-minr':size*.9}));
   if(layer.id==='accesspoints'){
    g.append(S('circle',{cx:x,cy:y,r:size*.65,fill:color,stroke:'#fff','stroke-width':size*.18}));
    g.append(S('path',{d:`M ${x-size*.3} ${y+size*.1} q ${size*.3} ${-size*.5} ${size*.6} 0 M ${x-size*.43} ${y+size*.33} q ${size*.43} ${-size*.75} ${size*.86} 0`,fill:'none',stroke:'#fff','stroke-width':size*.1}));
@@ -840,7 +949,7 @@ function draw(layer,o,size,editing,hl=null,hit=editing){
   text.textContent=o.name||o.id;g.append(text);
  }
  if(editing&&selected===uid(o)){
-  const p=isLine(o)?o.points[0]:o;
+  const p=isLine(o)?(dispPts||o.points)[0]:o;
   g.append(S('circle',{cx:p.x,cy:p.y,r:size*1.05,fill:'none',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15,'data-editor-ui':'true','pointer-events':'none'}));
  }
  return g;
@@ -857,12 +966,16 @@ function drawPorts(target,planId,size,exporting){
   g.append(r,a,t);
  });
 }
+function validLineItem(o){return Array.isArray(o.points)&&o.points.length>=2&&o.points.every(q=>Number.isFinite(Number(q.x))&&Number.isFinite(Number(q.y)))}
 function renderOverlay(target=svg,planId=current,exporting=false){
  if(!target)return;
  syncAll();
  drawGrid(target,planId);
-if(!exporting)drawPopupMark(target,planId);
  const size=planSize(planId);
+ /* Verbindungen, die sich überdecken würden, werden nebeneinander dargestellt */
+ const spreads={};
+ Object.values(LAYERS).forEach(l=>{if(l.kind==='mixed')spreads[l.id]=spreadLines(itemsOnPlan(planId,l.id).filter(o=>isLine(o)&&validLineItem(o)),size)});
+ if(!exporting)drawPopupMark(target,planId,spreads);
  drawPorts(target,planId,size,exporting);
  const info=exporting?null:highlightInfo(planId);
  const hl=info&&info.lines.size?info:null;
@@ -872,16 +985,18 @@ if(!exporting)drawPopupMark(target,planId);
   g.style.opacity=!exporting&&active&&active!==layer.id?'.3':'1';
   const editing=!exporting&&active===layer.id;
   const hit=editing||(!exporting&&!active);g.setAttribute('pointer-events',hit?'all':'none');
-  const items=itemsOnPlan(planId,layer.id).filter(o=>isLine(o)?Array.isArray(o.points)&&o.points.length>=2&&o.points.every(q=>Number.isFinite(Number(q.x))&&Number.isFinite(Number(q.y))):isNum(o.x)&&isNum(o.y));
+  const items=itemsOnPlan(planId,layer.id).filter(o=>isLine(o)?validLineItem(o):isNum(o.x)&&isNum(o.y));
+  const spread=spreads[layer.id]||null;
   const layerHl=hl&&layer.id===active?hl:null;
   /* Verbindungen zuerst zeichnen (hervorgehobene zuletzt), damit die Schränke darüber liegen */
   const lines=items.filter(isLine);
   if(layerHl)lines.sort((a,b)=>layerHl.lines.has(uid(a))-layerHl.lines.has(uid(b)));
-  [...lines,...items.filter(o=>!isLine(o))].forEach(o=>g.append(draw(layer,o,size,editing,layerHl,hit)));
+  [...lines,...items.filter(o=>!isLine(o))].forEach(o=>g.append(draw(layer,o,size,editing,layerHl,hit,isLine(o)&&spread?spread.get(uid(o)):null)));
   const selLine=editing&&selected&&tool==='select'?getObj():null;
-  if(selLine&&isLine(selLine)&&selLine.points.length>=2&&holderPlan(active,selLine)===planId)drawRouteHandle(g,selLine,size);
+  if(selLine&&isLine(selLine)&&selLine.points.length>=2&&holderPlan(active,selLine)===planId)drawRouteHandle(g,selLine,size,spread&&spread.get(uid(selLine)));
  });
  if(!exporting)drawPreview();
+ if(!exporting&&target===svg)scaleUi();
 }
 function drawHandles(group,size){
  const object=getObj();if(!object||!isLine(object))return;
@@ -1067,7 +1182,7 @@ function buildEditForm(object,layer){
   const info=highlightInfo();
   const note=document.createElement('div');note.className='hint';
   note.textContent=info&&info.lines.size
-   ?'Hervorgehoben: '+info.lines.size+' Verbindung'+(info.lines.size===1?'':'en')+'. Sie folgen dem Schrank, wenn er verschoben wird.'
+   ?'Hervorgehoben: '+info.lines.size+' Verbindung'+(info.lines.size===1?'':'en')+'. Sie folgen dem Netzwerkschrank, wenn er verschoben wird.'
    :'Keine Verbindung gefunden. Zuordnung über den Ort der Verbindung (ID/ID, z. B. 001/005).';
   box.append(note);
  }
@@ -1083,6 +1198,8 @@ function capturePointer(event){
  try{stage.setPointerCapture(event.pointerId)}catch{}
  stage.classList.add('dragging');
 }
+/* Ab welcher Bewegung (in Pixeln) ein Antippen zum Ziehen wird: mit dem Finger deutlich großzügiger als mit der Maus */
+function dragSlop(event){return event.pointerType==='touch'?10:(event.pointerType==='pen'?6:4)}
 function beginObjectGesture(event,object,index=null,insertAfter=null){
  const layer=active,before=layerState(layer);
  selected=uid(object);
@@ -1096,7 +1213,7 @@ function beginObjectGesture(event,object,index=null,insertAfter=null){
  gesture={
   type:index===null?'object':'vertex',pointerId:event.pointerId,layer,plan:current,
   object,before,start:toSvg(event.clientX,event.clientY),original:copy(object),index,links,
-  startX:event.clientX,startY:event.clientY,started:insertAfter!==null,
+  startX:event.clientX,startY:event.clientY,slop:dragSlop(event),started:insertAfter!==null,
   route:(isLine(object)&&object.points.length>=2)?routeParams(object.points[0],object.points[object.points.length-1],object):null
  };
  capturePointer(event);renderOverlay();properties();toolbar();
@@ -1114,8 +1231,31 @@ function finishGesture(cancelled=false){
  try{if(stage.hasPointerCapture(g.pointerId))stage.releasePointerCapture(g.pointerId)}catch{}
  if(svg)refreshUI();
 }
+/* Objekt unter dem Zeiger. Liegen mehrere Verbindungen eng beieinander (breite Trefferflächen überlappen sich),
+   wird nicht einfach die oberste, sondern die dem Zeiger nächstgelegene Verbindung gewählt. */
+function pickElement(event){
+ const hit=event.target.closest&&event.target.closest('[data-id]');
+ if(!hit||!/^v:/.test(hit.getAttribute('data-id'))||!svg)return hit;
+ const m=svg.getScreenCTM();if(!m)return hit;
+ const px=event.clientX,py=event.clientY,tol=event.pointerType==='touch'?24:16;
+ let best=hit,bestD=Infinity;
+ svg.querySelectorAll('[data-layer] > g[data-id^="v:"]').forEach(g=>{
+  if(g.parentNode.getAttribute('pointer-events')!=='all')return;
+  const pl=g.querySelector('polyline[data-pxw]');if(!pl)return;
+  const pts=pl.getAttribute('points').trim().split(/\s+/).map(t=>{const [x,y]=t.split(',').map(Number);const q=svg.createSVGPoint();q.x=x;q.y=y;const r=q.matrixTransform(m);return {x:r.x,y:r.y}});
+  for(let i=0;i<pts.length-1;i++){
+   const a=pts[i],b=pts[i+1],dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;
+   const t=l2?Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2)):0;
+   const d=Math.hypot(a.x+dx*t-px,a.y+dy*t-py);
+   if(d<bestD){bestD=d;best=g}
+  }
+ });
+ return bestD<=tol?best:hit;
+}
 stage.addEventListener('pointerdown',event=>{
- if(event.button!==0||gesture)return;
+ if(event.button!==0)return;
+ /* Ein neuer Erstfinger beendet eine hängengebliebene Geste (z. B. nach Systemgeste auf dem iPad); weitere Finger werden ignoriert */
+ if(gesture){if(event.isPrimary&&event.pointerId!==gesture.pointerId)finishGesture(true);else return}
  event.preventDefault();
  {const ae=document.activeElement;if(ae&&$('popup').contains(ae)&&/^(INPUT|SELECT)$/.test(ae.tagName))ae.blur()}
  const p=toSvg(event.clientX,event.clientY);
@@ -1136,14 +1276,14 @@ stage.addEventListener('pointerdown',event=>{
  }
  if(active&&tool==='select'){
   if(event.target.closest('[data-routehandle]')&&getObj()){beginObjectGesture(event,getObj());return}
-  const element=event.target.closest('[data-id]');
+  const element=pickElement(event);
   if(element){
    const found=findObj(active,element.dataset.id),object=found&&found.o;
    if(object){beginObjectGesture(event,object);return}
   }
  }
- const hitEl=!active?event.target.closest('[data-id]'):null;
-gesture={type:'pan',pointerId:event.pointerId,start:toSvg(event.clientX,event.clientY),initial:vb.slice(),inverse:svg.getScreenCTM().inverse(),startX:event.clientX,startY:event.clientY,hit:(hitEl&&hitEl.parentNode&&hitEl.parentNode.getAttribute('data-layer'))?{layer:hitEl.parentNode.getAttribute('data-layer'),id:hitEl.getAttribute('data-id')}:null};
+ const hitEl=!active?pickElement(event):null;
+gesture={type:'pan',pointerId:event.pointerId,start:toSvg(event.clientX,event.clientY),initial:vb.slice(),inverse:svg.getScreenCTM().inverse(),startX:event.clientX,startY:event.clientY,slop:dragSlop(event),hit:(hitEl&&hitEl.parentNode&&hitEl.parentNode.getAttribute('data-layer'))?{layer:hitEl.parentNode.getAttribute('data-layer'),id:hitEl.getAttribute('data-id')}:null};
  capturePointer(event);renderOverlay();properties();toolbar();
 });
 stage.addEventListener('pointermove',event=>{
@@ -1157,7 +1297,7 @@ stage.addEventListener('pointermove',event=>{
    vb=[g.initial[0]-(q.x-g.start.x),g.initial[1]-(q.y-g.start.y),g.initial[2],g.initial[3]];
    applyVB();lastPointer=toSvg(event.clientX,event.clientY);
   }else{
-   if(!g.started&&Math.hypot(event.clientX-g.startX,event.clientY-g.startY)>2){g.started=true;closePopup(false)}
+   if(!g.started&&Math.hypot(event.clientX-g.startX,event.clientY-g.startY)>(g.slop||4)){g.started=true;closePopup(false)}
    if(g.started){
     if(g.type==='vertex'){
      let q=planPoint(p,g.plan);
@@ -1192,7 +1332,7 @@ stage.addEventListener('pointerup',event=>{
  if(gesture?.pointerId===event.pointerId){
   const g=gesture;finishGesture(false);
   /* Klick (kaum bewegt): Details öffnen bzw. Popup schließen – im Ansichts- und im Bearbeitungsmodus */
-  const still=Math.hypot(event.clientX-g.startX,event.clientY-g.startY)<=5;
+  const still=Math.hypot(event.clientX-g.startX,event.clientY-g.startY)<=(g.slop||4);
   if(g.type==='pan'&&still){
    if(!active&&g.hit)openPopup(g.hit.layer,g.hit.id,event.clientX,event.clientY);else if(popup)closePopup();else if(keepSel||selected){keepSel=null;selected=null;refreshUI()}
   }else if(g.type==='object'&&!g.started&&still&&active&&tool==='select'){
@@ -1239,33 +1379,63 @@ $('chk-grid').onchange=event=>{
  renderOverlay();
 };
 
-/* ---------- Suche ---------- */
+/* ---------- Suche ----------
+   Gesucht wird in den Raumbeschriftungen aller Pläne. Enter springt immer zum nächsten Treffer
+   (über alle Pläne, am Ende wieder von vorn). Darunter steht die Trefferzahl bzw. „Kein Treffer“. */
+let searchPos=-1,searchQuery='',searchJumping=false;
+function searchHits(q){
+ const out=[];
+ PLANS.forEach(p=>{let n=0;((geometry[p.id]&&geometry[p.id].texts)||[]).forEach(t=>{if(String(t[0]).toLowerCase().includes(q))out.push({plan:p.id,n:n++})})});
+ return out;
+}
+function planName(id){const p=PLANS.find(x=>x.id===id);return p?p.name:id}
+function searchSummary(all){
+ const per=PLANS.map(p=>[p.name,all.filter(h=>h.plan===p.id).length]).filter(x=>x[1]);
+ const head=all.length+' Treffer';
+ return per.length>1?head+' · '+per.map(x=>x[0]+': '+x[1]).join(' · '):head+(per.length?' in '+per[0][0]:'');
+}
 function runSearch(jump){
  if(!overlay)return;
- const highlights=groupOf(svg,'highlights');highlights.replaceChildren();highlights.setAttribute('pointer-events','none');
+ const hint=$('search-hint'),highlights=groupOf(svg,'highlights');
+ highlights.replaceChildren();highlights.setAttribute('pointer-events','none');
  const q=$('search').value.trim().toLowerCase();
- if(!q){$('search-hint').textContent='Enter springt zum ersten Treffer.';return}
- const hits=[...svg.querySelectorAll('text')].filter(t=>!overlay.contains(t)&&t.textContent.toLowerCase().includes(q));
-  const planBox=PLANS.find(p=>p.id===current).box;
-  const k=1;
-  const boxOf=t=>{try{return t.getBBox()}catch{return null}};
-  hits.forEach(t=>{
-   const b=boxOf(t);if(!b)return;
-   const pad=Math.max(2,8*k);
-   highlights.append(S('rect',{x:b.x-pad,y:b.y-pad*.75,width:b.width+pad*2,height:b.height+pad*1.5,rx:pad*.75,fill:'#ffd60059',stroke:'#e0245e','stroke-width':Math.max(1,3*k)}));
-  });
-  $('search-hint').textContent=hits.length+' Treffer in '+PLANS.find(p=>p.id===current).name;
-  if(jump&&hits[0]){
-   finishGesture(true);
-   const b=boxOf(hits[0]);if(!b)return;
-   const width=clamp(b.width+280*k,base[2]/MAX_ZOOM,base[2]/MIN_ZOOM),height=width*base[3]/base[2];
+ if(q!==searchQuery){searchQuery=q;searchPos=-1}
+ if(!q){hint.textContent='';searchPos=-1;return}
+ const all=searchHits(q);
+ if(!all.length){hint.textContent='Kein Treffer für „'+$('search').value.trim()+'“.';searchPos=-1;return}
+ /* Enter: zum nächsten Treffer. Ohne bisherige Position beginnt es beim ersten Treffer des aktuellen Plans. */
+ if(jump){
+  if(searchPos<0||searchPos>=all.length){const first=all.findIndex(h=>h.plan===current);searchPos=first>=0?first:0}
+  else searchPos=(searchPos+1)%all.length;
+  const target=all[searchPos];
+  /* Raumbeschriftungen müssen sichtbar sein, sonst gibt es nichts zu markieren */
+  if(!$('chk-labels').checked){$('chk-labels').checked=true;svg.classList.remove('hide-labels')}
+  if(target.plan!==current){searchJumping=true;try{loadPlan(target.plan)}finally{searchJumping=false}}
+ }
+ /* Treffer des aktuellen Plans markieren */
+ const hl=groupOf(svg,'highlights');hl.replaceChildren();hl.setAttribute('pointer-events','none');
+ const boxOf=t=>{try{const b=t.getBBox();return b.width>0||b.height>0?b:null}catch{return null}};
+ const els=[...svg.querySelectorAll('text')].filter(t=>!overlay.contains(t)&&t.textContent.toLowerCase().includes(q));
+ const pad=8;
+ els.forEach((t,i)=>{
+  const b=boxOf(t);if(!b)return;
+  const isCur=jump&&all[searchPos]&&all[searchPos].plan===current&&all[searchPos].n===i;
+  hl.append(S('rect',{x:b.x-pad,y:b.y-pad*.75,width:b.width+pad*2,height:b.height+pad*1.5,rx:pad*.75,fill:isCur?'#ffd600a6':'#ffd60059',stroke:'#e0245e','stroke-width':isCur?5:3}));
+ });
+ if(jump){
+  const target=all[searchPos],t=els[target.n],b=t&&boxOf(t);
+  finishGesture(true);
+  if(b){
+   const width=clamp(b.width+280,base[2]/MAX_ZOOM,base[2]/MIN_ZOOM),height=width*base[3]/base[2];
    vb=[b.x+b.width/2-width/2,b.y+b.height/2-height/2,width,height];
    lastPointer=null;applyVB();
   }
+  hint.textContent='Treffer '+(searchPos+1)+' von '+all.length+' · '+planName(target.plan);
+ }else hint.textContent=searchSummary(all);
 }
 
 $('search').oninput=()=>runSearch(false);
-$('search').onkeydown=event=>{if(event.key==='Enter')runSearch(true)};
+$('search').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();runSearch(true)}};
 
 /* ---------- Excel: sichtbare Meldungen und sicherer Import (nur im Bearbeitungsmodus) ---------- */
 function toast(message,kind='info',duration=4000){
@@ -1302,7 +1472,7 @@ function feedback(kind,title,lines=[],actions=[]){
 /* ---------- Excel-Import-Fenster (statt Seitenleiste) ---------- */
 function openImportPopup(auto){
   if(!active){if(!auto)toast('Bitte zuerst eine Technikkategorie zum Bearbeiten wählen.','warn');return}
-  $('import-target').textContent='Zielebene: '+LAYERS[active].label;
+  $('import-target').textContent='Zielkategorie: '+LAYERS[active].label;
   const box=$('import-popup');box.classList.add('show');box.setAttribute('aria-hidden','false');
   if(!auto)box.querySelector('.import-dialog').focus();
 }
@@ -1465,7 +1635,7 @@ async function prepareImport(file,layerId){
  }
  if(!LAYERS[layerId]||!needXlsx())return;
  importBusy=true;const token=++importSerial;toolbar();
- feedback('pending','Datei wird geprüft …',[file.name,'Zielebene: '+LAYERS[layerId].label]);
+ feedback('pending','Datei wird geprüft …',[file.name,'Zielkategorie: '+LAYERS[layerId].label]);
  await new Promise(resolve=>setTimeout(resolve,30));
  try{
   const buffer=await file.arrayBuffer();
@@ -1479,14 +1649,14 @@ async function prepareImport(file,layerId){
    wsP=visible.find(w=>/schr/.test(normalized(w.name)))||null;
    wsL=visible.find(w=>/verbind/.test(normalized(w.name)))||null;
    if(!wsP&&!wsL&&visible.length>=2){wsP=visible[0];wsL=visible[1]}
-   if(!wsP||!wsL)throw new Error('Für diese Ebene braucht die Datei zwei Tabellenblätter: „Schränke“ und „Verbindungen“.');
+   if(!wsP||!wsL)throw new Error('Für diese Technikkategorie braucht die Datei zwei Tabellenblätter: „Netzwerkschränke“ und „Verbindungen“.');
   }else{
    wsP=wb.getWorksheet('Daten')||visible[0]||wb.worksheets[0];
    if(!wsP)throw new Error('Die Datei enthält keine Tabellenblätter.');
   }
   const tp=readTable(wsP),tl=mixed?readTable(wsL):null;
   const fresh=Object.fromEntries(PLANS.map(p=>[p.id,[]])),issues=[],stats={assigned:0};
-  const pts=buildObjects(tp,false,layer,fresh,issues,stats,mixed?'Schränke, ':'');
+  const pts=buildObjects(tp,false,layer,fresh,issues,stats,mixed?'Netzwerkschränke, ':'');
   const lns=tl?buildObjects(tl,true,layer,fresh,issues,stats,'Verbindungen, '):[];
   const count=pts.length+lns.length;
   if(!count)throw new Error('Keine Datenzeilen gefunden.');
@@ -1509,12 +1679,12 @@ function showImportPreview(){
  const cols=list=>list&&list.length?list.map(e=>e.label+(e.required?'':' (optional)')).join(', '):'keine';
  feedback('pending','Datei geprüft – Bestätigung erforderlich',[
   'Datei: '+data.fileName,
-  'Zielebene: '+layer.label,
-  data.count+' Zeilen werden importiert'+(mixed?' ('+(data.count-data.lines)+' Schränke, '+data.lines+' Verbindungen)':'')+'. Zeilen mit fehlenden Angaben werden importiert und unter „Fehlende Angaben“ markiert.',
-  (mixed?'Zusatzspalten Schränke: ':'Zusatzspalten: ')+cols(data.extras),
+  'Zielkategorie: '+layer.label,
+  data.count+' Zeilen werden importiert'+(mixed?' ('+(data.count-data.lines)+' Netzwerkschränke, '+data.lines+' Verbindungen)':'')+'. Zeilen mit fehlenden Angaben werden importiert und unter „Fehlende Angaben“ markiert.',
+  (mixed?'Zusatzspalten Netzwerkschränke: ':'Zusatzspalten: ')+cols(data.extras),
   ...(mixed?['Zusatzspalten Verbindungen: '+cols(data.lineExtras)]:[]),
   'Verteilung: '+counts.join(' · '),
-  'Achtung: Alle '+existing+' vorhandenen Objekte dieser Art in allen Ebenen werden ersetzt.',
+  'Achtung: Alle '+existing+' vorhandenen Objekte dieser Art in allen Plänen werden ersetzt.',
   ...formatIssues(data.issues)
  ],[
   {label:'Import bestätigen',primary:true,run:commitImport},
@@ -1540,7 +1710,7 @@ function commitImport(){
  const incomplete=layerAll(data.layerId).filter(o=>missingKeys(layer,o).length||!ortValid(data.layerId,o)).length;
  feedback('success','Import erfolgreich',[
   'Datei: '+data.fileName,
-  'Ebene: '+layer.label,
+  'Technikkategorie: '+layer.label,
   data.count+' Zeilen importiert; '+incomplete+' mit fehlenden Angaben (Tabelle → Filter „Fehlende Angaben“).',
   data.assigned+' IDs neu vergeben.',
   'Zum Rückgängigmachen „Zurück“ in der Werkzeugleiste wählen.',
@@ -1648,7 +1818,7 @@ function addTableSheet(wb,name,extras,recs,layer){
 async function exportFresh(layer,recs){
  const wb=new ExcelJS.Workbook();
  if(layer.kind==='mixed'){
-  addTableSheet(wb,'Schränke',layer.extras,recs.filter(r=>!isLine(r.o)),layer);
+  addTableSheet(wb,'Netzwerkschränke',layer.extras,recs.filter(r=>!isLine(r.o)),layer);
   addTableSheet(wb,'Verbindungen',layer.lineExtras,recs.filter(r=>isLine(r.o)),layer);
  }else addTableSheet(wb,'Daten',layer.extras,recs,layer);
  const notes=wb.addWorksheet('Hinweise');
@@ -1660,10 +1830,10 @@ async function exportFresh(layer,recs){
   'Koordinaten beziehen sich auf die ursprüngliche SVG-viewBox.'
  ];
  if(layer.kind==='mixed'){
-  lines.push('Tabellenblatt „Schränke“: Netzwerkschränke. Tabellenblatt „Verbindungen“: Verbindungen (je eigene ID-Nummern).');
-  lines.push('Ort einer Verbindung: ID/ID der beiden Schränke, z. B. 001/005. Verbindungen werden rechtwinklig verlegt; der Verlauf wird nicht gespeichert.');
+  lines.push('Tabellenblatt „Netzwerkschränke“: die Netzwerkschränke. Tabellenblatt „Verbindungen“: Verbindungen (je eigene ID-Nummern).');
+  lines.push('Ort einer Verbindung: ID/ID der beiden Netzwerkschränke, z. B. 001/005. Verbindungen werden rechtwinklig verlegt; der Verlauf wird nicht gespeichert.');
  }
- lines.push('Der Import ersetzt nach Bestätigung die gesamte gewählte Ebene in allen Plänen.');
+ lines.push('Der Import ersetzt nach Bestätigung die gesamte gewählte Technikkategorie in allen Plänen.');
  lines.forEach(t=>notes.addRow([t]));
  notes.getRow(1).font={bold:true};notes.getColumn(1).width=110;
  return wb.xlsx.writeBuffer();
@@ -1683,10 +1853,10 @@ async function excelExport(id){
   const fromSource=!!src&&layer.extras.every(e=>e.col)&&(layer.kind!=='mixed'||(layer.lineExtras||[]).every(e=>e.col));
   const buffer=fromSource?await exportFromSource(layer,src,recs):await exportFresh(layer,recs);
   const name=fromSource?src.fileName:EXPORT_NAMES[id];
-  downloadBlob(buffer,name);dirty[id]=false;
+  downloadBlob(buffer,name);dirty[id]=false;draftChanged();
   feedback('success','Excel-Export ausgelöst',[
    name,fromSource?'Formatierung der importierten Datei wurde übernommen.':'Neue Datei mit Standardformatierung erstellt.',
-   'Bitte prüfen, ob der Browser die Datei heruntergeladen hat. Die Ebene ist als exportiert markiert.'
+   'Bitte prüfen, ob der Browser die Datei heruntergeladen hat. Die Technikkategorie ist als exportiert markiert.'
   ]);
  }catch(error){feedback('error','Export fehlgeschlagen',[error.message||'Datei konnte nicht erstellt werden.'])}
 }
@@ -1887,8 +2057,8 @@ function buildPopup(o,layerId){
    });
   }else{
    const cabs=cabinetsOf(o,items);
-   section('Verbundene Schränke ('+cabs.length+')');
-   if(!cabs.length)body.append(mk('div','pp-none','Kein Schrank zugeordnet.'));
+   section('Verbundene Netzwerkschränke ('+cabs.length+')');
+   if(!cabs.length)body.append(mk('div','pp-none','Kein Netzwerkschrank zugeordnet.'));
    cabs.forEach(c=>body.append(entry(c,[c.typ,c.raum].filter(Boolean).join(' · '),layer.color,true)));
   }
  }
@@ -1947,7 +2117,7 @@ function openPopup(layerId,id,cx,cy){
  const r=findObj(layerId,id);
  if(!r)return;
  const keepEdit=!!(popup&&popup.editing&&active===layerId);
- const onHere=itemsOnPlan(current,layerId).some(x=>uid(x)===id);if(r.plan!==current&&!onHere)loadPlan(r.plan);
+ const onHere=itemsOnPlan(current,layerId).some(x=>uid(x)===id);if(r.plan!==current&&(!onHere||(cx===undefined&&active===layerId&&isLine(r.o))))loadPlan(r.plan);
  popup={layer:layerId,id,plan:current,editing:keepEdit};keepSel={layer:layerId,id};
  if(active===layerId)selected=id;
  refreshUI();
@@ -1956,7 +2126,7 @@ function openPopup(layerId,id,cx,cy){
  try{const c=$('popup').querySelector('.pp-close');if(c)c.focus({preventScroll:true})}catch{}
 }
 /* Markierung des gewählten Objekts (liegt unter den Symbolen) */
-function drawPopupMark(target,planId){
+function drawPopupMark(target,planId,spreads){
   const g=groupOf(target,'popupmark');if(!g)return;
   g.replaceChildren();g.setAttribute('pointer-events','none');
   const s=popup||keepSel;if(!s)return;
@@ -1965,7 +2135,7 @@ function drawPopupMark(target,planId){
   const o=found.o;
   if(found.plan!==planId||!visible[s.layer])return;
   const size=planSize(planId),layer=LAYERS[s.layer];
-  const halo=l=>{if(l.points&&l.points.length>=2)g.append(S('polyline',{points:l.points.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:'#ff8c00','stroke-opacity':'.45','stroke-width':size*1.1,'stroke-linecap':'round','stroke-linejoin':'round'}))};
+  const halo=l=>{const pl=(spreads&&spreads[s.layer]&&spreads[s.layer].get(uid(l)))||l.points;if(pl&&pl.length>=2)g.append(S('polyline',{points:pl.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:'#ff8c00','stroke-opacity':'.45','stroke-width':size*1.1,'stroke-linecap':'round','stroke-linejoin':'round'}))};
   const ring=c=>{if(isNum(c.x)&&isNum(c.y))g.append(S('circle',{cx:c.x,cy:c.y,r:size*1.05,fill:'#ff8c0033',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15}))};
   const items=itemsOnPlan(planId,s.layer);
   if(isLine(o)){const shown=items.find(x=>uid(x)===uid(o));halo(shown||o);cabinetsOf(o,items).forEach(ring)}
@@ -1990,14 +2160,91 @@ document.addEventListener('keydown',event=>{
  if(event.key==='-'){event.preventDefault();zoomCenter(1/1.4)}
  if(event.key==='0'){event.preventDefault();fit()}
 });
+/* ---------- Schutz vor Datenverlust (auch auf dem iPad) ----------
+   Safari auf iPad/iPhone zeigt beim Neuladen oder Schließen keine Rückfrage an („beforeunload“ wird dort ignoriert).
+   Deshalb werden nicht exportierte Änderungen zusätzlich im Browser zwischengespeichert. Beim nächsten Öffnen der Seite
+   erscheint ein Hinweis mit der Möglichkeit, sie wiederherzustellen. Eine Markierung im Kopf zeigt außerdem an,
+   dass noch exportiert werden muss. Am Computer erscheint zusätzlich die übliche Rückfrage des Browsers. */
+const DRAFT_KEY='gebaudeplan-entwurf-v1';
+function readDraft(){
+ try{
+  const raw=localStorage.getItem(DRAFT_KEY);if(!raw)return null;
+  const d=JSON.parse(raw);
+  if(d&&d.v===1&&d.layers&&typeof d.layers==='object'&&Object.keys(d.layers).some(id=>LAYERS[id]))return d;
+  localStorage.removeItem(DRAFT_KEY);
+ }catch(e){}
+ return null;
+}
+let pendingDraft=readDraft(),draftHold=!!pendingDraft,draftTimer=0,draftWarned=false;
+function anyDirty(){return Object.keys(LAYERS).some(id=>dirty[id]===true)}
+function updateDirtyBadge(){const b=$('dirty-badge');if(b)b.hidden=!anyDirty()}
+function buildDraft(){
+ const layers={};
+ Object.keys(LAYERS).forEach(id=>{
+  if(!dirty[id])return;
+  const plans={};
+  PLANS.forEach(p=>{plans[p.id]=inventory[p.id][id].map(o=>{const c={...o};delete c._row;delete c.segs;if(isLine(c))c.points=[];return c})});
+  const strip=list=>list?list.map(e=>{const c={...e};delete c.col;return c}):null;
+  layers[id]={plans,extras:strip(LAYERS[id].extras),lineExtras:strip(LAYERS[id].lineExtras)};
+ });
+ return {v:1,saved:Date.now(),layers};
+}
+function saveDraftNow(){
+ if(draftHold)return;
+ clearTimeout(draftTimer);draftTimer=0;
+ try{
+  if(!anyDirty()){localStorage.removeItem(DRAFT_KEY);return}
+  localStorage.setItem(DRAFT_KEY,JSON.stringify(buildDraft()));
+ }catch(e){
+  if(!draftWarned){draftWarned=true;toast('Zwischenspeichern im Browser ist nicht möglich. Bitte regelmäßig als Excel-Datei exportieren.','warn',8000)}
+ }
+}
+function draftChanged(){
+ updateDirtyBadge();
+ if(draftHold)return;
+ clearTimeout(draftTimer);draftTimer=setTimeout(saveDraftNow,400);
+}
+function applyDraft(d){
+ Object.keys(d.layers).forEach(id=>{
+  const L=LAYERS[id],data=d.layers[id];
+  if(!L||!data||!data.plans)return;
+  PLANS.forEach(p=>{const list=data.plans[p.id];inventory[p.id][id]=Array.isArray(list)?list.map(o=>({...o})):[]});
+  if(Array.isArray(data.extras))L.extras=data.extras;
+  if(L.kind==='mixed'&&Array.isArray(data.lineExtras))L.lineExtras=data.lineExtras;
+  L.srcId=null;dirty[id]=true;visible[id]=true;
+  syncLines(id);
+ });
+ refreshUI();
+ document.dispatchEvent(new Event('inventoryimported'));
+}
+function showDraftDialog(d){
+ const names=Object.keys(d.layers).filter(id=>LAYERS[id]).map(id=>'„'+LAYERS[id].label+'“');
+ const when=new Date(d.saved).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'});
+ $('draft-text').textContent='Beim letzten Besuch (Stand '+when+') gab es Änderungen an '+names.join(' und ')+', die nicht als Excel-Datei exportiert wurden. Sie gehen verloren, wenn Sie sie jetzt nicht wiederherstellen.';
+ const box=$('draft-popup');box.classList.add('show');box.setAttribute('aria-hidden','false');
+ box.querySelector('.print-dialog').focus();
+}
+function closeDraftDialog(){const box=$('draft-popup');box.classList.remove('show');box.setAttribute('aria-hidden','true')}
+$('draft-restore').onclick=()=>{
+ const d=pendingDraft;pendingDraft=null;closeDraftDialog();
+ if(d){applyDraft(d);toast('Änderungen wiederhergestellt. Bitte als Excel-Datei exportieren.','success',6000)}
+ draftHold=false;saveDraftNow();
+};
+$('draft-discard').onclick=()=>{
+ pendingDraft=null;closeDraftDialog();
+ try{localStorage.removeItem(DRAFT_KEY)}catch(e){}
+ draftHold=false;updateDirtyBadge();
+};
 window.addEventListener('beforeunload',event=>{
- const hasUnsavedChanges=Object.keys(LAYERS).some(id=>dirty[id]===true);
- if(hasUnsavedChanges){event.preventDefault();event.returnValue='';return '';}
+ if(anyDirty()){saveDraftNow();event.preventDefault();event.returnValue='';return '';}
 });
+window.addEventListener('pagehide',saveDraftNow);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveDraftNow()});
 window.addEventListener('resize',updateStatus);
 buildButtons();
 const initial=(location.hash||'').slice(1);
 loadPlan(PLANS.some(p=>p.id===initial)?initial:'ebene1');
+if(pendingDraft)showDraftDialog(pendingDraft);
 </script>
 <script>
 /* Tabellenansicht: feste Spalten ID, Name, Ort + dynamische Zusatzspalten. Netzwerkschränke und Verbindungen haben je eine eigene Tabellenseite. */
