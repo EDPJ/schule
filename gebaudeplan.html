@@ -7,6 +7,8 @@
 <style>
 :root{--bg:#f3f5f8;--panel:#fff;--line:#d9dee6;--text:#1c2430;--muted:#6b7686;--accent:#1f6feb;--accent-soft:#e6f0ff}
 *{box-sizing:border-box}
+html{-webkit-tap-highlight-color:transparent}
+#stage,#stage *{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;outline:none}
 html,body{height:100%;margin:0}
 body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--text);background:var(--bg);display:flex;flex-direction:column}
 header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -992,8 +994,11 @@ function renderOverlay(target=svg,planId=current,exporting=false){
   const lines=items.filter(isLine);
   if(layerHl)lines.sort((a,b)=>layerHl.lines.has(uid(a))-layerHl.lines.has(uid(b)));
   [...lines,...items.filter(o=>!isLine(o))].forEach(o=>g.append(draw(layer,o,size,editing,layerHl,hit,isLine(o)&&spread?spread.get(uid(o)):null)));
-  const selLine=editing&&selected&&tool==='select'?getObj():null;
-  if(selLine&&isLine(selLine)&&selLine.points.length>=2&&holderPlan(active,selLine)===planId)drawRouteHandle(g,selLine,size,spread&&spread.get(uid(selLine)));
+  /* Anfasser der gewählten Verbindung: im Werkzeug „Auswählen“ und direkt nach dem Zeichnen; auf jedem Plan, auf dem sie dargestellt wird */
+  if(editing&&selected&&(tool==='select'||tool==='drawline')){
+   const shownLine=items.find(o=>isLine(o)&&uid(o)===selected);
+   if(shownLine&&shownLine.points.length>=2)drawRouteHandle(g,shownLine,size,spread&&spread.get(uid(shownLine)));
+  }
  });
  if(!exporting)drawPreview();
  if(!exporting&&target===svg)scaleUi();
@@ -1214,7 +1219,7 @@ function beginObjectGesture(event,object,index=null,insertAfter=null){
   type:index===null?'object':'vertex',pointerId:event.pointerId,layer,plan:current,
   object,before,start:toSvg(event.clientX,event.clientY),original:copy(object),index,links,
   startX:event.clientX,startY:event.clientY,slop:dragSlop(event),started:insertAfter!==null,
-  route:(isLine(object)&&object.points.length>=2)?routeParams(object.points[0],object.points[object.points.length-1],object):null
+  route:(()=>{if(!isLine(object))return null;const disp=itemsOnPlan(current,layer).find(v=>isLine(v)&&uid(v)===uid(object))||object;return disp.points&&disp.points.length>=2?routeParams(disp.points[0],disp.points[disp.points.length-1],object):null})()
  };
  capturePointer(event);renderOverlay();properties();toolbar();
 }
@@ -1259,6 +1264,7 @@ stage.addEventListener('pointerdown',event=>{
  event.preventDefault();
  {const ae=document.activeElement;if(ae&&$('popup').contains(ae)&&/^(INPUT|SELECT)$/.test(ae.tagName))ae.blur()}
  const p=toSvg(event.clientX,event.clientY);
+ if(active&&tool==='drawline'&&event.target.closest('[data-routehandle]')&&getObj()&&isLine(getObj())){beginObjectGesture(event,getObj());return}
  if(active&&isDrawTool()){
   if(tool==='draw'){
    snapshot();const layer=LAYERS[active];
@@ -1269,7 +1275,7 @@ stage.addEventListener('pointerdown',event=>{
    if(!cab){toast('Bitte auf einen Netzwerkschrank klicken.','warn');return}
    if(!drawing.length){
     const start={x:Number(cab.x),y:Number(cab.y)};
-    drawing=[{...start,id:cab.id,plan:current}];previewPoint=start;drawPreview();toolbar();
+    selected=null;drawing=[{...start,id:cab.id,plan:current}];previewPoint=start;renderOverlay();drawPreview();toolbar();
    }else if(drawing[0].id!==cab.id)finishLine(cab);
   }
   return;
