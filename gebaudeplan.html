@@ -5,11 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gebäudeplan – Technik-Viewer</title>
 <style>
-:root{--bg:#f3f5f8;--panel:#fff;--surface:#fff;--line:#d9dee6;--text:#1c2430;--muted:#6b7686;--accent:#1f6feb;--accent-soft:#e6f0ff;--accent-text:#0b4fbf;
-  --hover:#f1f4f9;--hover-soft:#f6f8fb;--warn-bg:#fff0d8;--warn-text:#a84c00;--danger:#b42318;--scrim:#16203380}
+:root{--bg:#f3f5f8;--panel:#fff;--surface:#fff;--line:#d9dee6;--text:#1c2430;--muted:#6b7686;--accent:#1f6feb;--accent-soft:#e6f0ff;--accent-soft-2:#cfe2ff;--accent-text:#0b4fbf;
+  --hover:#f1f4f9;--hover-soft:#f6f8fb;--warn-bg:#fff0d8;--warn-text:#a84c00;--danger:#b42318;--scrim:#16203380;
+  --focus:#8bbaff;--stage-bg:#e9edf3;--head-bg:#eef2f7;--field-border:#bcc6d3;--head-line:#cbd3de;--row-line:#e5e9ef;
+  --warn-field:#fff3e4;--warn-border:#f08a24;--danger-border:#f0b4ae;--danger-hover:#fdecea;--glass:#fffffff0;--muted-soft:#a3acb9;
+  /* Mauszeiger (hoher Kontrast); jeweils einmal definiert und weiter unten verwendet */
+  --cur-move:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grab;
+  --cur-moving:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%231f6feb%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grabbing;
+  --cur-cross:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 16 16, crosshair;
+  --cur-arrow:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 5 3, pointer;
+  --cur-copy:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%232e9e5b%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 5 3, copy;}
 *{box-sizing:border-box}
 html{-webkit-tap-highlight-color:transparent}
-#stage,#stage *{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;outline:none}
+#stage,#stage *{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#stage *{outline:none}
+#stage:focus-visible{outline:3px solid var(--focus);outline-offset:-3px}
+#stage [role="button"]:focus-visible{outline:2px solid var(--focus)}
 html,body{height:100%;margin:0}
 body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--text);background:var(--bg);display:flex;flex-direction:column}
 header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -18,12 +29,12 @@ header .sub{color:var(--muted);font-size:13px}
 .header-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .header-actions select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--surface)}
 .header-actions button{padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:14px;cursor:pointer;white-space:nowrap}
-.header-actions button:hover{background:var(--hover)}
+.header-actions button:hover:not(:disabled){background:var(--hover)}
 .layout{flex:1;display:flex;min-height:0}
 aside{width:290px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:14px;overflow:auto;display:flex;flex-direction:column;gap:18px}
 aside h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
 button{font:inherit;color:inherit}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8bbaff;outline-offset:2px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 .plan-btn{display:block;width:100%;text-align:left;padding:9px 12px;margin-bottom:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer;font-size:14px}
 .plan-btn:hover{background:var(--hover-soft)}
 .plan-btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-text);font-weight:600}
@@ -37,22 +48,18 @@ input[type=search]{width:100%;padding:8px 10px;border:1px solid var(--line);bord
 .hint{font-size:12px;color:var(--muted);margin-top:6px;min-height:16px;line-height:1.5}
 label.chk{display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0}
 .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
-main{flex:1;position:relative;min-width:0;min-height:240px;background:#e9edf3}
-#stage{position:absolute;inset:12px;touch-action:none;cursor:grab;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;user-select:none}
-#stage.dragging{cursor:grabbing}
-#stage.drawing{cursor:crosshair}
+main{flex:1;position:relative;min-width:0;min-height:240px;background:var(--stage-bg)}
+#stage{position:absolute;inset:12px;touch-action:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 #stage svg{width:100%;height:100%;display:block;user-select:none}
 svg.hide-labels text:not(.ov){display:none}
 .tools{position:absolute;top:24px;right:24px;display:flex;flex-direction:column;gap:6px;z-index:2}
 .tools button{min-width:40px;height:38px;border:1px solid var(--line);background:var(--surface);border-radius:8px;font-size:18px;cursor:pointer;box-shadow:0 1px 3px #0001;padding:0 10px}
 .tools button:hover{background:var(--hover)}
 .tools #zreset{font-size:12px;max-width:100px;height:auto;min-height:42px}
-.status{position:absolute;left:24px;bottom:24px;background:#fffffff0;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);z-index:2;font-variant-numeric:tabular-nums;pointer-events:none;max-width:calc(100% - 48px)}
+.status{position:absolute;left:24px;bottom:24px;background:var(--glass);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);z-index:2;font-variant-numeric:tabular-nums;pointer-events:none;max-width:calc(100% - 48px)}
 #dirty-badge{font-size:12px;padding:5px 8px;border-radius:999px;background:var(--warn-bg);color:var(--warn-text);font-weight:600}
 #dirty-badge[hidden]{display:none}
-#draft-popup{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;background:var(--scrim);padding:20px}
-#draft-popup.show{display:flex}
-#mode-badge{font-size:12px;padding:5px 8px;border-radius:999px;background:#eef2f7;color:#465365;font-weight:600}
+#mode-badge{font-size:12px;padding:5px 8px;border-radius:999px;background:var(--head-bg);color:#465365;font-weight:600}
 .edit-mode{background:var(--warn-bg)!important;color:var(--warn-text)!important}
 /* Technikkategorien: jede Ebene als eigene Karte, Text darf umbrechen */
 .layer-row{display:grid;grid-template-columns:auto 12px minmax(0,1fr);gap:6px 8px;align-items:start;margin:0 0 8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:13px}
@@ -61,14 +68,14 @@ svg.hide-labels text:not(.ov){display:none}
 .layer-row .dot{margin-top:3px}
 .layer-row .lname{display:block;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
 .layer-row .lcount{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
-.layer-row button,.editbar button,.prop button,.import-actions button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 8px;cursor:pointer}
+.layer-row button,.editbar button,.import-actions button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 8px;cursor:pointer}
 .layer-row button{grid-column:1/-1;width:100%;padding:7px 8px}
 .layer-row button:hover,.editbar button:hover{background:var(--hover)}
-.legend{position:absolute;right:24px;bottom:24px;z-index:2;display:flex;flex-direction:column;gap:5px;padding:8px 10px;background:#fffffff0;border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--muted);pointer-events:none}
+.legend{position:absolute;right:24px;bottom:24px;z-index:2;display:flex;flex-direction:column;gap:5px;padding:8px 10px;background:var(--glass);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--muted);pointer-events:none}
 .legend strong{color:var(--text);font-size:12px}
 .legend span{display:flex;align-items:center;gap:7px}
 .legend i.bar{width:22px;height:5px;border-radius:3px;display:inline-block;box-shadow:0 0 0 1px #0004}
-.editbar{position:absolute;top:24px;left:24px;right:132px;z-index:3;display:none;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;background:#fffffff5;border:1px solid var(--line);border-radius:9px;box-shadow:0 2px 8px #0002;font-size:13px}
+.editbar{position:absolute;top:24px;left:24px;right:132px;z-index:3;display:none;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;background:var(--glass);border:1px solid var(--line);border-radius:9px;box-shadow:0 2px 8px #0002;font-size:13px}
 .editbar.show{display:flex}
 button:disabled{opacity:.45;cursor:not-allowed}
 .editbar button.chosen{background:var(--accent-soft);border-color:var(--accent)}
@@ -79,7 +86,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .prop{font-size:13px}
 .prop label{display:block;margin:7px 0}
 .prop input,.prop select{width:100%;padding:6px;border:1px solid var(--line);border-radius:5px;font:inherit;background:var(--surface)}
-.prop .missing{border:2px solid #f08a24!important;background:#fff3e4!important}
+.prop .missing{border:2px solid var(--warn-border)!important;background:var(--warn-field)!important}
 .prop .warning{color:#9a5a00;font-size:12px;line-height:1.5}
 .ov{paint-order:normal;stroke:none}
 #drop-cover{display:none;position:absolute;inset:12px;z-index:8;align-items:center;justify-content:center;border:3px dashed var(--accent);border-radius:10px;background:#e6f0fff2;padding:24px;text-align:center;font-size:18px;font-weight:650;pointer-events:none}
@@ -92,8 +99,16 @@ main.file-over #drop-cover{display:flex}
 #import-feedback ul{padding-left:18px;margin:8px 0}
 .import-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .import-actions .primary{background:var(--accent);color:var(--surface);border-color:var(--accent)}
-#stage:not(.drawing) g[data-id]{cursor:pointer}
-#stage.dragging g[data-id]{cursor:grabbing}
+/* Mauszeiger */
+#stage{cursor:var(--cur-move)}
+#stage.dragging{cursor:var(--cur-moving)}
+#stage.drawing{cursor:var(--cur-cross)}
+#stage:not(.drawing) g[data-id]{cursor:var(--cur-arrow)}
+#stage.dragging g[data-id]{cursor:var(--cur-moving)}
+#stage [cursor="move"]{cursor:var(--cur-move)}
+#stage [cursor="copy"]{cursor:var(--cur-copy)}
+#stage.drawing g[data-id],#stage.drawing [data-editor-ui]{cursor:var(--cur-cross)}
+/* Detail-Popup */
 #popup{position:absolute;z-index:6;width:min(340px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0003;font-size:13px;display:none}
 #popup.show{display:block}
 .pp-head{display:flex;gap:10px;align-items:flex-start;padding:12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);border-radius:12px 12px 0 0;z-index:1}
@@ -101,13 +116,17 @@ main.file-over #drop-cover{display:flex}
 .pp-title{flex:1;min-width:0}
 .pp-title strong{display:block;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
 .pp-kind{display:block;color:var(--muted);font-size:12px;margin-top:2px}
-.pp-close{box-sizing:border-box;flex:none;width:30px;height:30px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center}.pp-close svg{display:block;width:18px;height:18px;flex:none}
-.pp-close:hover{background:var(--hover)}
+.pp-close,.pp-edit-btn{box-sizing:border-box;flex:none;width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer;line-height:1}
+.pp-close:hover,.pp-edit-btn:hover{background:var(--hover)}
+.pp-close svg,.pp-edit-btn svg,.table-del svg{display:block;width:18px;height:18px;flex:none}
+.pp-edit-btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+.pp-resolve-btn{color:var(--danger);border-color:var(--danger-border)}
+.pp-resolve-btn:hover{background:var(--danger-hover)}
 .pp-body{padding:10px 12px 12px}
 .pp-list{display:grid;grid-template-columns:minmax(70px,auto) minmax(0,1fr);gap:7px 12px;margin:0}
 .pp-list dt{color:var(--muted)}
 .pp-list dd{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
-.pp-list dd.empty{color:#a3acb9}
+.pp-list dd.empty{color:var(--muted-soft)}
 .pp-sub{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
 .pp-link{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 9px;margin-bottom:5px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer;font-size:13px}
 .pp-link:hover{background:var(--hover-soft)}
@@ -116,36 +135,13 @@ main.file-over #drop-cover{display:flex}
 .pp-link span{min-width:0;overflow-wrap:anywhere}
 .pp-link small{display:block;color:var(--muted);font-size:12px}
 .pp-none{color:var(--muted);font-size:12px}
-@media(max-width:760px){#popup{left:12px!important;right:12px;top:auto!important;bottom:12px;width:auto;max-height:55%}}
 #popup .pp-edit{font-size:13px}
 #popup .pp-edit .pp-sub{margin-top:0}
-#popup .pp-edit button{margin-top:8px}
 #popup .pp-edit .hint{margin-top:4px}
-.pp-edit-btn{
-  box-sizing:border-box;
-  flex:none;
-  width:30px;
-  height:30px;
-  padding:0;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  border:1px solid var(--line);
-  background:var(--surface);
-  border-radius:8px;
-  cursor:pointer;
-  font-size:13px;
-  line-height:1;
-  white-space:nowrap;
-}
-.pp-edit-btn svg,.table-del svg{display:block;width:18px;height:18px;flex:none}
-.pp-edit-btn:hover{background:var(--hover)}
-.pp-edit-btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-text);font-weight:600}
-.pp-resolve-btn{color:var(--danger);border-color:#f0b4ae}
-.pp-resolve-btn:hover{background:#fdecea}
 #print-root{display:none}
 #data-error{display:none;margin:0;padding:14px 18px;background:#fff0ef;border-bottom:2px solid #d73a49;color:#7a1620;font-size:14px;line-height:1.6}
 @media(max-width:760px){
+#popup{left:12px!important;right:12px;top:auto!important;bottom:12px;width:auto;max-height:55%}
 .legend{right:auto;left:20px;bottom:64px;gap:3px;max-width:calc(100% - 250px);padding:5px 8px}
 .layout{flex-direction:column}
 aside{width:auto;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line);max-height:40vh}
@@ -170,48 +166,36 @@ body>*:not(#print-root){display:none!important}
 .print-page img{display:block;width:100%;height:auto;aspect-ratio:100/52;max-height:none;object-fit:contain;margin:0 auto}
 }
 
-/* Druckdialog */
-#print-popup{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:var(--scrim);padding:20px}
-#print-popup.show{display:flex}
-.print-dialog:focus{outline:none}
-.print-dialog{position:relative;width:min(440px,100%);background:var(--surface);border-radius:12px;padding:24px;box-shadow:0 18px 55px #0005}
-.print-dialog h2{margin:0 34px 8px 0;font-size:20px}
-.print-dialog p{margin:0 0 18px;color:var(--muted);font-size:14px}
-.print-dialog label{display:block;font-weight:650;margin-bottom:18px}
-.print-dialog select{display:block;width:100%;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface);font:inherit}
-.print-actions{display:flex;justify-content:flex-end;gap:8px}
-.print-actions button,.print-close{padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface);cursor:pointer;font:inherit}
-.print-actions .primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
-.print-close{position:absolute;right:12px;top:12px;border:0;font-size:22px;line-height:1;padding:4px 8px}
-#toast-region{
-  position:fixed;
-  right:16px;
-  bottom:16px;
-  z-index:400;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  align-items:flex-end;
-  pointer-events:none;
-  max-width:min(380px,calc(100vw - 32px));
-}
-.toast{
-  pointer-events:auto;
-  display:flex;
-  align-items:flex-start;
-  gap:10px;
-  padding:10px 12px;
-  border-radius:8px;
-  background:var(--text);
-  color:var(--surface);
-  border-left:5px solid #1f6feb;
-  box-shadow:0 8px 24px #0004;
-  font-size:14px;
-  line-height:1.35;
-  animation:toast-in .2s ease-out;
-}
+/* Dialoge (Drucken, Wiederherstellen, Excel-Import) */
+#print-popup,#draft-popup,#import-popup{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--scrim);padding:20px}
+#print-popup{z-index:200}
+#import-popup{z-index:300}
+#draft-popup{z-index:500}
+#print-popup.show,#draft-popup.show,#import-popup.show{display:flex}
+.dialog-box:focus,.import-dialog:focus,#table-screen:focus{outline:none}
+.dialog-box{position:relative;width:min(440px,100%);background:var(--surface);border-radius:12px;padding:24px;box-shadow:0 18px 55px #0005}
+.dialog-box h2{margin:0 34px 8px 0;font-size:20px}
+.dialog-box p{margin:0 0 18px;color:var(--muted);font-size:14px}
+.dialog-box label{display:block;font-weight:650;margin-bottom:18px}
+.dialog-box select{display:block;width:100%;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface);font:inherit}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px}
+.dialog-actions button,.dialog-close{padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface);cursor:pointer;font:inherit}
+.dialog-actions .primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.dialog-close{position:absolute;right:12px;top:12px;border:0;font-size:22px;line-height:1;padding:4px 8px}
+.import-dialog{position:relative;width:min(560px,100%);max-height:calc(100vh - 40px);overflow:auto;background:var(--surface);border-radius:12px;padding:24px;box-shadow:0 18px 55px #0005}
+.import-dialog h2{margin:0 40px 8px 0;font-size:20px;text-transform:none;letter-spacing:0;color:var(--text)}
+.import-dialog .import-target{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.import-dialog .hint{margin:0 0 12px}
+.import-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer;font-size:16px;line-height:1;padding:0}
+.import-close:hover{background:var(--hover)}
+#import-drop{display:block;width:100%;padding:22px 12px;border:2px dashed var(--accent);border-radius:10px;background:var(--accent-soft);color:var(--accent-text);font-weight:650;font-size:15px;cursor:pointer;text-align:center}
+#import-drop.over{background:var(--accent-soft-2)}
+
+/* Hinweise (Toasts) */
+#toast-region{position:fixed;right:16px;bottom:16px;z-index:400;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;max-width:min(380px,calc(100vw - 32px))}
+.toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:var(--text);color:var(--surface);border-left:5px solid var(--accent);box-shadow:0 8px 24px #0004;font-size:14px;line-height:1.35;animation:toast-in .2s ease-out}
 .toast-success{border-left-color:#2e9e5b}
-.toast-warn{border-left-color:#f08a24}
+.toast-warn{border-left-color:var(--warn-border)}
 .toast-error{border-left-color:#d64545}
 .toast.leaving{opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s}
 .toast-action{border:1px solid #ffffff80;background:transparent;color:var(--surface);border-radius:6px;padding:2px 8px;font-size:13px;cursor:pointer;white-space:nowrap}
@@ -222,26 +206,41 @@ body>*:not(#print-root){display:none!important}
 @media print{#toast-region{display:none!important}}
 @media (prefers-reduced-motion:reduce){.toast{animation:none}.toast.leaving{transition:none}}
 
-/* High-contrast editor cursors */
-#stage{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grab}
-#stage.dragging{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%231f6feb%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grabbing}
-#stage.drawing{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 16 16, crosshair}
-#stage:not(.drawing) g[data-id]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 5 3, pointer}
-#stage.dragging g[data-id]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%231f6feb%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grabbing}
-#stage [cursor="move"]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 16 16, grab}
-#stage [cursor="copy"]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%232e9e5b%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 5 3, copy}
-#stage.drawing g[data-id],#stage.drawing [data-editor-ui]{cursor:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 16 16, crosshair}
-#import-popup{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:var(--scrim);padding:20px}
-#import-popup.show{display:flex}
-.import-dialog{position:relative;width:min(560px,100%);max-height:calc(100vh - 40px);overflow:auto;background:var(--surface);border-radius:12px;padding:24px;box-shadow:0 18px 55px #0005}
-.import-dialog:focus{outline:none}
-.import-dialog h2{margin:0 40px 8px 0;font-size:20px;text-transform:none;letter-spacing:0;color:var(--text)}
-.import-dialog .import-target{margin:0 0 10px;font-size:13px;color:var(--muted)}
-.import-dialog .hint{margin:0 0 12px}
-.import-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer;font-size:16px;line-height:1;padding:0}
-.import-close:hover{background:var(--hover)}
-#import-drop{display:block;width:100%;padding:22px 12px;border:2px dashed var(--accent);border-radius:10px;background:var(--accent-soft);color:var(--accent-text);font-weight:650;font-size:15px;cursor:pointer;text-align:center}
-#import-drop.over{background:#cfe2ff}
+/* Tabellenansicht */
+#table-screen{position:fixed;inset:0;z-index:100;background:var(--bg);display:none;flex-direction:column;color:var(--text)}
+#table-screen.show{display:flex}
+.tbl-head{display:block;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.tbl-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+.tbl-head h2{margin:0;font-size:18px}
+.tbl-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.tbl-tools:last-child{margin-bottom:0}
+.tbl-tools label{white-space:nowrap}
+.tbl-head select,.tbl-head input,.tbl-head button{padding:7px 9px;border:1px solid var(--field-border);border-radius:6px;background:var(--surface);font:inherit}
+.tbl-tools select{max-width:190px}
+.tbl-head input,.tbl-tools input{width:auto;min-width:190px;flex:0 1 190px}
+.tbl-tools button{padding:6px;font-size:12px}
+.tbl-head button{cursor:pointer}
+.tbl-head button.active{background:var(--accent-soft);border-color:var(--accent)}
+.tbl-status{font-size:13px;color:#556272;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbl-wrap{overflow:auto;flex:1;padding:12px 16px}
+.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:var(--surface);border:1px solid var(--line);font-size:13px}
+.data-table th{position:sticky;top:0;z-index:2;background:var(--head-bg);text-align:left;padding:8px;border-bottom:1px solid var(--head-line);white-space:nowrap}
+.data-table td{padding:5px;border-bottom:1px solid var(--row-line);vertical-align:top}
+.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid var(--field-border);border-radius:4px;background:var(--surface);font:inherit}
+.data-table input[readonly]{background:var(--bg);color:#5d6877}
+.data-table .missing{border:2px solid var(--warn-border)!important;background:var(--warn-field)!important}
+.table-place{white-space:nowrap;padding:6px;border:1px solid var(--accent);border-radius:5px;background:var(--accent-soft);cursor:pointer}
+.table-actions{display:flex;gap:6px;align-items:center}
+.table-del{white-space:nowrap;padding:6px;border:1px solid var(--danger-border);border-radius:5px;background:var(--surface);color:var(--danger);cursor:pointer}
+.table-del:hover{background:var(--danger-hover)}
+.table-close{position:static;padding:7px 14px!important;cursor:pointer}
+.table-close:hover{background:var(--hover)}
+.tbl-head button:disabled{opacity:.4;background:#e1e5ea!important;color:#66707c!important;border-color:#c5ccd5!important;cursor:not-allowed}
+.tbl-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+.tbl-title select{max-width:260px}
+.tbl-tools-row3 .tbl-status{flex:none;margin-left:8px;white-space:nowrap}
+.tbl-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
+.tbl-right button[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -249,7 +248,7 @@ body>*:not(#print-root){display:none!important}
 <div id="data-error" role="alert"></div>
 <header>
 <h1>Gebäudeplan – Technik-Viewer</h1>
-<span id="mode-badge">👁 Ansichtsmodus · nur lesen</span>
+<span id="mode-badge" role="status">👁 Ansichtsmodus · nur lesen</span>
 <span id="dirty-badge" hidden title="Änderungen sind nur im Browser zwischengespeichert. Über „Daten als Tabelle“ → „Export“ als Excel-Datei sichern.">⚠ Nicht exportierte Änderungen</span>
 <div class="header-actions">
 <button id="btn-link" title="Link auf aktuellen Plan, Auswahl und Ausschnitt kopieren">🔗 Link</button>
@@ -267,7 +266,7 @@ body>*:not(#print-root){display:none!important}
 </section>
 <section>
 <h2>Raum suchen</h2>
-<input type="search" id="search" placeholder="z. B. Mensa, Kino, ..." enterkeyhint="next" autocomplete="off">
+<input type="search" id="search" placeholder="z. B. Mensa, Kino, ..." aria-label="Raum oder Technikobjekt suchen" enterkeyhint="next" autocomplete="off">
 <div class="hint" id="search-hint" role="status" aria-live="polite"></div>
 <div id="search-results" class="search-results"></div>
 </section>
@@ -282,7 +281,7 @@ body>*:not(#print-root){display:none!important}
 </section>
 </aside>
 <main id="main">
-<div id="stage" aria-label="Gebäudeplan"></div>
+<div id="stage" tabindex="0" role="application" aria-label="Gebäudeplan. Pfeiltasten verschieben, Plus und Minus zoomen, 0 zeigt den ganzen Plan."></div>
 <div class="tools">
 <button id="zin" title="Hineinzoomen" aria-label="Hineinzoomen">+</button>
 <button id="zout" title="Herauszoomen" aria-label="Herauszoomen">−</button>
@@ -308,62 +307,23 @@ body>*:not(#print-root){display:none!important}
  </div>
 </div>
 <div id="draft-popup" aria-hidden="true">
- <div class="print-dialog" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="draft-title" aria-describedby="draft-text">
+ <div class="dialog-box" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="draft-title" aria-describedby="draft-text">
   <h2 id="draft-title">Nicht exportierte Änderungen gefunden</h2>
   <p id="draft-text"></p>
   <p>Nach dem Wiederherstellen die Daten bitte über „Daten als Tabelle“ → „Export“ als Excel-Datei sichern. Der Export erzeugt dann eine neue Excel-Datei; die Formatierung der ursprünglich importierten Datei ist nicht mehr verfügbar.</p>
-  <div class="print-actions"><button id="draft-discard" type="button">Verwerfen</button><button id="draft-restore" class="primary" type="button">Wiederherstellen</button></div>
+  <div class="dialog-actions"><button id="draft-discard" type="button">Verwerfen</button><button id="draft-restore" class="primary" type="button">Wiederherstellen</button></div>
  </div>
 </div>
 <div id="print-popup" aria-hidden="true">
- <div class="print-dialog" tabindex="-1" role="dialog" aria-modal="true" aria-label="Drucken">
-  <button id="print-close" class="print-close" type="button" aria-label="Schließen">×</button>
+ <div class="dialog-box" tabindex="-1" role="dialog" aria-modal="true" aria-label="Drucken">
+  <button id="print-close" class="dialog-close" type="button" aria-label="Schließen">×</button>
   <h2>Drucken / PDF</h2><p>A4 quer · im Druckdialog „Als PDF speichern“ wählen</p>
   <label>Druckumfang <select id="pdf-mode" aria-label="Druckumfang"><option value="plan">Aktueller Plan</option><option value="view">Aktueller Ausschnitt (Zoom)</option><option value="all">Alle Pläne (je eine Seite)</option></select></label>
-  <div class="print-actions"><button id="print-cancel" type="button">Abbrechen</button><button id="print-confirm" class="primary" type="button">🖨 Drucken</button></div>
+  <div class="dialog-actions"><button id="print-cancel" type="button">Abbrechen</button><button id="print-confirm" class="primary" type="button">🖨 Drucken</button></div>
  </div>
 </div>
 
-<style>
-#table-screen{position:fixed;inset:0;z-index:100;background:var(--bg);display:none;flex-direction:column;color:var(--text)}
-#table-screen.show{display:flex}
-.tbl-head{display:block;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
-.tbl-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
-.tbl-head h2{margin:0;font-size:18px}
-.tbl-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.tbl-tools label{white-space:nowrap}
-.tbl-head select,.tbl-head input,.tbl-head button{padding:7px 9px;border:1px solid #bcc6d3;border-radius:6px;background:var(--surface);font:inherit}
-.tbl-tools select{max-width:190px}
-.tbl-head input,.tbl-tools input{width:auto;min-width:190px;flex:0 1 190px}
-.tbl-tools button{padding:6px;font-size:12px}
-.tbl-head button{cursor:pointer}
-.tbl-head button.active{background:var(--accent-soft);border-color:#1f6feb}
-.tbl-status{font-size:13px;color:#556272;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tbl-wrap{overflow:auto;flex:1;padding:12px 16px}
-.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:var(--surface);border:1px solid var(--line);font-size:13px}
-.data-table th{position:sticky;top:0;z-index:2;background:#eef2f7;text-align:left;padding:8px;border-bottom:1px solid #cbd3de;white-space:nowrap}
-.data-table td{padding:5px;border-bottom:1px solid #e5e9ef;vertical-align:top}
-.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid #bcc6d3;border-radius:4px;background:var(--surface);font:inherit}
-.data-table input[readonly]{background:var(--bg);color:#5d6877}
-.data-table .missing{border:2px solid #f08a24!important;background:#fff3e4!important}
-.table-place{white-space:nowrap;padding:6px;border:1px solid #1f6feb;border-radius:5px;background:var(--accent-soft);cursor:pointer}
-.table-actions{display:flex;gap:6px;align-items:center}
-.table-del{white-space:nowrap;padding:6px;border:1px solid #f0b4ae;border-radius:5px;background:var(--surface);color:var(--danger);cursor:pointer}
-.table-del:hover{background:#fdecea}
-.table-close{position:static;padding:7px 14px!important;cursor:pointer}
-.table-close:hover{background:var(--hover)}
-.tbl-head button:disabled{opacity:.4;background:#e1e5ea!important;color:#66707c!important;border-color:#c5ccd5!important;cursor:not-allowed}
-
-/* Table toolbar: align all direct controls on one visual row at wide viewports. */
-.tbl-tools{align-items:center;margin-bottom:8px}
-.tbl-tools:last-child{margin-bottom:0}
-.tbl-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
-.tbl-title select{max-width:260px}
-.tbl-tools-row3 .tbl-status{flex:none;margin-left:8px;white-space:nowrap}
-.tbl-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
-.tbl-right button[hidden]{display:none}
-</style>
-<div id="table-screen" role="dialog" aria-modal="true" aria-label="Daten als Tabelle">
+<div id="table-screen" role="dialog" aria-modal="true" aria-label="Daten als Tabelle" tabindex="-1">
  <div class="tbl-head"><div class="tbl-top"><div class="tbl-title"><h2>Daten als Tabelle</h2><select id="tbl-layer" aria-label="Technikkategorie auswählen"></select></div><button id="tbl-close" class="table-close">× Zurück zum Plan</button></div><div class="tbl-tools"><input id="tbl-search" type="search" placeholder="Suchen …" aria-label="Tabelle durchsuchen"><button data-filter="all">Alle</button><button data-filter="unplaced">Ohne Ort</button><button data-filter="missing">Fehlende Angaben</button><span class="tbl-right"><button id="tbl-new">➕ Accesspoint</button><button id="tbl-new-cabinet" hidden>➕ Netzwerkschrank</button><button id="tbl-new-connection" hidden>➕ Verbindung</button><button id="tbl-undo">↶ Zurück</button><button id="tbl-redo">↷ Vor</button></span></div><div class="tbl-tools tbl-tools-row3"><button id="tbl-import">⬆ Import</button><button id="tbl-export">⬇ Export</button><span id="tbl-count" class="tbl-status"></span></div></div>
   <div class="tbl-wrap"><table class="data-table"><thead></thead><tbody></tbody></table></div>
 </div>
@@ -374,17 +334,33 @@ body>*:not(#print-root){display:none!important}
 <!-- Gebäudedaten: Datei muss im selben Ordner liegen wie diese HTML-Datei -->
 <script src="gebaudedaten.js"></script>
 
-<!-- Prüfung, ob die Gebäudedaten geladen wurden -->
+<!-- Prüfung, ob die Gebäudedaten vorhanden und vollständig sind. Ergebnis: window.GEBAEUDEDATEN_OK.
+     Ist es false, werden die folgenden Skripte nicht ausgeführt (sie brechen sofort sauber ab). -->
 <script>
-if(typeof PLANS==='undefined'||typeof geometry==='undefined'){
+(function(){
+ var defined=typeof PLANS!=='undefined'&&Array.isArray(PLANS)&&PLANS.length>0&&typeof geometry!=='undefined'&&geometry;
+ var missing=defined?PLANS.filter(function(p){return !geometry[p.id]||!Array.isArray(geometry[p.id].texts)}).map(function(p){return p.id}):[];
+ window.GEBAEUDEDATEN_OK=!!defined&&!missing.length;
+ if(window.GEBAEUDEDATEN_OK)return;
  var err=document.getElementById('data-error');
  err.style.display='block';
- err.innerHTML='<strong>Gebäudedaten nicht gefunden.</strong> Die Datei <code>gebaudedaten.js</code> muss im selben Ordner wie diese HTML-Datei liegen und genau so heißen.';
-}
+ var strong=document.createElement('strong');
+ if(!defined){
+  strong.textContent='Gebäudedaten nicht gefunden. ';
+  err.append(strong,'Die Datei ');
+  var code=document.createElement('code');code.textContent='gebaudedaten.js';
+  err.append(code,' muss im selben Ordner wie diese HTML-Datei liegen, genau so heißen und PLANS sowie geometry bereitstellen.');
+ }else{
+  strong.textContent='Gebäudedaten unvollständig. ';
+  err.append(strong,'Für diese Pläne fehlt die Geometrie (geometry[id].texts): '+missing.join(', ')+'.');
+ }
+ document.querySelectorAll('header button,header select').forEach(function(el){el.disabled=true});
+})();
 </script>
 
 <script>
 'use strict';
+if(!window.GEBAEUDEDATEN_OK)throw new Error('Gebäudedaten fehlen oder sind unvollständig – Programm nicht gestartet.');
 const NS='http://www.w3.org/2000/svg';
 const $=id=>document.getElementById(id);
 const S=(tag,attrs={})=>{
@@ -394,16 +370,29 @@ const S=(tag,attrs={})=>{
 };
 const copy=value=>JSON.parse(JSON.stringify(value));
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+/* Symbole (Pfade im 24×24-Raster), z. B. in Popup und Tabelle */
+const ICONS={
+ edit:'M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z',
+ done:'M5 13.5l4 4L19 7.5',
+ trash:'M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14 M10 10v6 M14 10v6',
+ link:'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7 M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7',
+ close:'M6 6l12 12M18 6L6 18'
+};
+function iconSvg(name){
+ const v=S('svg',{viewBox:'0 0 24 24',width:18,height:18,fill:'none',stroke:'currentColor','stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true'});
+ v.append(S('path',{d:ICONS[name]}));return v;
+}
 
 /* PLANS und geometry kommen aus gebaudedaten.js */
 
-/* Die Ebene „schraenke“ ist eine gemischte Ebene (kind:'mixed'):
+/* Die Ebene „cabinets“ ist eine gemischte Ebene (kind:'mixed'):
    Sie enthält Netzwerkschränke (Punkte mit x/y) UND Verbindungen (Linien mit points). */
 const isNoteKey=key=>/^notiz/.test(key);
-/* Zusatzspalte einer Ebene: Pflichtangabe außer „Notiz“. point/line: gilt für Schränke bzw. Verbindungen. */
-const EX=(key,label,flags={})=>({key,label,required:!isNoteKey(key),point:true,line:true,...flags});
+/* Zusatzspalte einer Ebene: Pflichtangabe außer „Notiz“. */
+const EX=(key,label)=>({key,label,required:!isNoteKey(key)});
 /* Feste Spalten jeder Ebene: ID, Name, Ort. Die Zusatzspalten (extras) werden beim Excel-Import aus der Datei ermittelt;
-   die hier eingetragenen gelten nur, solange noch nichts importiert wurde. */
+   die hier eingetragenen gelten nur, solange noch nichts importiert wurde.
+   Schlüssel der Zusatzspalten stammen aus den Excel-Überschriften (z. B. „Typ“ → typ, „Notiz“ → notiz). */
 /* Eine Konfiguration je Technikkategorie: Namen, Farbe, Symbol, Verhalten.
    Alles, was sich zwischen den Kategorien unterscheidet, steht hier – im restlichen Code gibt es keine festen Kategorie-IDs.
      singular     Name eines Objekts (Schaltflächen „➕ …“, Meldungen, Popup)
@@ -415,12 +404,17 @@ const EX=(key,label,flags={})=>({key,label,required:!isNoteKey(key),point:true,l
      exportName   Dateiname beim Export ohne importierte Vorlage */
 const LAYERS={
 accesspoints:{id:'accesspoints',label:'Accesspoints',singular:'Accesspoint',symbol:'ap',z:1,color:'#1f6feb',kind:'point',idPrefix:'AP',exportName:'accesspoints.xlsx',srcId:null,extras:[EX('notiz','Notiz')]},
-schraenke:{id:'schraenke',label:'Netzwerkschränke & Verbindungen',singular:'Netzwerkschrank',lineSingular:'Verbindung',symbol:'cabinet',z:0,hasLegend:true,hasPorts:true,obstacle:true,
+cabinets:{id:'cabinets',label:'Netzwerkschränke & Verbindungen',singular:'Netzwerkschrank',lineSingular:'Verbindung',symbol:'cabinet',z:0,hasLegend:true,hasPorts:true,obstacle:true,
  color:'#d73a49',lineColor:'#2da44e',kind:'mixed',idPrefix:'SK',linePrefix:'VB',exportName:'netzwerkschraenke.xlsx',srcId:null,
  extras:[EX('notiz','Notiz')],
  lineExtras:[EX('typ','Typ'),EX('notiz','Notiz')]},
-fernseher:{id:'fernseher',label:'Fernseher',singular:'Fernseher',symbol:'tv',z:2,color:'#e3a008',kind:'point',idPrefix:'TV',exportName:'fernseher.xlsx',srcId:null,extras:[EX('notiz','Notiz')]}
+tvs:{id:'tvs',label:'Fernseher',singular:'Fernseher',symbol:'tv',z:2,color:'#e3a008',kind:'point',idPrefix:'TV',exportName:'fernseher.xlsx',srcId:null,extras:[EX('notiz','Notiz')]}
 };
+/* Frühere (deutsche) Kategorie-IDs in alten Links und im Browser-Entwurf */
+const LAYER_ALIASES={schraenke:'cabinets',fernseher:'tvs'};
+const layerIdOf=id=>LAYERS[id]?id:(LAYER_ALIASES[id]||null);
+/* Gibt es unter den Zusatzspalten die Spalte „Typ“ (Verbindungstyp)? */
+const hasTypeColumn=extras=>(extras||[]).some(e=>e.key==='typ');
 
 /* Verbindungstypen: Mono (Singlemode) = gelb, Multi (Multimode) = orange, Kupfer = blau.
    „text“ ist eine dunklere Variante für die Beschriftung (gut lesbar auf Weiß). */
@@ -441,13 +435,20 @@ const DISPLAY={
  spread:{gap:.55,tol:.45,minOverlap:.15},   /* parallele Spuren nebeneinanderliegender Verbindungen */
  hit:{linePx:28,lineMin:1.4,pointPx:15,pointMin:.9,handlePx:20,handleMin:.9},  /* unsichtbare Trefferflächen */
  handle:{px:9,min:.35,strokePx:3,strokeMin:.12},                                /* weißer Anfasspunkt */
+ ring:{selected:1.05,partner:.95},          /* Auswahl-/Partnerring um Schränke (Symbolgrößen) */
+ preview:{width:.25,outline:.1,dot:.33,dotStroke:.1,dash:[.9,.65]},   /* Vorschau beim Zeichnen einer Verbindung (Symbolgrößen) */
+ search:{pad:8,stroke:5,strokeOther:3,ring:1.7,ringOther:1.4,line:.3,lineOther:.18},   /* Markierung von Suchtreffern (pad: Planeinheiten) */
  pickTol:{touch:24,pen:20,mouse:16},        /* px: nächste Verbindung beim Antippen */
  slop:{touch:10,pen:6,mouse:4},             /* px: ab hier wird aus Antippen ein Ziehen */
  zoom:{button:1.4,wheel:1.15,dblclick:1.8,min:2/3,max:25},
  port:{x:5.2,y:2.2},                        /* Ebenenports links vom Plan (Symbolgrößen) */
  searchListMax:30,focusPad:280,focusZoom:3,   /* Trefferliste, Rand/Zoom beim Springen zu Treffern */
+ keyPan:{step:.1,big:.4},                   /* Pfeiltasten: Anteil des sichtbaren Ausschnitts */
+ print:{rasterWidth:3000,maxPixels:12e6},   /* Pixelbild für den Druck (iOS/Safari) */
+ importMaxBytes:25*1024*1024,               /* größte erlaubte Excel-Datei */
  draftDelay:400                             /* ms bis zum Zwischenspeichern im Browser */
 };
+const TOAST={short:2500,normal:4000,long:8000,error:10000};   /* Anzeigedauer von Hinweisen in ms */
 function paddedBox(box){
  const pad=Math.max(box[2],box[3])*DISPLAY.viewMargin;
  return [box[0]-pad,box[1]-pad,box[2]+pad*2,box[3]+pad*2];
@@ -468,9 +469,17 @@ function lineTypeInfo(typ){
 }
 
 /* Hilfsfunktionen für gemischte Ebenen */
-/* Jedes Objekt trägt ein Feld type: 'line' (Verbindung) oder 'point' (Objekt mit Ort Plan(X/Y)). */
+/* Jedes Objekt trägt ein Feld type: 'line' (Verbindung) oder 'point' (Objekt mit Ort Plan(X/Y)).
+   Verbindungen verweisen mit from/to auf die IDs zweier Netzwerkschränke. */
 function isLine(o){return !!o&&o.type==='line'}
-function withType(o){if(!o.type)o.type=Array.isArray(o.points)?'line':'point';return o}
+function withType(o){
+ if(!o.type)o.type=Array.isArray(o.points)?'line':'point';
+ /* ältere Browser-Entwürfe verwendeten deutsche Feldnamen */
+ if('von' in o){o.from=o.von;delete o.von}
+ if('nach' in o){o.to=o.nach;delete o.nach}
+ if('_ort' in o){o._location=o._ort;delete o._ort}
+ return o;
+}
 function colorFor(layer,o){
  if(isLine(o)){const info=lineTypeInfo(o.typ);return info?info.color:(layer.lineColor||layer.color)}
  return layer.color;
@@ -487,7 +496,7 @@ function countOf(list,line){return list.filter(o=>isLine(o)===line).length}
 function isDrawTool(){return state.tool==='draw'||state.tool==='drawline'}
 
 /* ---------- Ort, IDs und Verbindungen ----------
-   Jedes Objekt hat die festen Spalten ID (001, 002, …), Name und Ort.
+   Jedes Objekt hat die festen Spalten ID (001, 002, …), Name und Ort („location“ im Code).
    Ort eines Objekts:      Plan(X/Y)  z. B. E1(10/50) oder MLK(2/230)
    Ort einer Verbindung:   ID/ID      z. B. 001/005 (die IDs der beiden Netzwerkschränke) */
 const isNum=v=>String(v??'').trim()!==''&&Number.isFinite(Number(v));
@@ -506,10 +515,10 @@ function resolvePlan(text){
  return t?(PLANS.find(p=>normalized(p.id)===t||normalized(planCode(p))===t||normalized(p.name)===t)||null):null;
 }
 const NUM_RE='-?\\d+(?:[.,]\\d+)?';
-const ORT_POINT=new RegExp('^\\s*([^()/]*?)\\s*\\(\\s*('+NUM_RE+')\\s*/\\s*('+NUM_RE+')\\s*\\)\\s*$');
-const ORT_LINK=/^\s*([^\s/()]+)\s*\/\s*([^\s/()]+)\s*$/;
-function parsePointOrt(text){const m=ORT_POINT.exec(String(text??''));return m?{plan:m[1],x:numberValue(m[2]),y:numberValue(m[3])}:null}
-function parseLinkOrt(text){const m=ORT_LINK.exec(String(text??''));return m?[normId(m[1]),normId(m[2])]:null}
+const LOCATION_POINT=new RegExp('^\\s*([^()/]*?)\\s*\\(\\s*('+NUM_RE+')\\s*/\\s*('+NUM_RE+')\\s*\\)\\s*$');
+const LOCATION_LINK=/^\s*([^\s/()]+)\s*\/\s*([^\s/()]+)\s*$/;
+function parsePointLocation(text){const m=LOCATION_POINT.exec(String(text??''));return m?{plan:m[1],x:numberValue(m[2]),y:numberValue(m[3])}:null}
+function parseLinkLocation(text){const m=LOCATION_LINK.exec(String(text??''));return m?[normId(m[1]),normId(m[2])]:null}
 function allRecords(layerId){return PLANS.flatMap(p=>inventory[p.id][layerId].map(o=>({o,plan:p.id})))}
 function layerAll(layerId){return PLANS.flatMap(p=>inventory[p.id][layerId])}
 /* plan = Plan, auf dem das Objekt dargestellt wird; list = Plan, in dessen Liste es gespeichert ist (bei Verbindungen kann das abweichen) */
@@ -531,27 +540,27 @@ function missingKeys(layer,o){
  extrasFor(layer,o).forEach(e=>{if(e.required&&!String(o[e.key]??'').trim())out.push(e.label)});
  return out;
 }
-function ortValid(layerId,o){
- if(isLine(o))return !!o.von&&!!o.nach&&!!cabinetById(layerId,o.von)&&!!cabinetById(layerId,o.nach);
+function locationValid(layerId,o){
+ if(isLine(o))return !!o.from&&!!o.to&&!!cabinetById(layerId,o.from)&&!!cabinetById(layerId,o.to);
  return isNum(o.x)&&isNum(o.y);
 }
-function ortText(planId,o){
- if(isLine(o))return (o.von||o.nach)?(o.von||'')+'/'+(o.nach||''):(o._ort||'');
+function locationText(planId,o){
+ if(isLine(o))return (o.from||o.to)?(o.from||'')+'/'+(o.to||''):(o._location||'');
  if(isNum(o.x)&&isNum(o.y)){const p=PLANS.find(q=>q.id===planId);return (p?planCode(p):'')+'('+o.x+'/'+o.y+')'}
- return o._ort||'';
+ return o._location||'';
 }
 /* Prüft eine Ortsangabe. Ungültig → Hinweis und null. Gültig → Funktion, die die Änderung ausführt
    (und die Plan-ID zurückgibt, auf der das Objekt danach liegt). */
-function prepareOrt(layerId,o,text){
+function prepareLocation(layerId,o,text){
  const t=String(text??'').trim(),holder=homePlan(layerId,o);
  if(isLine(o)){
-  if(!t)return ()=>{o.von='';o.nach='';delete o._ort;return holder};
-  const l=parseLinkOrt(t);
+  if(!t)return ()=>{o.from='';o.to='';delete o._location;return holder};
+  const l=parseLinkLocation(t);
   if(!l){toast('Ort einer Verbindung: ID/ID, z. B. 001/005.','warn');return null}
-  return ()=>{o.von=l[0];o.nach=l[1];delete o._ort;return holder};
+  return ()=>{o.from=l[0];o.to=l[1];delete o._location;return holder};
  }
- if(!t)return ()=>{o.x='';o.y='';delete o._ort;return holder};
- const r=parsePointOrt(t);
+ if(!t)return ()=>{o.x='';o.y='';delete o._location;return holder};
+ const r=parsePointLocation(t);
  if(!r){toast('Ort: Plan(X/Y), z. B. E1(10/50) oder MLK(2/230).','warn');return null}
  const plan=resolvePlan(r.plan);
  if(!plan){toast('Unbekannter Plan „'+r.plan+'“. Gültig: '+PLANS.map(planCode).join(', ')+'.','warn');return null}
@@ -560,7 +569,7 @@ function prepareOrt(layerId,o,text){
   toast('Die Koordinaten liegen außerhalb des Plans '+planCode(plan)+'.','warn');return null;
  }
  return ()=>{
-  o.x=r.x;o.y=r.y;delete o._ort;
+  o.x=r.x;o.y=r.y;delete o._location;
   if(holder&&plan.id!==holder){
    inventory[holder][layerId]=inventory[holder][layerId].filter(x=>x!==o);
    inventory[plan.id][layerId].push(o);
@@ -568,18 +577,16 @@ function prepareOrt(layerId,o,text){
   return plan.id;
  };
 }
-/* Verbindungen werden dem Plan ihres „Von“-Schranks zugeordnet. Zwischen Ebenen
-   derselben Gebäudegruppe führen sie über die festen Ebenenports links im Plan. */
-function groupPlans(planId){return PLANS.some(x=>x.id===planId)?PLANS.slice():[]} /* Ebenenkette: alle Pläne, MLK ist Ebene 5 */
-function planIndex(planId){return groupPlans(planId).findIndex(p=>p.id===planId)}
+/* Verbindungen werden dem Plan ihres „Von“-Schranks zugeordnet. Zwischen den Ebenen
+   führen sie über die festen Ebenenports links im Plan (alle Pläne bilden eine Kette, MLK ist die letzte Ebene). */
+function planIndex(planId){return PLANS.findIndex(p=>p.id===planId)}
 function portPoint(planId,dir){const p=PLANS.find(x=>x.id===planId),s=planSize(planId),left=state.gridOn?Math.min(p.box[0],gridRef(planId).box[0]):p.box[0];const x=left-s*DISPLAY.port.x;return dir==='up'?{x:x,y:p.box[1]+s*DISPLAY.port.y}:{x:x,y:p.box[1]+p.box[3]-s*DISPLAY.port.y}}
-function portFor(planId,otherId){return planIndex(otherId)<planIndex(planId)?'up':'down'}
 function connectionPlanText(a,b){
  if(!a||!b)return 'Keine Linie im Plan (Netzwerkschränke fehlen oder haben keinen gültigen Ort)';
  return a.id===b.id?a.name+(a.sub?' – '+a.sub:''):a.name+' → '+b.name+' (über Ebenenport)';
 }
 /* Berechnet für jede Verbindung die Linie im Plan (points, segs) und ihren Anzeigeplan (_home) – nur aus den gespeicherten
-   Angaben (von, nach, Lage der Schränke, routeDir, routeM). Es werden keine Objekte verschoben. Das Ergebnis wird je Verbindung
+   Angaben (from, to, Lage der Schränke, routeDir, routeM). Es werden keine Objekte verschoben. Das Ergebnis wird je Verbindung
    über einen Fingerabdruck (_sig) zwischengespeichert und nur neu berechnet, wenn sich eine Eingabe ändert. */
 function obstaclesOn(planId,skip){
  const r=planSize(planId)*DISPLAY.obstacle,out=[];
@@ -598,12 +605,12 @@ function syncLines(layerId){
  const sigOf=pid=>{if(!sigs.has(pid))sigs.set(pid,obstacleSig(pid));return sigs.get(pid)};
  PLANS.forEach(p=>inventory[p.id][layerId].forEach(o=>{if(isLine(o))lines.push({o,plan:p.id});else cabs.set(normalized(o.id),{o,plan:p});}));
  lines.forEach(({o,plan})=>{
-  const a=cabs.get(normalized(normId(o.von))),b=cabs.get(normalized(normId(o.nach)));
+  const a=cabs.get(normalized(normId(o.from))),b=cabs.get(normalized(normId(o.to)));
   const valid=a&&b&&isNum(a.o.x)&&isNum(a.o.y)&&isNum(b.o.x)&&isNum(b.o.y);
   o._home=a?a.plan.id:(b?b.plan.id:plan);
   if(!valid){if(o._sig!=='-'||!o.points||!o.segs){o.points=[];o.segs=[];o._sig='-'}return}
-  const group=groupPlans(a.plan.id),ia=group.findIndex(p=>p.id===a.plan.id),ib=group.findIndex(p=>p.id===b.plan.id),step=ib>=ia?1:-1;
-  const chain=[];for(let i=ia;i!==ib+step;i+=step)chain.push(group[i]);
+  const ia=planIndex(a.plan.id),ib=planIndex(b.plan.id),step=ib>=ia?1:-1;
+  const chain=[];for(let i=ia;i!==ib+step;i+=step)chain.push(PLANS[i]);
   const sig=[a.plan.id,a.o.x,a.o.y,b.plan.id,b.o.x,b.o.y,o.routeDir||'',o.routeM??'',state.gridOn?1:0,...chain.map(p=>sigOf(p.id))].join('|');
   if(o._sig===sig&&o.points&&o.segs)return;
   o._sig=sig;o.points=[];o.segs=[];
@@ -795,14 +802,14 @@ function gridRef(planId){
  return {x0,y0,cell,cols,rows,box:[x0,y0,cols*cell,rows*cell]};
 }
 /* Sichtbarer Bereich eines Plans: mit Raster das komplette Raster der Gruppe (für alle Ebenen gleich),
-   ohne Raster nur der Plan selbst. */
-/* Der Zeichenrahmen schließt auch Ebenen-Ports samt Beschriftung ein. */
+   ohne Raster nur der Plan selbst.
+   Der Zeichenrahmen schließt auch Ebenen-Ports samt Beschriftung ein. */
 function frameBox(plan){
- const box=(state.gridOn?gridRef(plan.id).box:plan.box).slice(),group=groupPlans(plan.id),i=planIndex(plan.id),size=planSize(plan.id);
+ const box=(state.gridOn?gridRef(plan.id).box:plan.box).slice(),i=planIndex(plan.id),size=planSize(plan.id);
  let x0=box[0],y0=box[1],x1=x0+box[2],y1=y0+box[3];
  ['up','down'].forEach(dir=>{
-  const j=i+(dir==='up'?-1:1);if(j<0||j>=group.length)return;
-  const pt=portPoint(plan.id,dir),label=group[j].name;
+  const j=i+(dir==='up'?-1:1);if(j<0||j>=PLANS.length)return;
+  const pt=portPoint(plan.id,dir),label=PLANS[j].name;
   const half=Math.max(1.3,.3*(label.length+5)); x0=Math.min(x0,pt.x-size*half-size*.5); x1=Math.max(x1,pt.x+size*half);
   y0=Math.min(y0,pt.y-size*1.3);y1=Math.max(y1,pt.y+size*3);
  });
@@ -892,6 +899,35 @@ const state={
 };
 const stage=$('stage');
 const MIN_ZOOM=DISPLAY.zoom.min,MAX_ZOOM=DISPLAY.zoom.max;
+/* Werkzeug zurücksetzen (Auswählen, Zeichnen, Platzieren …) – an EINER Stelle statt in jedem Handler einzeln.
+   Die Auswahl (state.selected) bleibt unangetastet; wer sie leeren will, tut das ausdrücklich. */
+function resetTool(tool='select'){state.tool=tool;state.placing=null;state.drawing=[];state.previewPoint=null}
+
+/* ---------- Dialoge: Fokus, Hintergrund sperren, Fokus zurückgeben ----------
+   Der Bereich hinter dem obersten Dialog ist „inert“ (nicht bedienbar, auch nicht per Tastatur),
+   beim Schließen kehrt der Fokus zum auslösenden Element zurück. */
+const modalStack=[];
+const modalOpen=()=>modalStack.length>0;
+function updateInert(){
+ const top=modalStack.length?modalStack[modalStack.length-1].el:null;
+ [...document.body.children].forEach(el=>{
+  if(el.tagName==='SCRIPT'||el.tagName==='STYLE'||el.id==='toast-region')return;
+  el.inert=!!top&&el!==top;
+ });
+}
+function openModal(el,focusEl){
+ if(!el||modalStack.some(m=>m.el===el))return;
+ modalStack.push({el,opener:document.activeElement});
+ el.classList.add('show');el.setAttribute('aria-hidden','false');updateInert();
+ const target=focusEl||el.querySelector('.dialog-box,.import-dialog')||el;
+ try{target.focus({preventScroll:true})}catch{}
+}
+function closeModal(el){
+ const i=modalStack.findIndex(m=>m.el===el);if(i<0)return;
+ const opener=modalStack.splice(i,1)[0].opener;
+ el.classList.remove('show');el.setAttribute('aria-hidden','true');updateInert();
+ if(opener&&opener.isConnected&&typeof opener.focus==='function'){try{opener.focus({preventScroll:true})}catch{}}
+}
 /* ---------- Historie über Änderungen (Diffs) ----------
    Vor einer Änderung wird nur ein kompakter Fingerabdruck der Kategorie aufgenommen (Objekt → JSON-Text, ohne abgeleitete Felder).
    Danach werden die Unterschiede ermittelt; in der Historie stehen nur die geänderten Objekte (vorher/nachher),
@@ -914,8 +950,7 @@ function diffSince(id,before){
   else if(n.json!==b.json||n.plan!==b.plan)ops.push({key,from:side(b),to:side(n)});
  });
  now.map.forEach((n,key)=>{if(!before.map.has(key))ops.push({key,from:null,to:side(n)})});
- const now_meta=now.meta;
- return {id,ops,meta:before.meta!==now_meta?{before:before.meta,after:now_meta}:null};
+ return {id,ops,meta:before.meta!==now.meta?{before:before.meta,after:now.meta}:null};
 }
 function applyEntry(entry,dir){
  const id=entry.id,undoing=dir==='undo',leave=undoing?'to':'from',enter=undoing?'from':'to';
@@ -966,6 +1001,7 @@ function planPoint(p,planId=state.current){
  return {x:Math.round(clamp(p.x,b[0],b[0]+b[2])),y:Math.round(clamp(p.y,b[1],b[1]+b[3]))};
 }
 function planSize(planId){return PLANS.find(p=>p.id===planId).box[2]/110}
+const percentFormat=new Intl.NumberFormat('de-DE',{maximumFractionDigits:1});
 function updateStatus(){
  if(!state.vb||!state.base)return;
  const zoom=state.base[2]/state.vb[2]*100;
@@ -973,7 +1009,7 @@ function updateStatus(){
  let instruction=state.active&&isDrawTool()
  ?(state.tool==='drawline'?(state.drawing.length?('Start: Netzwerkschrank '+state.drawing[0].id+' ('+((PLANS.find(p=>p.id===state.drawing[0].plan)||{}).name||'anderer Plan')+') – Ziel auswählen · Esc: abbrechen'):'Klicken: erst Start-Netzwerkschrank, dann Ziel-Netzwerkschrank · Esc: abbrechen'):'Klicken: Objekt setzen')
  :(state.active&&state.tool==='place'?'Klicken: Objekt hier platzieren · Esc: abbrechen':'Mausrad / zwei Finger: Zoom · Ziehen: Verschieben · Klick auf Objekt: Details');
- $('status').textContent=coordinates+'Zoom: '+new Intl.NumberFormat('de-DE',{maximumFractionDigits:1}).format(zoom)+' % | '+instruction;
+ $('status').textContent=coordinates+'Zoom: '+percentFormat.format(zoom)+' % | '+instruction;
 }
 /* Größe eines Bildschirmpixels in Planeinheiten – damit Trefferflächen und Anfasser bei jedem Zoom (auch auf dem iPad mit dem Finger) gut treffbar bleiben */
 function uiUnit(){
@@ -1038,6 +1074,17 @@ function baseForVisibleArea(content){
 function resetBase(){
  const plan=PLANS.find(p=>p.id===state.current);state.base=baseForVisibleArea(paddedBox(frameBox(plan)));
 }
+/* Grundansicht neu berechnen (Raster ein/aus, Fenstergröße, Drehen des Geräts).
+   Gesamtansicht bleibt Gesamtansicht. Sonst: keep='region' behält den Ausschnitt exakt, keep='zoom' behält Mittelpunkt und Zoomstufe. */
+function rebaseView(keep){
+ if(!state.svg||!state.vb||!state.base)return;
+ const wasFit=state.vb.every((v,i)=>Math.abs(v-state.base[i])<1e-6);
+ const zoom=state.base[2]/state.vb[2],cx=state.vb[0]+state.vb[2]/2,cy=state.vb[1]+state.vb[3]/2;
+ resetBase();
+ if(wasFit)state.vb=state.base.slice();
+ else if(keep==='zoom'){const w=state.base[2]/zoom,h=w*state.base[3]/state.base[2];state.vb=[cx-w/2,cy-h/2,w,h]}
+ applyVB();
+}
 function fit(){
  finishGesture(true);
  resetBase();state.vb=state.base.slice();state.lastPointer=null;applyVB();
@@ -1082,6 +1129,8 @@ function layerList(){
   }else count.textContent=list.length+(list.length===1?' Objekt':' Objekte');
   text.append(name,count);
   const button=document.createElement('button');button.textContent=state.active===l.id?'✓ Beenden':'✏️ Bearbeiten';
+  button.setAttribute('aria-pressed',String(state.active===l.id));
+  button.setAttribute('aria-label',(state.active===l.id?'Bearbeiten beenden: ':'Bearbeiten: ')+l.label);
   button.onclick=()=>state.active===l.id?endEdit():startEdit(l.id);
   row.append(check,dot,text,button);box.append(row);
  });
@@ -1107,7 +1156,7 @@ function loadPlan(id){closePopup(false);
  /* Erst nach dem Einhängen sind SVG- und Overlay-Rechtecke messbar. */
  resetBase();state.vb=state.base.slice();
  state.svg.classList.toggle('hide-labels',!$('chk-labels').checked);
- document.querySelectorAll('[data-plan]').forEach(b=>b.classList.toggle('active',b.dataset.plan===id));
+ document.querySelectorAll('[data-plan]').forEach(b=>{const on=b.dataset.plan===id;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))});
  applyVB();mode();refreshUI();runSearch(false);
  writeHash();
 }
@@ -1119,12 +1168,12 @@ function resetImport(){closeImportPopup();
 function startEdit(id){closePopup(false);
  finishGesture(true);
  if(state.active!==id)resetImport();
- state.active=id;state.selected=null;state.tool='select';state.placing=null;state.drawing=[];state.previewPoint=null;
+ state.active=id;state.selected=null;resetTool();
  state.visible[id]=true;mode();refreshUI();
 }
 function endEdit(){
  finishGesture(true);resetImport();
- state.active=null;state.selected=null;state.tool='select';state.placing=null;state.drawing=[];state.previewPoint=null;
+ state.active=null;state.selected=null;resetTool();
  clearDrop();
  mode();refreshUI();
 }
@@ -1134,7 +1183,7 @@ function refreshUI(){renderOverlay();layerList();toolbar();updateStatus();refres
    Eine Verbindung verweist über ihren Ort („001/005“) auf die IDs zweier Netzwerkschränke.
    Die Linie im Plan wird daraus berechnet und folgt den Netzwerkschränken automatisch. */
 function refersTo(text,cab){const t=normalized(normId(text));return !!t&&t===normalized(cab.id)}
-function lineTouches(line,cab){return refersTo(line.von,cab)||refersTo(line.nach,cab)}
+function lineTouches(line,cab){return refersTo(line.from,cab)||refersTo(line.to,cab)}
 /* Liefert die hervorzuhebenden Verbindungen und die Schränke am anderen Ende
    (nur im Werkzeug „Auswählen“ und wenn ein Netzwerkschrank gewählt ist). */
 function highlightInfo(planId=state.current){
@@ -1176,9 +1225,12 @@ function attachOverlay(target){
 }
 function groupOf(target,id){return target.querySelector('[data-layer="'+id+'"]')}
 /* Raster zeichnen: für alle Pläne einer Gruppe identisch und nicht am Plan abgeschnitten,
-   alle Planquadrate sind gleich groß (auch am Rand). */
+   alle Planquadrate sind gleich groß (auch am Rand). Wird nur neu gezeichnet, wenn sich Plan oder Rasterstatus ändern. */
 function drawGrid(target,planId){
- const g=groupOf(target,'grid');g.replaceChildren();g.setAttribute('pointer-events','none');
+ const g=groupOf(target,'grid');
+ const key=planId+'|'+state.gridOn;
+ if(g.dataset.key===key)return;
+ g.dataset.key=key;g.replaceChildren();g.setAttribute('pointer-events','none');
  if(!state.gridOn)return;
  const r=gridRef(planId),cell=r.cell;
  const xEnd=r.x0+r.cols*cell,yEnd=r.y0+r.rows*cell;
@@ -1237,50 +1289,62 @@ function draw(layer,o,size,editing,hl=null,hit=editing,dispPts=null){
   (SYMBOLS[layer.symbol]||SYMBOLS.cabinet)(g,x,y,size,color);
   /* Schränke am anderen Ende hervorgehobener Verbindungen */
   if((hl&&hl.partners.has(uid(o)))||(state.active&&state.tool==='drawline'&&state.drawing[0]&&state.drawing[0].plan===state.current&&state.drawing[0].id===o.id)){
-   g.append(S('circle',{cx:x,cy:y,r:size*.95,fill:'none',stroke:'#111','stroke-width':size*.14,'data-editor-ui':'true','pointer-events':'none'}));
+   g.append(S('circle',{cx:x,cy:y,r:size*DISPLAY.ring.partner,fill:'none',stroke:'#111','stroke-width':size*.14,'data-editor-ui':'true','pointer-events':'none'}));
   }
   const text=S('text',{x:x+size,y:y-size*.45,fill:color,'font-size':size*.8,class:'ov'});
   text.textContent=o.name||o.id;g.append(text);
  }
  if(editing&&state.selected===uid(o)){
   const p=isLine(o)?(dispPts||o.points)[0]:o;
-  g.append(S('circle',{cx:p.x,cy:p.y,r:size*1.05,fill:'none',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15,'data-editor-ui':'true','pointer-events':'none'}));
+  g.append(S('circle',{cx:p.x,cy:p.y,r:size*DISPLAY.ring.selected,fill:'none',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15,'data-editor-ui':'true','pointer-events':'none'}));
  }
  return g;
 }
 function drawPorts(target,planId,size,exporting){
  const g=groupOf(target,'ports');if(!g)return;g.replaceChildren();g.style.display=portLayers().some(l=>state.visible[l.id])?'':'none';
- const group=groupPlans(planId),i=planIndex(planId);if(group.length<2)return;
- ['up','down'].forEach(dir=>{const j=i+(dir==='up'?-1:1);if(j<0||j>=group.length)return;const other=group[j],pt=portPoint(planId,dir);
+ const i=planIndex(planId);if(PLANS.length<2)return;
+ ['up','down'].forEach(dir=>{const j=i+(dir==='up'?-1:1);if(j<0||j>=PLANS.length)return;const other=PLANS[j],pt=portPoint(planId,dir);
   const count=portLayers().reduce((n,l)=>n+layerAll(l.id).filter(o=>{if(!isLine(o))return false;const seq=[homePlan(l.id,o),...(o.segs||[]).map(s=>s.plan)];return seq.some((x,k)=>(x===planId&&seq[k+1]===other.id)||(x===other.id&&seq[k+1]===planId))}).length,0);
   const r=S('rect',{x:pt.x-size*1.1,y:pt.y-size*1.1,width:size*2.2,height:size*2.2,rx:size*.35,fill:'transparent',stroke:'#334155','stroke-width':size*.2,'pointer-events':'all'});
   const a=S('text',{x:pt.x,y:pt.y,'text-anchor':'middle','dominant-baseline':'central','font-size':size*1.3,fill:'#334155',class:'ov'});a.textContent=dir==='up'?'▲':'▼';
   const t=S('text',{x:pt.x,y:pt.y+size*2.5,'text-anchor':'middle','font-size':size,fill:'#334155',class:'ov'});t.textContent=other.name+(count?' · '+count:'');
-  if(!exporting){[r,a,t].forEach(el=>{el.style.cursor='pointer';el.onpointerdown=e=>e.stopPropagation();el.onclick=e=>{e.stopPropagation();if(!isDrawTool())loadPlan(other.id)}})}
+  if(!exporting){
+   const go=()=>{if(!isDrawTool())loadPlan(other.id)};
+   [r,a,t].forEach(el=>{el.style.cursor='pointer';el.onpointerdown=e=>e.stopPropagation();el.onclick=e=>{e.stopPropagation();go()}});
+   /* per Tastatur erreichbar */
+   r.setAttribute('role','button');r.setAttribute('tabindex','0');r.setAttribute('aria-label','Zu Plan „'+other.name+'“ wechseln');
+   r.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();go()}};
+  }
   g.append(r,a,t);
  });
 }
 const spreadCache=new Map();  /* Plan|Kategorie → {Fingerabdruck, Ergebnis} der parallelen Spuren */
 function validLineItem(o){return Array.isArray(o.points)&&o.points.length>=2&&o.points.every(q=>Number.isFinite(Number(q.x))&&Number.isFinite(Number(q.y)))}
+/* Zeichnet die Technikebenen eines Plans.
+   Solange ein Objekt gezogen wird, ändert sich nur dessen Kategorie: Raster, Ebenenports und alle anderen
+   Kategorien bleiben stehen und werden nicht neu aufgebaut (wichtig für flüssiges Ziehen auf dem iPad). */
 function renderOverlay(target=state.svg,planId=state.current,exporting=false){
  if(!target)return;
- syncAll();
- drawGrid(target,planId);
+ const dragLayer=!exporting&&state.gesture&&state.gesture.type==='object'?state.gesture.layer:null;
+ if(dragLayer)syncLines(dragLayer);else syncAll();
+ if(!dragLayer)drawGrid(target,planId);
  const size=planSize(planId);
  /* Verbindungen, die sich überdecken würden, werden nebeneinander dargestellt */
  const spreads={};
  Object.values(LAYERS).forEach(l=>{
-  if(l.kind!=='mixed')return;
+  if(l.kind!=='mixed'||(dragLayer&&l.id!==dragLayer))return;
   const lines=itemsOnPlan(planId,l.id).filter(o=>isLine(o)&&validLineItem(o));
   const sig=size+'|'+lines.map(o=>uid(o)+':'+o.points.map(p=>p.x+','+p.y).join(' ')).join(';'),ck=planId+'|'+l.id,c=spreadCache.get(ck);
   if(c&&c.sig===sig)spreads[l.id]=c.result;else{const result=spreadLines(lines,size);spreadCache.set(ck,{sig,result});spreads[l.id]=result}
  });
  if(!exporting)drawPopupMark(target,planId,spreads);
- drawPorts(target,planId,size,exporting);
+ if(!dragLayer)drawPorts(target,planId,size,exporting);
  const info=exporting?null:highlightInfo(planId);
  const hl=info&&info.lines.size?info:null;
  Object.values(LAYERS).forEach(layer=>{
-  const g=groupOf(target,layer.id);g.replaceChildren();
+  const g=groupOf(target,layer.id);
+  if(dragLayer&&layer.id!==dragLayer&&g.childElementCount)return;
+  g.replaceChildren();
   g.style.display=state.visible[layer.id]?'':'none';
   g.style.opacity=!exporting&&state.active&&state.active!==layer.id?'.3':'1';
   const editing=!exporting&&state.active===layer.id;
@@ -1309,11 +1373,12 @@ function drawPreview(){
  const color=info?info.color:'#333';
  const localStart=state.drawing[0]&&state.drawing[0].plan===state.current;
  if(!localStart)return; /* kein Koordinatenmix zwischen unterschiedlichen Plänen */
+ const size=planSize(state.current),P=DISPLAY.preview;
  const points=state.previewPoint&&state.drawing.length?routePoints(state.drawing[0],state.previewPoint,{}):[...state.drawing];
  const ps=points.map(p=>p.x+','+p.y).join(' ');
- g.append(S('polyline',{points:ps,fill:'none',stroke:'#000','stroke-opacity':'.4','stroke-width':state.base[2]/440+state.base[2]/1100}));
- g.append(S('polyline',{points:ps,fill:'none',stroke:color,'stroke-width':state.base[2]/440,'stroke-dasharray':'8 6'}));
- state.drawing.forEach(p=>g.append(S('circle',{cx:p.x,cy:p.y,r:state.base[2]/330,fill:color,stroke:'#000','stroke-width':state.base[2]/1100})));
+ g.append(S('polyline',{points:ps,fill:'none',stroke:'#000','stroke-opacity':'.4','stroke-width':size*(P.width+P.outline)}));
+ g.append(S('polyline',{points:ps,fill:'none',stroke:color,'stroke-width':size*P.width,'stroke-dasharray':P.dash.map(d=>size*d).join(' ')}));
+ state.drawing.forEach(p=>g.append(S('circle',{cx:p.x,cy:p.y,r:size*P.dot,fill:color,stroke:'#000','stroke-width':size*P.dotStroke})));
 }
 
 /* ---------- Historie, Eigenschaften und Werkzeuge ---------- */
@@ -1335,17 +1400,24 @@ function redo(id=state.active){
  if(!entry)return;
  applyEntry(entry,'redo');h.undo.push(entry);afterHistory(id);
 }
-/* Löschen: immer sofort, mit Hinweis und „Rückgängig“ (Popup, Tabelle und Entf-Taste verhalten sich gleich) */
+/* Löschen: immer sofort, mit Hinweis und „Rückgängig“ (Popup, Tabelle und Entf-Taste verhalten sich gleich).
+   Hat ein Netzwerkschrank zugeordnete Verbindungen, wird vorher nachgefragt; sie werden dann mitgelöscht
+   (sonst blieben unsichtbare Verbindungen ohne Ende zurück). Das Rückgängigmachen stellt alles gemeinsam wieder her. */
 function deleteObject(layerId,key){
  const r=findObj(layerId,key);if(!r)return;
+ const layer=LAYERS[layerId];
  const label=String(r.o.name??'').trim()||r.o.id;
- const entry=mutate(layerId,()=>{inventory[r.list][layerId]=inventory[r.list][layerId].filter(o=>uid(o)!==key)});
- if(state.selected===key)state.selected=null;
- if(state.keepSel&&state.keepSel.layer===layerId&&state.keepSel.id===key)state.keepSel=null;
- if(state.popup&&state.popup.layer===layerId&&state.popup.id===key)closePopup(false);
+ const orphans=layer.kind==='mixed'&&!isLine(r.o)?layerAll(layerId).filter(l=>isLine(l)&&lineTouches(l,r.o)):[];
+ const n=orphans.length;
+ if(n&&!window.confirm('„'+label+'“ hat '+n+(n===1?' zugeordnete Verbindung':' zugeordnete Verbindungen')+'.\n\nOK: Netzwerkschrank und '+(n===1?'die Verbindung':'alle Verbindungen')+' löschen.\nAbbrechen: nichts löschen.'))return;
+ const doomed=new Set([key,...orphans.map(uid)]);
+ const entry=mutate(layerId,()=>{PLANS.forEach(p=>{inventory[p.id][layerId]=inventory[p.id][layerId].filter(o=>!doomed.has(uid(o)))})});
+ if(doomed.has(state.selected))state.selected=null;
+ if(state.keepSel&&state.keepSel.layer===layerId&&doomed.has(state.keepSel.id))state.keepSel=null;
+ if(state.popup&&state.popup.layer===layerId&&doomed.has(state.popup.id))closePopup(false);
  refreshUI();
  document.dispatchEvent(new Event('datachanged'));
- toast('„'+label+'“ gelöscht.','info',8000,{label:'Rückgängig',run:()=>{
+ toast('„'+label+'“'+(n?' und '+n+(n===1?' Verbindung':' Verbindungen'):'')+' gelöscht.','info',TOAST.long,{label:'Rückgängig',run:()=>{
   const h=state.history[layerId];
   if(entry&&h.undo[h.undo.length-1]===entry){undo(layerId);document.dispatchEvent(new Event('datachanged'))}
   else toast('Rückgängig nicht mehr möglich – es gab inzwischen weitere Änderungen. „Zurück“ nutzen.','warn');
@@ -1357,40 +1429,39 @@ function finishLine(target){
  if(!state.active||state.tool!=='drawline'||!state.drawing.length||!target)return;
  snapshot();
  const layer=LAYERS[state.active];
- const id=newId(layer,null,true);const object={type:'line',id,name:'VB '+(Number(id)||layerAll(layer.id).filter(o=>isLine(o)).length+1),von:state.drawing[0].id,nach:target.id,points:[]};
- if((layer.lineExtras||[]).some(e=>e.key==='typ'))object.typ=state.drawType;
+ const id=newId(layer,null,true);const object={type:'line',id,name:(layer.linePrefix||'VB')+' '+(Number(id)||layerAll(layer.id).filter(o=>isLine(o)).length+1),from:state.drawing[0].id,to:target.id,points:[]};
+ if(hasTypeColumn(layer.lineExtras))object.typ=state.drawType;
  inventory[state.current][state.active].push(object);state.selected=uid(object);state.drawing=[];state.previewPoint=null;changed();
 }
 function toolbar(){
  const bar=$('editbar');bar.replaceChildren();bar.classList.toggle('show',!!state.active);
  if(!state.active)return;
  const layer=LAYERS[state.active];
- 
+
  function button(text,handler,disabled=false,chosen=false){
   const b=document.createElement('button');b.textContent=text;b.disabled=disabled;
-  b.classList.toggle('chosen',chosen);b.onclick=handler;bar.append(b);return b;
+  b.classList.toggle('chosen',chosen);b.setAttribute('aria-pressed',String(chosen));b.onclick=handler;bar.append(b);return b;
  }
- 
- 
- button('👆 Auswählen / Verschieben',()=>{state.tool='select';state.placing=null;state.drawing=[];state.previewPoint=null;mode();refreshUI()},false,state.tool==='select');
+
+ button('👆 Auswählen / Verschieben',()=>{resetTool();mode();refreshUI()},false,state.tool==='select');
  if(state.tool==='place'&&state.placing){
   const f=findObj(state.placing.layerId,state.placing.key),label=document.createElement('span');label.className='layer-name';
   label.textContent='Platzieren: „'+(f?(f.o.name||f.o.id):'?')+'“ – auf den Plan klicken (Esc bricht ab)';bar.append(label);
  }
+ button('➕ '+layer.singular,()=>{state.selected=null;resetTool('draw');mode();refreshUI()},false,state.tool==='draw');
  if(layer.kind==='mixed'){
-  button('➕ '+LAYERS[state.active].singular,()=>{state.tool='draw';state.selected=null;state.drawing=[];state.previewPoint=null;mode();refreshUI()},false,state.tool==='draw');
-  button('➕ Verbindung',()=>{state.tool='drawline';state.selected=null;state.drawing=[];state.previewPoint=null;mode();refreshUI()},false,state.tool==='drawline');
+  button('➕ '+(layer.lineSingular||'Verbindung'),()=>{state.selected=null;resetTool('drawline');mode();refreshUI()},false,state.tool==='drawline');
   /* Typ der Verbindung wählen: für neue Verbindungen (Zeichenwerkzeug) oder für die ausgewählte Verbindung */
   const sel=getObj();
   const lineSelected=!!sel&&isLine(sel)&&state.tool==='select';
-  if((state.tool==='drawline'||lineSelected)&&(layer.lineExtras||[]).some(e=>e.key==='typ')){
+  if((state.tool==='drawline'||lineSelected)&&hasTypeColumn(layer.lineExtras)){
    const label=document.createElement('span');label.className='layer-name';
    label.textContent=state.tool==='drawline'?'Typ neue Verbindung:':'Typ der Verbindung:';
    bar.append(label);
    const currentType=state.tool==='drawline'?canonicalLineType(state.drawType):(lineTypeInfo(sel.typ)||{}).value;
    LINE_TYPES.forEach(t=>{
     const b=document.createElement('button');b.className='typebtn';
-    b.classList.toggle('chosen',currentType===t.value);
+    b.classList.toggle('chosen',currentType===t.value);b.setAttribute('aria-pressed',String(currentType===t.value));
     const chip=document.createElement('i');chip.style.background=t.color;
     b.append(chip,document.createTextNode(t.label));
     b.onclick=()=>{
@@ -1403,8 +1474,6 @@ function toolbar(){
     bar.append(b);
    });
   }
- }else{
-  button('➕ '+LAYERS[state.active].singular,()=>{state.tool='draw';state.selected=null;state.drawing=[];state.previewPoint=null;mode();refreshUI()},false,state.tool==='draw');
  }
 
  button('↶ Zurück',()=>undo(),!state.history[state.active].undo.length).classList.add('push-right');
@@ -1459,14 +1528,14 @@ function buildEditForm(object,layer){
  {
   const holder=holderPlan(state.active,object);
   const wrapper=document.createElement('label');wrapper.textContent='Ort';
-  const input=document.createElement('input');input.type='text';input.value=ortText(holder,object);
+  const input=document.createElement('input');input.type='text';input.value=locationText(holder,object);
   input.placeholder=isLine(object)?'001/005':'E1(10/50)';
-  if(!ortValid(state.active,object))input.classList.add('missing');
+  if(!locationValid(state.active,object))input.classList.add('missing');
   input.onchange=()=>{
-   const apply=prepareOrt(state.active,object,input.value);
-   if(!apply){input.value=ortText(holder,object);return}
+   const apply=prepareLocation(state.active,object,input.value);
+   if(!apply){input.value=locationText(holder,object);return}
    snapshot();const target=apply();const keep=uid(object);
-   input.classList.toggle('missing',!ortValid(state.active,object));
+   input.classList.toggle('missing',!locationValid(state.active,object));
    changed();
    if(target&&target!==state.current){loadPlan(target);state.selected=keep;state.popup={layer:state.active,id:keep,plan:target,editing:true};refreshUI()}
   };
@@ -1508,9 +1577,11 @@ function dragSlop(event){return DISPLAY.slop[event.pointerType]||DISPLAY.slop.mo
 function beginObjectGesture(event,object){
  const layer=state.active;
  state.selected=uid(object);
+ /* Der Fingerabdruck für „Zurück“ wird erst beim tatsächlichen Ziehen aufgenommen (siehe pointermove) –
+    ein einfacher Klick kostet dadurch keine Serialisierung der ganzen Kategorie. */
  state.gesture={
   type:'object',pointerId:event.pointerId,layer,plan:state.current,
-  object,before:stamp(layer),start:toSvg(event.clientX,event.clientY),original:copy(object),
+  object,before:null,start:toSvg(event.clientX,event.clientY),original:copy(object),
   startX:event.clientX,startY:event.clientY,slop:dragSlop(event),started:false,
   route:(()=>{if(!isLine(object))return null;const disp=itemsOnPlan(state.current,layer).find(v=>isLine(v)&&uid(v)===uid(object))||object;return disp.points&&disp.points.length>=2?routeParams(disp.points[0],disp.points[disp.points.length-1],object):null})()
  };
@@ -1519,7 +1590,7 @@ function beginObjectGesture(event,object){
 function finishGesture(cancelled=false){
  if(!state.gesture)return;
  const g=state.gesture;state.gesture=null;stage.classList.remove('dragging');
- if(g.type==='object'){
+ if(g.type==='object'&&g.before){
   const entry=diffSince(g.layer,g.before);
   if(cancelled){if(entry.ops.length||entry.meta)applyEntry(entry,'undo')}
   else if(recordEntry(entry))state.dirty[g.layer]=true;
@@ -1589,10 +1660,10 @@ function placeAt(p){
  if(!found||state.active!==pl.layerId){cancelPlace('Das Objekt wurde nicht gefunden – Platzierung abgebrochen.','error');return}
  const o=found.o,target=state.current,q=planPoint(p,target);
  mutate(pl.layerId,()=>{
-  o.x=q.x;o.y=q.y;delete o._ort;
+  o.x=q.x;o.y=q.y;delete o._location;
   if(found.list!==target){inventory[found.list][pl.layerId]=inventory[found.list][pl.layerId].filter(x=>x!==o);inventory[target][pl.layerId].push(o)}
  });
- state.selected=uid(o);state.placing=null;state.tool='select';mode();refreshUI();
+ state.selected=uid(o);resetTool();mode();refreshUI();
  const plan=PLANS.find(x=>x.id===target);
  toast('„'+(String(o.name??'').trim()||o.id)+'“ auf Plan „'+plan.name+'“ platziert: '+planCode(plan)+'('+q.x+'/'+q.y+').','success');
 }
@@ -1615,7 +1686,7 @@ stage.addEventListener('pointerdown',event=>{
   if(state.tool==='draw'){
    snapshot();const layer=LAYERS[state.active];
    const id=newId(layer);const object={type:'point',id,...planPoint(p),name:layer.idPrefix+' '+(Number(id)||layerAll(layer.id).filter(o=>!isLine(o)).length+1)};
-   inventory[state.current][state.active].push(object);state.selected=uid(object);changed();toast(layer.singular+' auf Plan „'+planName(state.current)+'“ gesetzt.','success',2500);
+   inventory[state.current][state.active].push(object);state.selected=uid(object);changed();toast(layer.singular+' auf Plan „'+planName(state.current)+'“ gesetzt.','success',TOAST.short);
   }else if(event.detail<2){
    const cab=cabinetNear(planPoint(p),state.current,state.active);
    if(!cab){toast('Bitte auf einen Netzwerkschrank klicken.','warn');return}
@@ -1652,7 +1723,7 @@ stage.addEventListener('pointermove',event=>{
    state.vb=[g.initial[0]-(q.x-g.start.x),g.initial[1]-(q.y-g.start.y),g.initial[2],g.initial[3]];
    requestVB();
   }else{
-   if(!g.started&&Math.hypot(event.clientX-g.startX,event.clientY-g.startY)>(g.slop||DISPLAY.slop.mouse)){g.started=true;closePopup(false)}
+   if(!g.started&&Math.hypot(event.clientX-g.startX,event.clientY-g.startY)>(g.slop||DISPLAY.slop.mouse)){g.started=true;g.before=stamp(g.layer);closePopup(false)}
    if(g.started){
     const b=PLANS.find(p=>p.id===g.plan).box;
     if(isLine(g.object)){
@@ -1711,20 +1782,22 @@ $('chk-labels').onchange=event=>state.svg.classList.toggle('hide-labels',!event.
    In der Gesamtansicht bleibt es die Gesamtansicht, in einem Zoom bleibt der Ausschnitt erhalten. */
 $('chk-grid').onchange=event=>{
  state.gridOn=event.target.checked;
- if(!state.svg){return}
- const plan=PLANS.find(p=>p.id===state.current);
- const wasFit=state.vb.every((v,i)=>Math.abs(v-state.base[i])<1e-6);
- state.base=paddedBox(frameBox(plan));
- state.base=baseForVisibleArea(state.base);
- const f=frameBox(plan),bg=state.svg.querySelector('[data-bg]');
- if(bg){
-  bg.setAttribute('x',f[0]);bg.setAttribute('y',f[1]);
-  bg.setAttribute('width',f[2]);bg.setAttribute('height',f[3]);
- }
- if(wasFit)state.vb=state.base.slice();
- applyVB();
+ if(!state.svg)return;
+ const f=frameBox(PLANS.find(p=>p.id===state.current)),bg=state.svg.querySelector('[data-bg]');
+ if(bg){bg.setAttribute('x',f[0]);bg.setAttribute('y',f[1]);bg.setAttribute('width',f[2]);bg.setAttribute('height',f[3])}
+ rebaseView('region');
  renderOverlay();
 };
+/* Fenstergröße oder Gerätedrehung (iPad) geändert: Grundansicht neu berechnen, Zoomstufe und Mittelpunkt bleiben. */
+{
+ let resizeFrame=0;
+ const onResize=()=>{
+  if(resizeFrame)return;
+  resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;if(state.gesture||!state.svg)return;rebaseView('zoom');clampPopup();updateStatus()});
+ };
+ if('ResizeObserver' in window)new ResizeObserver(onResize).observe(stage);
+ else window.addEventListener('resize',onResize);
+}
 
 /* ---------- Suche ----------
    Gesucht wird in den Raumbeschriftungen aller Pläne UND in den Technikobjekten (Name, ID, Zusatzfelder, bei Verbindungen
@@ -1734,7 +1807,7 @@ function planName(id){const p=PLANS.find(x=>x.id===id);return p?p.name:id}
 function objectSearchText(layer,o){
  const parts=[o.id,o.name,...extrasFor(layer,o).map(x=>o[x.key])];
  if(isLine(o)){
-  [o.von,o.nach].forEach(id=>{const c=cabinetById(layer.id,id);parts.push(id,c&&c.name)});
+  [o.from,o.to].forEach(id=>{const c=cabinetById(layer.id,id);parts.push(id,c&&c.name)});
  }
  return parts.map(v=>String(v??'')).join(' ').toLowerCase();
 }
@@ -1772,10 +1845,14 @@ function objectBox(layerId,key){
  const xs=pts.map(p=>Number(p.x)),ys=pts.map(p=>Number(p.y)),x=Math.min(...xs),y=Math.min(...ys);
  return {x,y,w:Math.max(...xs)-x,h:Math.max(...ys)-y,item:o};
 }
+/* Ebene für Suchmarkierungen des aktuellen Plans leeren und liefern */
+function clearHighlights(){
+ const hl=groupOf(state.svg,'highlights');hl.replaceChildren();hl.setAttribute('pointer-events','none');return hl;
+}
 function runSearch(jump,index=null){
  if(!state.overlay)return;
  const hint=$('search-hint'),list=$('search-results');
- const hl=groupOf(state.svg,'highlights');hl.replaceChildren();hl.setAttribute('pointer-events','none');list.replaceChildren();
+ clearHighlights();list.replaceChildren();
  const raw=$('search').value.trim(),q=raw.toLowerCase();
  if(q!==state.searchQuery){state.searchQuery=q;state.searchPos=-1}
  if(!q){hint.textContent='';state.searchPos=-1;return}
@@ -1793,21 +1870,21 @@ function runSearch(jump,index=null){
   if(target.kind==='obj')renderOverlay();
  }
  const cur=jump||index!==null?all[state.searchPos]:null;
- /* Treffer des aktuellen Plans markieren */
- const hl2=groupOf(state.svg,'highlights');hl2.replaceChildren();hl2.setAttribute('pointer-events','none');
+ /* Treffer des aktuellen Plans markieren (nach einem Planwechsel ist die Ebene neu) */
+ const hl=clearHighlights(),M=DISPLAY.search;
  const boxOf=t=>{try{const b=t.getBBox();return b.width>0||b.height>0?b:null}catch{return null}};
  const els=[...state.svg.querySelectorAll('text')].filter(t=>!state.overlay.contains(t)&&t.textContent.toLowerCase().includes(q));
- const pad=8,size=planSize(state.current);
+ const size=planSize(state.current);
  els.forEach((t,i)=>{
   const b=boxOf(t);if(!b)return;
   const isCur=!!cur&&cur.kind==='room'&&cur.plan===state.current&&cur.n===i;
-  hl2.append(S('rect',{x:b.x-pad,y:b.y-pad*.75,width:b.width+pad*2,height:b.height+pad*1.5,rx:pad*.75,fill:isCur?'#ffd600a6':'#ffd60059',stroke:'#e0245e','stroke-width':isCur?5:3}));
+  hl.append(S('rect',{x:b.x-M.pad,y:b.y-M.pad*.75,width:b.width+M.pad*2,height:b.height+M.pad*1.5,rx:M.pad*.75,fill:isCur?'#ffd600a6':'#ffd60059',stroke:'#e0245e','stroke-width':isCur?M.stroke:M.strokeOther}));
  });
  all.filter(h=>h.kind==='obj'&&h.plan===state.current).forEach(h=>{
   const ob=objectBox(h.layer,h.key);if(!ob)return;
-  const isCur=!!cur&&cur.key===h.key,o=ob.item,style={fill:'none',stroke:'#e0245e','stroke-width':size*(isCur?.3:.18)};
-  if(isLine(o))hl2.append(S('polyline',{...style,points:o.points.map(p=>p.x+','+p.y).join(' '),'stroke-opacity':isCur?.9:.55,'stroke-linecap':'round','stroke-linejoin':'round'}));
-  else hl2.append(S('circle',{...style,cx:o.x,cy:o.y,r:size*(isCur?1.7:1.4),fill:isCur?'#ffd600a6':'#ffd60059'}));
+  const isCur=!!cur&&cur.key===h.key,o=ob.item,style={fill:'none',stroke:'#e0245e','stroke-width':size*(isCur?M.line:M.lineOther)};
+  if(isLine(o))hl.append(S('polyline',{...style,points:o.points.map(p=>p.x+','+p.y).join(' '),'stroke-opacity':isCur?.9:.55,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  else hl.append(S('circle',{...style,cx:o.x,cy:o.y,r:size*(isCur?M.ring:M.ringOther),fill:isCur?'#ffd600a6':'#ffd60059'}));
  });
  if(cur){
   finishGesture(true);
@@ -1831,7 +1908,7 @@ $('search').oninput=()=>runSearch(false);
 $('search').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();runSearch(true)}};
 
 /* ---------- Excel: sichtbare Meldungen und sicherer Import (nur im Bearbeitungsmodus) ---------- */
-function toast(message,kind='info',duration=4000,action=null){
+function toast(message,kind='info',duration=TOAST.normal,action=null){
  if(!message)return null;
  const region=document.getElementById('toast-region');if(!region)return null;
  const item=document.createElement('div');item.className='toast toast-'+kind;
@@ -1847,12 +1924,11 @@ function toast(message,kind='info',duration=4000,action=null){
  close.onclick=dismiss;item.addEventListener('mouseenter',()=>clearTimeout(timer));item.addEventListener('mouseleave',()=>start(1500));start(duration);
  return dismiss;
 }
-window.toast=toast;
 /* Zwei getrennte Wege für Rückmeldungen:
    toast(…)        kurze Meldung, verschwindet von selbst (optional mit Aktion, z. B. „Rückgängig“)
    importStatus(…) Inhalt des Fensters „Excel-Import“ (Prüfergebnis, Bestätigung, Ergebnis); kind '' setzt nur zurück */
 function importStatus(kind,title,lines=[],actions=[]){
- if(kind){if(!state.active&&kind==='error')toast(title+(lines.length?' – '+lines.filter(l=>typeof l==='string').slice(0,2).join(' · '):''),'error',8000);else openImportPopup(true)}
+ if(kind){if(!state.active&&kind==='error')toast(title+(lines.length?' – '+lines.filter(l=>typeof l==='string').slice(0,2).join(' · '):''),'error',TOAST.long);else openImportPopup(true)}
  const box=$('import-feedback');box.dataset.kind=kind;box.replaceChildren();
  const p=document.createElement('p'),strong=document.createElement('strong');strong.textContent=title;p.append(strong);box.append(p);
  if(lines.length){
@@ -1871,13 +1947,9 @@ function importStatus(kind,title,lines=[],actions=[]){
 function openImportPopup(auto){
   if(!state.active){if(!auto)toast('Bitte zuerst eine Technikkategorie zum Bearbeiten wählen.','warn');return}
   $('import-target').textContent='Zielkategorie: '+LAYERS[state.active].label;
-  const box=$('import-popup');box.classList.add('show');box.setAttribute('aria-hidden','false');
-  if(!auto)box.querySelector('.import-dialog').focus();
+  openModal($('import-popup'));
 }
-function closeImportPopup(){
-  const box=$('import-popup');if(!box)return;
-  box.classList.remove('show');box.setAttribute('aria-hidden','true');
-}
+function closeImportPopup(){closeModal($('import-popup'))}
 $('import-close').onclick=closeImportPopup;
 $('import-popup').onclick=event=>{if(event.target===$('import-popup'))closeImportPopup()};
 {
@@ -1899,7 +1971,7 @@ $('import-popup').onclick=event=>{if(event.target===$('import-popup'))closeImpor
 }
 function needXlsx(){
  if(window.ExcelJS)return true;
- toast('Excel-Funktion nicht verfügbar: Die Excel-Bibliothek (ExcelJS) konnte nicht geladen werden. Bitte Internetverbindung prüfen und die HTML-Datei neu öffnen.','error',10000);
+ toast('Excel-Funktion nicht verfügbar: Die Excel-Bibliothek (ExcelJS) konnte nicht geladen werden. Bitte Internetverbindung prüfen und die HTML-Datei neu öffnen.','error',TOAST.error);
  return false;
 }
 function openPicker(id){
@@ -1907,8 +1979,8 @@ function openPicker(id){
  const layerId=id||state.active;
  if(!layerId){toast('Bitte zuerst eine Technikkategorie zum Bearbeiten wählen.','warn');return}
  state.pickerLayer=layerId;
- try{$('xlsx-file').click();toast('Bitte eine Excel-Datei (.xlsx) auswählen …','info',3000)}
- catch(error){state.pickerLayer=null;toast('Dateiauswahl konnte nicht geöffnet werden: '+(error.message||'Unbekannter Fehler'),'error',8000)}
+ try{$('xlsx-file').click();toast('Bitte eine Excel-Datei (.xlsx) auswählen …','info',TOAST.short)}
+ catch(error){state.pickerLayer=null;toast('Dateiauswahl konnte nicht geöffnet werden: '+(error.message||'Unbekannter Fehler'),'error',TOAST.long)}
 }
 $('xlsx-file').onchange=event=>{
  const file=event.target.files[0],id=state.pickerLayer||state.active;
@@ -1942,7 +2014,8 @@ function cellText(cell){
  try{t=String(cell.text??'')}catch{t=''}
  return t.trim();
 }
-const RESERVED_KEYS=new Set(['id','name','ort','x','y','points','von','nach','plan']);
+/* Interne Feldnamen, die eine Excel-Zusatzspalte nicht überschreiben darf */
+const RESERVED_KEYS=new Set(['id','name','ort','location','x','y','points','segs','from','to','plan','type']);
 function extraKey(label,used){
  let stem=normalized(label).replace(/[^a-z0-9äöüß]/g,'');
  if(!stem||RESERVED_KEYS.has(stem))stem='feld'+(used.size+1);
@@ -1950,6 +2023,8 @@ function extraKey(label,used){
  while(used.has(key))key=stem+(n++);
  used.add(key);return key;
 }
+/* Fest erwartete Spaltenüberschriften in Excel → interne Namen */
+const FIXED_COLUMNS=new Map([['id','id'],['name','name'],['ort','location']]);
 function readTable(ws){
  const colCount=ws.columnCount,occupied=[];
  ws.eachRow({includeEmpty:false},(row,n)=>occupied.push(n));
@@ -1961,19 +2036,19 @@ function readTable(ws){
   if(!a.some(Boolean))continue;
   if(!firstRow){firstRow=r;firstHeaders=a}
   const n=a.map(normalized);
-  if(['id','name','ort'].every(k=>n.includes(k))){headerRow=r;headers=a;break}
+  if([...FIXED_COLUMNS.keys()].every(k=>n.includes(k))){headerRow=r;headers=a;break}
  }
  if(!firstRow)throw new Error('Das Tabellenblatt „'+ws.name+'“ ist leer.');
  if(!headerRow){headerRow=firstRow;headers=firstHeaders}
  const cols={};
  for(let c=1;c<=colCount;c++){
-  const n=normalized(headers[c]);
-  if((n==='id'||n==='name'||n==='ort')&&cols[n]===undefined)cols[n]=c;
+  const k=FIXED_COLUMNS.get(normalized(headers[c]));
+  if(k&&cols[k]===undefined)cols[k]=c;
  }
- const lacking=[['ID','id'],['Name','name'],['Ort','ort']].filter(([,k])=>cols[k]===undefined).map(([l])=>l);
+ const lacking=[['ID','id'],['Name','name'],['Ort','location']].filter(([,k])=>cols[k]===undefined).map(([l])=>l);
  if(lacking.length)throw new Error('Tabellenblatt „'+ws.name+'“: Erforderliche Spalten fehlen: '+lacking.join(', ')+'. Nötig sind ID, Name und Ort.');
  /* Alle übrigen Spalten = Zusatzinformationen (dynamisch aus dem Tabellenblatt) */
- const fixed=new Set([cols.id,cols.name,cols.ort]),keys=new Set(),extras=[];
+ const fixed=new Set([cols.id,cols.name,cols.location]),keys=new Set(),extras=[];
  for(let c=1;c<=colCount;c++){
   if(fixed.has(c)||!headers[c])continue;
   const key=extraKey(headers[c],keys);
@@ -1981,29 +2056,29 @@ function readTable(ws){
  }
  const rows=[];
  occupied.filter(r=>r>headerRow).forEach(r=>{const a=rowTexts(r);if(a.some(Boolean))rows.push({r,a})});
- return {sheetName:ws.name,headerRow,cols:{id:cols.id,name:cols.name,ort:cols.ort},extras,rows,lastRow:rows.length?rows[rows.length-1].r:headerRow};
+ return {sheetName:ws.name,headerRow,cols:{id:cols.id,name:cols.name,location:cols.location},extras,rows,lastRow:rows.length?rows[rows.length-1].r:headerRow};
 }
 /* Zeilen eines Tabellenblatts in Objekte umwandeln (line=false: Objekte mit Ort Plan(X/Y); line=true: Verbindungen mit Ort ID/ID) */
 function buildObjects(table,line,layer,fresh,issues,stats,tag){
  const taken=new Set(table.rows.map(x=>normId(x.a[table.cols.id])).filter(Boolean));
  const seen=new Set(),objects=[];
  table.rows.forEach(({r,a})=>{
-  const ort=a[table.cols.ort]||'';
+  const location=a[table.cols.location]||'';
   const o={type:line?'line':'point',id:normId(a[table.cols.id]),name:a[table.cols.name]||'',_row:r};
   table.extras.forEach(e=>{o[e.key]=a[e.col]||''});
   let holder=PLANS[0].id;
   if(line){
-   const l=parseLinkOrt(ort),parts=ort.split('/');
-   o.von=l?l[0]:normId(parts[0]);o.nach=l?l[1]:normId(parts[1]||'');o.points=[];
-   if(ort&&!l)issues.push(tag+'Zeile '+r+': Ort „'+ort+'“ ist keine gültige Verbindung (erwartet ID/ID, z. B. 001/005).');
-   if(table.extras.some(e=>e.key==='typ')&&String(o.typ||'').trim()&&!lineTypeInfo(o.typ))issues.push(tag+'Zeile '+r+': Typ „'+o.typ+'“ unbekannt (erlaubt: Mono, Multi, Kupfer). Die Verbindung wird grün dargestellt.');
-  }else if(ort){
-   const pt=parsePointOrt(ort),plan=pt?resolvePlan(pt.plan):null,b=plan?plan.box:null;
+   const l=parseLinkLocation(location),parts=location.split('/');
+   o.from=l?l[0]:normId(parts[0]);o.to=l?l[1]:normId(parts[1]||'');o.points=[];
+   if(location&&!l)issues.push(tag+'Zeile '+r+': Ort „'+location+'“ ist keine gültige Verbindung (erwartet ID/ID, z. B. 001/005).');
+   if(hasTypeColumn(table.extras)&&String(o.typ||'').trim()&&!lineTypeInfo(o.typ))issues.push(tag+'Zeile '+r+': Typ „'+o.typ+'“ unbekannt (erlaubt: Mono, Multi, Kupfer). Die Verbindung wird grün dargestellt.');
+  }else if(location){
+   const pt=parsePointLocation(location),plan=pt?resolvePlan(pt.plan):null,b=plan?plan.box:null;
    const inside=!!pt&&!!plan&&Number.isFinite(pt.x)&&Number.isFinite(pt.y)&&pt.x>=b[0]&&pt.x<=b[0]+b[2]&&pt.y>=b[1]&&pt.y<=b[1]+b[3];
    if(inside){o.x=pt.x;o.y=pt.y}
    else{
-    o.x='';o.y='';o._ort=ort;
-    issues.push(tag+'Zeile '+r+': Ort „'+ort+'“ '+(!pt?'ist ungültig (erwartet Plan(X/Y), z. B. E1(10/50)).':!plan?'enthält einen unbekannten Plan (gültig: '+PLANS.map(planCode).join(', ')+').':'liegt außerhalb des Plans.'));
+    o.x='';o.y='';o._location=location;
+    issues.push(tag+'Zeile '+r+': Ort „'+location+'“ '+(!pt?'ist ungültig (erwartet Plan(X/Y), z. B. E1(10/50)).':!plan?'enthält einen unbekannten Plan (gültig: '+PLANS.map(planCode).join(', ')+').':'liegt außerhalb des Plans.'));
    }
    if(plan)holder=plan.id;
   }else{o.x='';o.y=''}
@@ -2025,8 +2100,8 @@ async function prepareImport(file,layerId){
  if(!/\.xlsx$/i.test(file.name)){
   importStatus('error','Nicht unterstützte Datei',['Bitte eine .xlsx-Datei auswählen. Ältere .xls-Dateien bitte in Excel als .xlsx speichern.']);return;
  }
- if(file.size>25*1024*1024){
-  importStatus('error','Datei zu groß',['Bitte eine Excel-Datei bis 25 MB verwenden.']);return;
+ if(file.size>DISPLAY.importMaxBytes){
+  importStatus('error','Datei zu groß',['Bitte eine Excel-Datei bis '+Math.round(DISPLAY.importMaxBytes/1048576)+' MB verwenden.']);return;
  }
  if(!LAYERS[layerId]||!needXlsx())return;
  state.importBusy=true;const token=++state.importSerial;toolbar();
@@ -2103,7 +2178,7 @@ function commitImport(){
  if(state.active===data.layerId){state.selected=null;state.drawing=[];state.previewPoint=null}
  refreshUI();
  document.dispatchEvent(new Event('datachanged'));
- const incomplete=layerAll(data.layerId).filter(o=>missingKeys(layer,o).length||!ortValid(data.layerId,o)).length;
+ const incomplete=layerAll(data.layerId).filter(o=>missingKeys(layer,o).length||!locationValid(data.layerId,o)).length;
  toast('Import erfolgreich: '+data.count+' Zeilen in „'+layer.label+'“.','success');
  importStatus('success','Import erfolgreich',[
   'Datei: '+data.fileName,
@@ -2122,7 +2197,7 @@ function writeCell(cell,text,kind,hint){
  const cur=cellText(cell);
  if(cur===text)return;
  if(kind==='id'&&normId(cur)===text)return;
- if(kind==='ort'&&normalized(cur)===normalized(text))return;
+ if(kind==='location'&&normalized(cur)===normalized(text))return;
  if(text===''){cell.value=null;return}
  const numeric=(typeof cell.value==='number'||hint==='number')&&/^-?\d+(?:[.,]\d+)?$/.test(text);
  cell.value=numeric?Number(text.replace(',','.')):text;
@@ -2142,7 +2217,7 @@ function fillRow(row,o,plan,layer,sheet,hints={}){
  const put=(col,text,kind)=>{const n=excelColumn(col);if(n)writeCell(row.getCell(n),text,kind,hints[n])};
  put(sheet.cols?.id,String(o.id??''),'id');
  put(sheet.cols?.name,String(o.name??''),'plain');
- put(sheet.cols?.ort,ortText(plan,o),'ort');
+ put(sheet.cols?.location,locationText(plan,o),'location');
  extrasFor(layer,o).forEach(e=>put(e.col,String(o[e.key]??''),'plain'));
 }
 /* Ein Tabellenblatt der Originaldatei mit den aktuellen Daten füllen */
@@ -2161,7 +2236,7 @@ function fillSheet(ws,sheet,layer,recs){
  const tail=Math.max(headerRow,...kept.map(r=>shift(r.o._row)));
  const template=tail>headerRow?ws.getRow(tail):null;
  const hints={},height=template?template.height:undefined,sample=recs.length?recs[0].o:null;
- if(template){const list=[sheet.cols?.id,sheet.cols?.name,sheet.cols?.ort,...(sample?extrasFor(layer,sample):[]).map(e=>e.col)].map(excelColumn).filter(Boolean);list.forEach(c=>{hints[c]=typeof template.getCell(c).value})}
+ if(template){const list=[sheet.cols?.id,sheet.cols?.name,sheet.cols?.location,...(sample?extrasFor(layer,sample):[]).map(e=>e.col)].map(excelColumn).filter(Boolean);list.forEach(c=>{hints[c]=typeof template.getCell(c).value})}
  kept.forEach(({o,plan})=>fillRow(ws.getRow(shift(o._row)),o,plan,layer,sheet));
  added.forEach(({o,plan},i)=>{const pos=tail+1+i;ws.insertRow(pos,[],template?'i':'n');const row=ws.getRow(pos);if(height)row.height=height;fillRow(row,o,plan,layer,sheet,hints)});
  return {removed:removed.length,kept:kept.length,added:added.length,tail,maxRow:Math.max(tail+added.length,headerRow)};
@@ -2208,15 +2283,15 @@ async function exportFromSource(layer,src,recs){
  for(const kind of ['point','line']){const sheet=src.sheets[kind];if(!sheet)continue;const ws=wb.getWorksheet(sheet.sheetName);if(!ws)throw new Error('Das ursprüngliche Tabellenblatt „'+sheet.sheetName+'“ wurde nicht gefunden.');let sheetLast=0;ws.eachRow({includeEmpty:false},row=>{sheetLast=Math.max(sheetLast,row.number)});const tables=(ws.getTables?ws.getTables():Object.values(ws.tables||{})).map(t=>{const q=t.table||t.model||t;return {name:q.name,displayName:q.displayName||q.name,ref:q.ref||q.tableRef,style:q.style,columnCount:(q.columns||[]).length,sheetLast}});tables.forEach(t=>ws.removeTable(t.name));const filled=fillSheet(ws,sheet,layer,recs.filter(r=>isLine(r.o)===(kind==='line')));filled.maxRow=Math.max(Number(ws.lastRow&&ws.lastRow.number)||0,sheetLast);recreateTables(ws,tables,filled)}
  return wb.xlsx.writeBuffer();
 }
-function addTableSheet(wb,name,extras,recs,layer){
- const ws=wb.addWorksheet(name),headers=['ID','Name','Ort',...extras.map(e=>e.label)];ws.addRow(headers);const sorted=recs.slice().sort((a,b)=>String(a.o.id).localeCompare(String(b.o.id),undefined,{numeric:true}));if(!sorted.length)ws.addRow(headers.map(()=>''));else sorted.forEach(({o,plan})=>ws.addRow([String(o.id??''),String(o.name??''),ortText(plan,o),...extras.map(e=>String(o[e.key]??''))]));for(let r=2;r<=ws.rowCount;r++){ws.getRow(r).getCell(1).numFmt='@';ws.getRow(r).getCell(3).numFmt='@'}headers.forEach((h,i)=>ws.getColumn(i+1).width=i===0?8:i===1?26:i===2?16:Math.max(14,h.length+4));ws.views=[{state:'frozen',ySplit:1}];ws.addTable({name:tableName('tbl'+name,new Set()),ref:'A1',headerRow:true,totalsRow:false,style:{theme:'TableStyleMedium2',showRowStripes:true},columns:headers.map(name=>({name,filterButton:true})),rows:Array.from({length:Math.max(1,ws.rowCount-1)},(_,i)=>headers.map((_,c)=>cellText(ws.getRow(i+2).getCell(c+1))))});
+function addTableSheet(wb,name,extras,recs){
+ const ws=wb.addWorksheet(name),headers=['ID','Name','Ort',...extras.map(e=>e.label)];ws.addRow(headers);const sorted=recs.slice().sort((a,b)=>String(a.o.id).localeCompare(String(b.o.id),undefined,{numeric:true}));if(!sorted.length)ws.addRow(headers.map(()=>''));else sorted.forEach(({o,plan})=>ws.addRow([String(o.id??''),String(o.name??''),locationText(plan,o),...extras.map(e=>String(o[e.key]??''))]));for(let r=2;r<=ws.rowCount;r++){ws.getRow(r).getCell(1).numFmt='@';ws.getRow(r).getCell(3).numFmt='@'}headers.forEach((h,i)=>ws.getColumn(i+1).width=i===0?8:i===1?26:i===2?16:Math.max(14,h.length+4));ws.views=[{state:'frozen',ySplit:1}];ws.addTable({name:tableName('tbl'+name,new Set()),ref:'A1',headerRow:true,totalsRow:false,style:{theme:'TableStyleMedium2',showRowStripes:true},columns:headers.map(name=>({name,filterButton:true})),rows:Array.from({length:Math.max(1,ws.rowCount-1)},(_,i)=>headers.map((_,c)=>cellText(ws.getRow(i+2).getCell(c+1))))});
 }
 async function exportFresh(layer,recs){
  const wb=new ExcelJS.Workbook();
  if(layer.kind==='mixed'){
-  addTableSheet(wb,'Netzwerkschränke',layer.extras,recs.filter(r=>!isLine(r.o)),layer);
-  addTableSheet(wb,'Verbindungen',layer.lineExtras,recs.filter(r=>isLine(r.o)),layer);
- }else addTableSheet(wb,'Daten',layer.extras,recs,layer);
+  addTableSheet(wb,'Netzwerkschränke',layer.extras,recs.filter(r=>!isLine(r.o)));
+  addTableSheet(wb,'Verbindungen',layer.lineExtras,recs.filter(r=>isLine(r.o)));
+ }else addTableSheet(wb,'Daten',layer.extras,recs);
  const notes=wb.addWorksheet('Hinweise');
  const lines=[
   'Hinweise',
@@ -2270,8 +2345,8 @@ async function excelExport(id){
   if(!buffer)buffer=await exportFresh(layer,recs);
   const name=fromSource?src.fileName:layer.exportName;
   downloadBlob(buffer,name);state.dirty[id]=false;draftChanged();
-  toast('Export ausgelöst: '+name+(fromSource?' (Formatierung der importierten Datei übernommen).':' (neue Datei mit Standardformatierung).')+(fallbackReason?' Die Formatierung der importierten Datei konnte nicht übernommen werden ('+fallbackReason+').':'')+' Bitte prüfen, ob der Browser die Datei heruntergeladen hat.',fallbackReason?'warn':'success',fallbackReason?12000:8000);
- }catch(error){toast('Export fehlgeschlagen: '+(error.message||'Datei konnte nicht erstellt werden.'),'error',10000)}
+  toast('Export ausgelöst: '+name+(fromSource?' (Formatierung der importierten Datei übernommen).':' (neue Datei mit Standardformatierung).')+(fallbackReason?' Die Formatierung der importierten Datei konnte nicht übernommen werden ('+fallbackReason+').':'')+' Bitte prüfen, ob der Browser die Datei heruntergeladen hat.',fallbackReason?'warn':'success',fallbackReason?TOAST.error:TOAST.long);
+ }catch(error){toast('Export fehlgeschlagen: '+(error.message||'Datei konnte nicht erstellt werden.'),'error',TOAST.error)}
 }
 
 /* ---------- Excel-Dateien per Drag-and-drop (nur im Bearbeitungsmodus) ---------- */
@@ -2340,8 +2415,8 @@ function rasterizeSvg(src,view){
   img.onload=()=>{
    try{
     const ratio=view[3]/view[2];
-    let w=3000,h=Math.max(1,Math.round(w*ratio));
-    const maxPixels=12e6;
+    let w=DISPLAY.print.rasterWidth,h=Math.max(1,Math.round(w*ratio));
+    const maxPixels=DISPLAY.print.maxPixels;
     if(w*h>maxPixels){const f=Math.sqrt(maxPixels/(w*h));w=Math.round(w*f);h=Math.round(h*f)}
     const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
     const ctx=canvas.getContext('2d');
@@ -2393,11 +2468,11 @@ async function exportPdf(){
   const message='PDF-Druck konnte nicht gestartet werden: '+(error.message||'Unbekannter Fehler.')+' Die HTML-Datei direkt im Browser öffnen und erneut versuchen.';
   $('btn-pdf').title=message;
   const err=$('data-error');err.style.display='block';err.textContent=message;
-  setTimeout(()=>{err.style.display='none'},8000);
+  setTimeout(()=>{err.style.display='none'},TOAST.long);
  }finally{button.disabled=false}
 }
-function openPrintPopup(){const dialog=$('print-popup');dialog.classList.add('show');dialog.setAttribute('aria-hidden','false');dialog.querySelector('.print-dialog').focus()}
-function closePrintPopup(){const dialog=$('print-popup');dialog.classList.remove('show');dialog.setAttribute('aria-hidden','true')}
+function openPrintPopup(){openModal($('print-popup'))}
+function closePrintPopup(){closeModal($('print-popup'))}
 $('btn-pdf').onclick=openPrintPopup;
 $('print-cancel').onclick=closePrintPopup;$('print-close').onclick=closePrintPopup;
 $('print-popup').onclick=event=>{if(event.target===$('print-popup'))closePrintPopup()};
@@ -2423,6 +2498,10 @@ function closePopup(render=true){
  if(render)renderOverlay();
 }
 function cabinetsOf(line,items){return items.filter(c=>!isLine(c)&&lineTouches(line,c))}
+/* Kurzbeschreibung eines Schranks in Listen: die ersten beiden Zusatzspalten (ohne Notiz), die einen Wert haben */
+function cabinetSummary(layer,c){
+ return extrasFor(layer,c).filter(e=>!isNoteKey(e.key)).slice(0,2).map(e=>c[e.key]).filter(v=>String(v??'').trim()).join(' · ');
+}
 function buildPopup(o,layerId){
  const layer=LAYERS[layerId],box=$('popup'),line=isLine(o);
  const planId=state.popup?state.popup.plan:state.current,plan=PLANS.find(p=>p.id===planId);
@@ -2435,13 +2514,12 @@ function buildPopup(o,layerId){
  const close=mk('button','pp-close');close.type='button';close.title='Schließen (Esc)';close.setAttribute('aria-label','Schließen');
  close.onclick=()=>closePopup();
  const editing=!!(state.popup&&state.popup.editing&&state.active===layerId);
- const icon=d=>{const v=S('svg',{viewBox:'0 0 24 24',width:18,height:18,fill:'none',stroke:'currentColor','stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true'});v.append(S('path',{d}));return v};
- const editBtn=mk('button','pp-edit-btn'+(editing?' on':''));editBtn.type='button';editBtn.title=editing?'Bearbeiten beenden':'Bearbeiten';editBtn.setAttribute('aria-label',editBtn.title);editBtn.append(icon(editing?'M5 13.5l4 4L19 7.5':'M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z'));
+ const editBtn=mk('button','pp-edit-btn'+(editing?' on':''));editBtn.type='button';editBtn.title=editing?'Bearbeiten beenden':'Bearbeiten';editBtn.setAttribute('aria-label',editBtn.title);editBtn.append(iconSvg(editing?'done':'edit'));
  editBtn.onclick=()=>toggleEdit();
- const resolveBtn=mk('button','pp-edit-btn pp-resolve-btn');resolveBtn.type='button';resolveBtn.title='Objekt löschen';resolveBtn.setAttribute('aria-label','Objekt löschen');resolveBtn.append(icon('M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14 M10 10v6 M14 10v6'));
+ const resolveBtn=mk('button','pp-edit-btn pp-resolve-btn');resolveBtn.type='button';resolveBtn.title='Objekt löschen';resolveBtn.setAttribute('aria-label','Objekt löschen');resolveBtn.append(iconSvg('trash'));
  resolveBtn.onclick=()=>{if(state.active!==layerId)startEdit(layerId);deleteObject(layerId,uid(o))};
- const linkBtn=mk('button','pp-edit-btn');linkBtn.type='button';linkBtn.title='Link zu diesem Objekt kopieren';linkBtn.setAttribute('aria-label',linkBtn.title);linkBtn.append(icon('M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7 M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7'));linkBtn.onclick=copyLink;
- close.append(icon('M6 6l12 12M18 6L6 18'));head.append(dot,title,linkBtn,editBtn,resolveBtn,close);
+ const linkBtn=mk('button','pp-edit-btn');linkBtn.type='button';linkBtn.title='Link zu diesem Objekt kopieren';linkBtn.setAttribute('aria-label',linkBtn.title);linkBtn.append(iconSvg('link'));linkBtn.onclick=copyLink;
+ close.append(iconSvg('close'));head.append(dot,title,linkBtn,editBtn,resolveBtn,close);
  const body=mk('div','pp-body'),dl=mk('dl','pp-list');
  if(editing){body.append(buildEditForm(o,layer));box.append(head,body);box.classList.add('show');return close}
  const row=(label,value)=>{
@@ -2450,7 +2528,7 @@ function buildPopup(o,layerId){
  };
  row('ID',o.id);
  fieldsFor(layer,o).forEach(([key,label])=>row(label,(line&&key==='typ'&&info)?info.label:o[key]));
- row('Ort',ortText(planId,o));
+ row('Ort',locationText(planId,o));
  const items=layerAll(layerId);
  if(!line){
   const placed=isNum(o.x)&&isNum(o.y);
@@ -2458,9 +2536,9 @@ function buildPopup(o,layerId){
   if(placed)row('Planquadrat',gridCell(planId,o));
  }else{
   const label=(cab,id)=>cab?(cab.name||cab.id)+' ('+cab.id+')':(id?id+' (nicht gefunden)':'');
-  row('Von',label(cabinetById(layerId,o.von),o.von));
-  row('Nach',label(cabinetById(layerId,o.nach),o.nach));
-  const ca=cabinetById(layerId,o.von),cb=cabinetById(layerId,o.nach),pa=ca&&PLANS.find(p=>inventory[p.id][layerId].includes(ca)),pb=cb&&PLANS.find(p=>inventory[p.id][layerId].includes(cb));row('Plan',connectionPlanText(pa,pb));
+  row('Von',label(cabinetById(layerId,o.from),o.from));
+  row('Nach',label(cabinetById(layerId,o.to),o.to));
+  const ca=cabinetById(layerId,o.from),cb=cabinetById(layerId,o.to),pa=ca&&PLANS.find(p=>inventory[p.id][layerId].includes(ca)),pb=cb&&PLANS.find(p=>inventory[p.id][layerId].includes(cb));row('Plan',connectionPlanText(pa,pb));
  }
  body.append(dl);
  if(layer.kind==='mixed'){
@@ -2485,7 +2563,7 @@ function buildPopup(o,layerId){
    const cabs=cabinetsOf(o,items);
    section('Verbundene Netzwerkschränke ('+cabs.length+')');
    if(!cabs.length)body.append(mk('div','pp-none','Kein Netzwerkschrank zugeordnet.'));
-   cabs.forEach(c=>body.append(entry(c,[c.typ,c.raum].filter(Boolean).join(' · '),layer.color,true)));
+   cabs.forEach(c=>body.append(entry(c,cabinetSummary(layer,c),layer.color,true)));
   }
  }
  box.append(head,body);
@@ -2501,7 +2579,6 @@ function positionPopup(cx,cy){
  y=Math.max(12,Math.min(y,r.height-h-12));
  box.style.left=Math.round(x)+'px';box.style.top=Math.round(y)+'px';
 }
-/* Inhalt aktualisieren, wenn sich Daten ändern (z. B. beim Bearbeiten); Position und Scrollstand bleiben */
 function kindText(o,layerId){
  if(isLine(o)){const info=lineTypeInfo(o.typ);return 'Verbindung'+(o.typ?' \u00b7 '+(info?info.label:o.typ):'')}
  return LAYERS[layerId].singular;
@@ -2562,7 +2639,7 @@ function drawPopupMark(target,planId,spreads){
   if(found.plan!==planId||!state.visible[s.layer])return;
   const size=planSize(planId),layer=LAYERS[s.layer];
   const halo=l=>{const pl=(spreads&&spreads[s.layer]&&spreads[s.layer].get(uid(l)))||l.points;if(pl&&pl.length>=2)g.append(S('polyline',{points:pl.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke:'#ff8c00','stroke-opacity':'.45','stroke-width':size*1.1,'stroke-linecap':'round','stroke-linejoin':'round'}))};
-  const ring=c=>{if(isNum(c.x)&&isNum(c.y))g.append(S('circle',{cx:c.x,cy:c.y,r:size*1.05,fill:'#ff8c0033',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15}))};
+  const ring=c=>{if(isNum(c.x)&&isNum(c.y))g.append(S('circle',{cx:c.x,cy:c.y,r:size*DISPLAY.ring.selected,fill:'#ff8c0033',stroke:'#ff8c00','stroke-width':size*.15,'stroke-dasharray':size*.22+' '+size*.15}))};
   const items=itemsOnPlan(planId,s.layer);
   if(isLine(o)){const shown=items.find(x=>uid(x)===uid(o));halo(shown||o);cabinetsOf(o,items).forEach(ring)}
   else{
@@ -2571,9 +2648,9 @@ function drawPopupMark(target,planId,spreads){
   }
 }
 /* ---------- Direktlinks ----------
-   Form: #ebene2&o=schraenke:s:003&z=250&c=640,420
+   Form: #ebene2&o=cabinets:s:003&z=250&c=640,420
      erster Teil  Plan (alte Links wie #ebene2 funktionieren weiter)
-     o=           Kategorie:Objekt-Kennung (Auswahl)
+     o=           Kategorie:Objekt-Kennung (Auswahl); frühere Kategorienamen (schraenke, fernseher) werden weiter erkannt
      z=, c=       Zoom in % und Mittelpunkt des Ausschnitts (Plankoordinaten) */
 const enc=s=>encodeURIComponent(s).replace(/%3A/gi,':');
 function parseHash(){
@@ -2583,7 +2660,7 @@ function parseHash(){
   if(!m){if(PLANS.some(p=>p.id===part))out.plan=part;return}
   const k=m[1],v=m[2];
   if(k==='p'&&PLANS.some(p=>p.id===v))out.plan=v;
-  else if(k==='o'){const i=v.indexOf(':');if(i>0&&LAYERS[v.slice(0,i)])out.obj={layer:v.slice(0,i),key:decodeURIComponent(v.slice(i+1))}}
+  else if(k==='o'){const i=v.indexOf(':'),layerId=i>0?layerIdOf(v.slice(0,i)):null;if(layerId)out.obj={layer:layerId,key:decodeURIComponent(v.slice(i+1))}}
   else if(k==='z'&&Number(v)>0)out.zoom=Number(v);
   else if(k==='c'){const [x,y]=v.split(',').map(Number);if(Number.isFinite(x)&&Number.isFinite(y))out.center={x,y}}
  });
@@ -2631,27 +2708,37 @@ document.addEventListener('datachanged',()=>{if(state.pendingLink)applyLink(stat
 $('btn-link').onclick=copyLink;
 
 /* ---------- Tastatur und Start ---------- */
-/* Esc an EINER Stelle: schließt der Reihe nach Druckfenster, Importfenster, bricht das Platzieren ab,
-   sonst Popup/Geste/Zeichnen zurücksetzen. */
+/* Esc an EINER Stelle: schließt der Reihe nach Wiederherstellen-Dialog (muss entschieden werden), Druckfenster,
+   Importfenster und Tabellenansicht, bricht das Platzieren ab, sonst Popup/Geste/Zeichnen zurücksetzen. */
 function handleEscape(inField){
- const shown=id=>{const el=$(id);return !!el&&el.classList.contains('show')};
+ const shown=id=>$(id).classList.contains('show');
+ if(shown('draft-popup'))return true;
  if(shown('print-popup')){closePrintPopup();return true}
  if(shown('import-popup')){closeImportPopup();return true}
+ if(shown('table-screen')){$('tbl-close').click();return true}
  if(inField)return false;
  if(state.tool==='place'){cancelPlace('Platzierung abgebrochen.','warn');return true}
- closePopup(false);finishGesture(true);state.drawing=[];state.previewPoint=null;state.tool='select';mode();refreshUI();
+ closePopup(false);finishGesture(true);resetTool();mode();refreshUI();
  return true;
 }
 document.addEventListener('keydown',event=>{
  const inField=/INPUT|TEXTAREA|SELECT/.test(event.target.tagName)||event.target.isContentEditable;
  if(event.key==='Escape'){if(handleEscape(inField)){event.preventDefault()}return}
- if(inField)return;
+ /* Bei offener Tabelle oder offenem Dialog gelten keine Plan-Kürzel (sonst würde z. B. Entf im Hintergrund löschen) */
+ if(inField||modalOpen())return;
  const key=event.key.toLowerCase(),modifier=event.ctrlKey||event.metaKey;
  if(state.active&&modifier&&key==='z'){event.preventDefault();event.shiftKey?redo():undo();return}
  if(state.active&&modifier&&key==='y'){event.preventDefault();redo();return}
  if(state.active&&['Delete','Backspace'].includes(event.key)){event.preventDefault();deleteSelected();return}
+ /* Plan mit der Tastatur verschieben, solange die Planfläche den Fokus hat */
+ if(event.target===stage&&state.svg&&!modifier&&event.key.startsWith('Arrow')){
+  event.preventDefault();
+  const step=event.shiftKey?DISPLAY.keyPan.big:DISPLAY.keyPan.step;
+  const dx=event.key==='ArrowLeft'?-1:event.key==='ArrowRight'?1:0,dy=event.key==='ArrowUp'?-1:event.key==='ArrowDown'?1:0;
+  state.vb=[state.vb[0]+dx*state.vb[2]*step,state.vb[1]+dy*state.vb[3]*step,state.vb[2],state.vb[3]];requestVB();return;
+ }
  if(modifier||event.altKey)return;
- if(/^[1-5]$/.test(event.key)&&PLANS[Number(event.key)-1])loadPlan(PLANS[Number(event.key)-1].id);
+ if(/^[1-9]$/.test(event.key)&&PLANS[Number(event.key)-1])loadPlan(PLANS[Number(event.key)-1].id);
  if(event.key==='+'||event.key==='='){event.preventDefault();zoomCenter(DISPLAY.zoom.button)}
  if(event.key==='-'){event.preventDefault();zoomCenter(1/DISPLAY.zoom.button)}
  if(event.key==='0'){event.preventDefault();fit()}
@@ -2660,13 +2747,15 @@ document.addEventListener('keydown',event=>{
    Safari auf iPad/iPhone zeigt beim Neuladen oder Schließen keine Rückfrage an („beforeunload“ wird dort ignoriert).
    Deshalb werden nicht exportierte Änderungen zusätzlich im Browser zwischengespeichert. Beim nächsten Öffnen der Seite
    erscheint ein Hinweis mit der Möglichkeit, sie wiederherzustellen. Eine Markierung im Kopf zeigt außerdem an,
-   dass noch exportiert werden muss. Am Computer erscheint zusätzlich die übliche Rückfrage des Browsers. */
+   dass noch exportiert werden muss. Am Computer erscheint zusätzlich die übliche Rückfrage des Browsers.
+   Der Speicherschlüssel bleibt unverändert, damit vorhandene Entwürfe weiter gefunden werden;
+   frühere Kategorie-IDs und Feldnamen werden beim Wiederherstellen umgesetzt (LAYER_ALIASES, withType). */
 const DRAFT_KEY='gebaudeplan-entwurf-v1';
 function readDraft(){
  try{
   const raw=localStorage.getItem(DRAFT_KEY);if(!raw)return null;
   const d=JSON.parse(raw);
-  if(d&&d.v===1&&d.layers&&typeof d.layers==='object'&&Object.keys(d.layers).some(id=>LAYERS[id]))return d;
+  if(d&&d.v===1&&d.layers&&typeof d.layers==='object'&&Object.keys(d.layers).some(id=>layerIdOf(id)))return d;
   localStorage.removeItem(DRAFT_KEY);
  }catch(e){}
  return null;
@@ -2692,7 +2781,7 @@ function saveDraftNow(){
   if(!anyDirty()){localStorage.removeItem(DRAFT_KEY);return}
   localStorage.setItem(DRAFT_KEY,JSON.stringify(buildDraft()));
  }catch(e){
-  if(!state.draftWarned){state.draftWarned=true;toast('Zwischenspeichern im Browser ist nicht möglich. Bitte regelmäßig als Excel-Datei exportieren.','warn',8000)}
+  if(!state.draftWarned){state.draftWarned=true;toast('Zwischenspeichern im Browser ist nicht möglich. Bitte regelmäßig als Excel-Datei exportieren.','warn',TOAST.long)}
  }
 }
 function draftChanged(){
@@ -2701,8 +2790,8 @@ function draftChanged(){
  clearTimeout(state.draftTimer);state.draftTimer=setTimeout(saveDraftNow,DISPLAY.draftDelay);
 }
 function applyDraft(d){
- Object.keys(d.layers).forEach(id=>{
-  const L=LAYERS[id],data=d.layers[id];
+ Object.keys(d.layers).forEach(key=>{
+  const id=layerIdOf(key),L=id&&LAYERS[id],data=d.layers[key];
   if(!L||!data||!data.plans)return;
   PLANS.forEach(p=>{const list=data.plans[p.id];inventory[p.id][id]=Array.isArray(list)?list.map(o=>withType({...o})):[]});
   if(Array.isArray(data.extras))L.extras=data.extras;
@@ -2714,16 +2803,15 @@ function applyDraft(d){
  document.dispatchEvent(new Event('datachanged'));
 }
 function showDraftDialog(d){
- const names=Object.keys(d.layers).filter(id=>LAYERS[id]).map(id=>'„'+LAYERS[id].label+'“');
+ const names=Object.keys(d.layers).map(layerIdOf).filter(Boolean).map(id=>'„'+LAYERS[id].label+'“');
  const when=new Date(d.saved).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'});
  $('draft-text').textContent='Beim letzten Besuch (Stand '+when+') gab es Änderungen an '+names.join(' und ')+', die nicht als Excel-Datei exportiert wurden. Sie gehen verloren, wenn Sie sie jetzt nicht wiederherstellen.';
- const box=$('draft-popup');box.classList.add('show');box.setAttribute('aria-hidden','false');
- box.querySelector('.print-dialog').focus();
+ openModal($('draft-popup'),$('draft-restore'));
 }
-function closeDraftDialog(){const box=$('draft-popup');box.classList.remove('show');box.setAttribute('aria-hidden','true')}
+function closeDraftDialog(){closeModal($('draft-popup'))}
 $('draft-restore').onclick=()=>{
  const d=state.pendingDraft;state.pendingDraft=null;closeDraftDialog();
- if(d){applyDraft(d);toast('Änderungen wiederhergestellt. Bitte als Excel-Datei exportieren.','success',6000)}
+ if(d){applyDraft(d);toast('Änderungen wiederhergestellt. Bitte als Excel-Datei exportieren.','success',TOAST.long)}
  state.draftHold=false;saveDraftNow();
 };
 $('draft-discard').onclick=()=>{
@@ -2736,16 +2824,16 @@ window.addEventListener('beforeunload',event=>{
 });
 window.addEventListener('pagehide',saveDraftNow);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveDraftNow()});
-window.addEventListener('resize',updateStatus);
 buildButtons();
 const startLink=parseHash();
-loadPlan(startLink.plan||'ebene1');
+loadPlan(startLink.plan||PLANS[0].id);
 applyLink(startLink);
 if(state.pendingDraft)showDraftDialog(state.pendingDraft);
 </script>
 <script>
 /* Tabellenansicht: feste Spalten ID, Name, Ort + dynamische Zusatzspalten. Netzwerkschränke und Verbindungen haben je eine eigene Tabellenseite. */
 (function(){
+ if(!window.GEBAEUDEDATEN_OK)return;
  let tableOpen=false, tableFilter='all';
  function tbl(){const [layerId,part]=$('tbl-layer').value.split('|');return {layerId,line:part==='line',mixed:LAYERS[layerId].kind==='mixed'}}
  function change(layerId,fn){mutate(layerId,fn)}
@@ -2759,23 +2847,23 @@ if(state.pendingDraft)showDraftDialog(state.pendingDraft);
   const trh=document.createElement('tr');columns.forEach(x=>{const th=document.createElement('th');th.textContent=x;trh.append(th)});head.append(trh);
   const all=allRecords(layerId).filter(r=>isLine(r.o)===line);
   const rows=all.filter(({o,plan})=>{
-   const text=[o.id,o.name,ortText(plan,o),...extras.map(e=>o[e.key])].join(' ').toLowerCase();
-   const unplaced=!ortValid(layerId,o),incomplete=unplaced||missingKeys(layer,o).length>0;
+   const text=[o.id,o.name,locationText(plan,o),...extras.map(e=>o[e.key])].join(' ').toLowerCase();
+   const unplaced=!locationValid(layerId,o),incomplete=unplaced||missingKeys(layer,o).length>0;
    return(!query||text.includes(query))&&(tableFilter==='all'||tableFilter==='unplaced'&&unplaced||tableFilter==='missing'&&incomplete);
   }).sort((a,b)=>String(a.o.id).localeCompare(String(b.o.id),undefined,{numeric:true}));
   rows.forEach(({o,plan})=>{
    const tr=document.createElement('tr'),cell=()=>{const td=document.createElement('td');tr.append(td);return td};
    cell().append(input(o.id,'ID',false,()=>{},true));
    cell().append(input(o.name,'Name',!String(o.name??'').trim(),value=>change(layerId,()=>o.name=value)));
-   cell().append(input(ortText(plan,o),'Ort',!ortValid(layerId,o),value=>{
-    const apply=prepareOrt(layerId,o,value);
+   cell().append(input(locationText(plan,o),'Ort',!locationValid(layerId,o),value=>{
+    const apply=prepareLocation(layerId,o,value);
     if(!apply){tableRender();return}
     change(layerId,apply);tableRender();
    }));
    extras.forEach(e=>cell().append(input(o[e.key],e.label,e.required&&!String(o[e.key]??'').trim(),value=>change(layerId,()=>o[e.key]=value))));
    const action=cell(),actions=document.createElement('div');actions.className='table-actions';
    if(!isLine(o)){const button=document.createElement('button');button.className='table-place';button.textContent='Im Plan platzieren';button.onclick=()=>startPlacement(layerId,o);actions.append(button)}
-   const del=document.createElement('button');del.className='table-del';del.type='button';del.title='Objekt löschen';del.setAttribute('aria-label','Objekt löschen');const delSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');delSvg.setAttribute('viewBox','0 0 24 24');delSvg.setAttribute('width','18');delSvg.setAttribute('height','18');delSvg.setAttribute('fill','none');delSvg.setAttribute('stroke','currentColor');delSvg.setAttribute('stroke-width','2');delSvg.setAttribute('stroke-linecap','round');delSvg.setAttribute('stroke-linejoin','round');delSvg.setAttribute('aria-hidden','true');const delPath=document.createElementNS('http://www.w3.org/2000/svg','path');delPath.setAttribute('d','M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14 M10 10v6 M14 10v6');delSvg.append(delPath);del.append(delSvg);del.onclick=()=>deleteRecord(layerId,o);actions.append(del);action.append(actions);
+   const del=document.createElement('button');del.className='table-del';del.type='button';del.title='Objekt löschen';del.setAttribute('aria-label','Objekt löschen');del.append(iconSvg('trash'));del.onclick=()=>deleteRecord(layerId,o);actions.append(del);action.append(actions);
    body.append(tr);
   });
   $('tbl-count').textContent=rows.length+' von '+all.length+' Datensätzen';['all','unplaced','missing'].forEach(f=>document.querySelector('[data-filter="'+f+'"]').classList.toggle('active',tableFilter===f));
@@ -2783,26 +2871,27 @@ if(state.pendingDraft)showDraftDialog(state.pendingDraft);
  function updateTableControls(){const {layerId,line,mixed}=tbl(),history=state.history[layerId];$('tbl-undo').disabled=!history.undo.length;$('tbl-redo').disabled=!history.redo.length;$('tbl-new').hidden=mixed;$('tbl-new').textContent='➕ '+(LAYERS[layerId].singular||'Datensatz');$('tbl-new-cabinet').hidden=!(mixed&&!line);$('tbl-new-connection').hidden=!(mixed&&line)}
  function createTableRecord(){
   const {layerId,line}=tbl(),layer=LAYERS[layerId],o={type:line?'line':'point',id:newId(layer,null,line),name:''};
-  if(line){o.points=[];o.von='';o.nach=''}else{o.x='';o.y=''}
+  if(line){o.points=[];o.from='';o.to=''}else{o.x='';o.y=''}
   change(layerId,()=>inventory[PLANS[0].id][layerId].push(o));
-  toast((line?'Verbindung':(LAYERS[layerId].singular||'Datensatz'))+' ohne Ort angelegt.','success');tableRender();
+  toast((line?(layer.lineSingular||'Verbindung'):(layer.singular||'Datensatz'))+' ohne Ort angelegt.','success');tableRender();
  }
  function openTable(){
-  if(state.tool==='place')cancelPlace('Platzierung abgebrochen.','warn');tableOpen=true;$('table-screen').classList.add('show');
+  if(state.tool==='place')cancelPlace('Platzierung abgebrochen.','warn');tableOpen=true;
   const s=$('tbl-layer');
   if(!s.options.length)Object.values(LAYERS).forEach(l=>{
    const add=(value,text)=>{const o=document.createElement('option');o.value=value;o.textContent=text;s.append(o)};
    if(l.kind==='mixed'){add(l.id,'Netzwerkschränke');add(l.id+'|line','Verbindungen')}else add(l.id,l.label);
   });
   if(state.active)s.value=state.active;updateTableControls();tableRender();
+  openModal($('table-screen'),$('tbl-search'));
  }
- function closeTable(){tableOpen=false;$('table-screen').classList.remove('show');refreshUI()}
+ function closeTable(){tableOpen=false;closeModal($('table-screen'));refreshUI()}
  function startPlacement(layerId,o){
   if(isLine(o))return;
   if(state.active!==layerId)startEdit(layerId);
-  state.placing={layerId,key:uid(o)};state.tool='place';state.drawing=[];state.previewPoint=null;state.selected=null;
+  resetTool('place');state.placing={layerId,key:uid(o)};state.selected=null;
   closeTable();mode();
-  toast('„'+(String(o.name??'').trim()||o.id)+'“ platzieren: auf den Plan „'+planName(state.current)+'“ klicken. Anderen Plan links wählen, falls nötig. Esc bricht ab.','info',7000);
+  toast('„'+(String(o.name??'').trim()||o.id)+'“ platzieren: auf den Plan „'+planName(state.current)+'“ klicken. Anderen Plan links wählen, falls nötig. Esc bricht ab.','info',TOAST.long);
  }
  $('btn-table').onclick=openTable;$('tbl-close').onclick=closeTable;$('tbl-layer').onchange=()=>{updateTableControls();tableRender()};$('tbl-search').oninput=tableRender;document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{tableFilter=b.dataset.filter;tableRender()});
  $('tbl-new').onclick=createTableRecord;$('tbl-new-cabinet').onclick=createTableRecord;$('tbl-new-connection').onclick=createTableRecord;
