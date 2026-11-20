@@ -1,11 +1,37 @@
 /*
  * gebaudedaten.js - Geometrie der Gebäudepläne (gebaeudeplan.html)
  *
- * Regeln: nur Winkel 0°, 45° und 90° (vereinzelt 22,5° und 67,5°),
- * keine Kurven, keine Doppellinien, keine Lücken in geraden Linien.
- * Treppenhäuser und Aufzüge werden separat gezeichnet und nicht noch
- * einmal als normale Linie in inner/outer geführt.
+ * Die PDF
+ * Sie besteht aus fünf Scans ohne Vektordaten. Die Reihenfolge ist Ebene 1, 2, 3, 4 und MLK.
+ * Wände, Beschriftungen und Farbflächen sind nur als Bild vorhanden. Das Koordinatensystem ist das der Seitenbilder.
+ * Rot markiert Treppenhäuser, Blau Aufzüge. Grüne Flächen sind zu ignorieren.
+ * Farbe und Dicke von Linien spielen keine Rolle, jede Linie ist eine Wand.
+ * Der Scan enthält Doppellinien, Schraffuren und handgezeichnete Wackler. Das sind Zeichenungenauigkeiten, die ich ignorieren darf.
+ *
+ * Die Zieldatei gebaudedaten.js
+ * Sie enthält zwei Konstanten. PLANS hat pro Plan id, name, group, sub und box. geometry hat pro id die Felder inner, outer, stairwells, lift und texts.
+ * Die Linien-Strings haben das SVG-Pfadformat. In inner steht jede Wand als eigene Linie, in outer stehen Polygone mit Z.
+ *
+ * Geometrieregeln
+ * Es gibt nur 0°, 45° und 90°, vereinzelt 22,5° und 67,5°. Keine Kurven, keine Doppellinien, keine Lücken in geraden Linien.
+ * Linien, die zu einer Wand gehören, haben exakt dieselben Eckkoordinaten.
+ * Versatz und Spalten sind unerwünscht. Schräge Linien müssen genau in der Ecke beginnen.
+ * Treppenhäuser und Aufzüge werden separat gezeichnet und nicht noch einmal als normale Linie geführt. Eine Ausnahme ist die Außenwand, die deckungsgleich an Treppenhauskanten weiterläuft.
+ *
+ * Außen- und Innenwände
+ * Ob eine Wand außen oder innen ist, richtet sich nach ihrer Lage im Plan, nicht nach der gezeichneten Dicke.
+ * Die Außenwand hat keine Lücken. Einzige Ausnahme ist die Südseite von Ebene 2 zwischen den beiden Treppenhäusern.
+ * Raumwände sind innen.
+ *
+ * Einheitliche Formen
+ * Alle Treppenhäuser haben ein kleines und ein großes halbes Achteck, die Wand dazwischen ist rechtwinklig.
+ * Die kleinen halben Achtecke im Labortrakt sind überall gleich.
+ *
+ * Arbeitsweise
+ * Ich zeichne alle Pläne mehrfach zurück, zoome hinein und vergleiche sie mit der PDF, bis alles passt.
+ * Bei uneindeutigen Stellen lege ich dir zwei Varianten vor, und du entscheidest.
  */
+
 
 const PLANS = [
   { id: 'ebene1', name: 'Ebene 1', group: 'main', sub: 'Hauptgebäude', box: [95, 100.5, 1129.6, 789.9] },
