@@ -153,8 +153,11 @@ aside section:first-child{min-width:280px}
 .tools #zreset{max-width:120px;min-height:38px}
 .status{left:20px;bottom:20px}
 }
+/* Druck: A4 quer (Standard). Nutzbare Fläche = 297×210 mm abzüglich 8 mm Rand = 281×194 mm.
+   Ignoriert ein Gerät (z. B. iOS/iPadOS) die Angabe „quer“ und druckt hoch, passt sich das Bild an die Hochformat-Fläche an. */
 @page{size:A4 landscape;margin:8mm}
 @media print{
+:root{--print-w:281mm;--print-h:194mm}
 html,body{height:auto!important;background:var(--surface)!important;display:block!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body>*:not(#print-root){display:none!important}
 #print-root{display:block!important}
@@ -163,7 +166,12 @@ body>*:not(#print-root){display:none!important}
 .print-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #999;padding-bottom:1mm;margin-bottom:1.5mm;font-size:11pt;box-sizing:border-box;overflow:hidden}
 .print-head strong{font-size:13pt}
 .print-head span{color:#555;font-size:9pt}
-.print-page img{display:block;width:100%;height:auto;aspect-ratio:100/52;max-height:none;object-fit:contain;margin:0 auto}
+.print-page{max-width:var(--print-w)}
+/* Bild füllt die Breite, wird aber nie höher als die Seite (abzüglich Kopfzeile) – so entstehen keine Leerseiten */
+.print-page img{display:block;width:100%;height:auto;max-height:calc(var(--print-h) - 12mm);object-fit:contain;margin:0 auto}
+}
+@media print and (orientation:portrait){
+:root{--print-w:194mm;--print-h:281mm}
 }
 
 /* Dialoge (Drucken, Wiederherstellen, Excel-Import) */
@@ -2384,21 +2392,25 @@ $('main').addEventListener('drop',event=>{
 window.addEventListener('dragend',clearDrop);
 
 /* ---------- PDF-Druck ---------- */
-/* Legende der Verbindungstypen unten rechts im Ausdruck (liegt im Bild, daher auch in der PDF-Ausgabe) */
+/* Legende der Verbindungstypen als eigener Streifen UNTER dem Plan (liegt im Bild, daher auch in der PDF-Ausgabe).
+   Sie verdeckt dadurch nie Gebäudeteile. Liefert den um den Streifen erweiterten Bildausschnitt zurück. */
 function addPrintLegend(element,view){
- if(!Object.values(LAYERS).some(l=>l.hasLegend&&state.visible[l.id]))return;
- const u=view[2]/90,longest=Math.max('Verbindungstypen'.length,...LINE_TYPES.map(t=>t.label.length));
- const w=u*(6.5+longest*.75),h=u*(3.2+LINE_TYPES.length*2.1),x=view[0]+view[2]-w-u,y=view[1]+view[3]-h-u;
+ if(!Object.values(LAYERS).some(l=>l.hasLegend&&state.visible[l.id]))return view;
+ const u=view[2]/90,strip=u*4,top=view[1]+view[3],mid=top+strip/2;
  const g=S('g',{'font-family':PLAN_STYLE.font.family});
- g.append(S('rect',{x,y,width:w,height:h,rx:u*.6,fill:'#fff','fill-opacity':.94,stroke:'#999','stroke-width':u*.12}));
- const title=S('text',{x:x+u,y:y+u*1.9,'font-size':u*1.4,'font-weight':'bold',fill:'#111',class:'ov'});title.textContent='Verbindungstypen';g.append(title);
- LINE_TYPES.forEach((t,i)=>{
-  const cy=y+u*(3.9+i*2.1);
-  g.append(S('line',{x1:x+u,y1:cy,x2:x+u*4.6,y2:cy,stroke:'#000','stroke-opacity':.4,'stroke-width':u*.75,'stroke-linecap':'round'}));
-  g.append(S('line',{x1:x+u,y1:cy,x2:x+u*4.6,y2:cy,stroke:t.color,'stroke-width':u*.55,'stroke-linecap':'round'}));
-  const label=S('text',{x:x+u*5.6,y:cy+u*.5,'font-size':u*1.3,fill:'#111',class:'ov'});label.textContent=t.label;g.append(label);
+ g.append(S('rect',{x:view[0],y:top,width:view[2],height:strip,fill:'#fff'}));
+ g.append(S('line',{x1:view[0],y1:top,x2:view[0]+view[2],y2:top,stroke:'#999','stroke-width':u*.12}));
+ let x=view[0]+u;
+ const title=S('text',{x,y:mid+u*.5,'font-size':u*1.4,'font-weight':'bold',fill:'#111',class:'ov'});title.textContent='Verbindungstypen';g.append(title);
+ x+=u*16;
+ LINE_TYPES.forEach(t=>{
+  g.append(S('line',{x1:x,y1:mid,x2:x+u*3.6,y2:mid,stroke:'#000','stroke-opacity':.4,'stroke-width':u*.75,'stroke-linecap':'round'}));
+  g.append(S('line',{x1:x,y1:mid,x2:x+u*3.6,y2:mid,stroke:t.color,'stroke-width':u*.55,'stroke-linecap':'round'}));
+  const label=S('text',{x:x+u*4.6,y:mid+u*.5,'font-size':u*1.3,fill:'#111',class:'ov'});label.textContent=t.label;g.append(label);
+  x+=u*(4.6+t.label.length*.8+3);
  });
  element.append(g);
+ return [view[0],view[1],view[2],view[3]+strip];
 }
 function svgUrl(element,view,labels){
  element.setAttribute('viewBox',view.join(' '));
@@ -2441,14 +2453,15 @@ async function exportPdf(){
   const plans=mode==='all'?PLANS:[PLANS.find(p=>p.id===state.current)];
   $('print-root')?.remove();root=document.createElement('div');root.id='print-root';
   const loading=[];
+  /* Stand mit Datum und Uhrzeit, einmal für alle Seiten */
+  const now=new Date(),stand=now.toLocaleDateString('de-DE')+', '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr';
   for(const plan of plans){
    const element=createPlanSvg(plan);attachOverlay(element);renderOverlay(element,plan.id,true);
-   const view=mode==='view'?state.vb.slice():frameBox(plan);
-   addPrintLegend(element,view);
+   const view=addPrintLegend(element,mode==='view'?state.vb.slice():frameBox(plan));
    const page=document.createElement('div');page.className='print-page';
    const heading=document.createElement('div');heading.className='print-head';
    const title=document.createElement('strong');title.textContent='Gebäudeplan – '+plan.name;
-   const subtitle=document.createElement('span');subtitle.textContent=plan.sub+' · Stand '+new Date().toLocaleDateString('de-DE');
+   const subtitle=document.createElement('span');subtitle.textContent=(plan.sub?plan.sub+' · ':'')+'Stand '+stand;
    heading.append(title,subtitle);
    const image=new Image();image.alt='Gebäudeplan '+plan.name;
    loading.push(rasterizeSvg(svgUrl(element,view,labels),view).then(src=>new Promise((resolve,reject)=>{
