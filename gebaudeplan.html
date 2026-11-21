@@ -856,8 +856,7 @@ const PLAN_STYLE={
   font:{family:'Arial, Helvetica, sans-serif',size:5.6,weight:'normal',style:'normal',color:'#111'},
   lines:{
     outer:3.5,outerColor:'#000',  /* Gebäudeumriss */
-    inner:1.4,innerColor:'#222',  /* Innenwände */
-    stairs:1.4,     /* Treppenlinien (falls vorhanden) */
+    inner:1.4,innerColor:'#222',  /* Innenwände, Treppenhäuser, Aufzug */
     join:'miter',cap:'square'
   },
   groupScale:{main:1,mlk:2.5}
@@ -888,8 +887,6 @@ return g;
 const inner=paths(data.inner,L.inner*k,L.innerColor);
 (data.rects||[]).forEach(([x,y,width,height])=>inner.append(S('rect',{x,y,width,height})));
 paths(data.outer,L.outer*k,L.outerColor);
-paths(data.stairs,L.stairs*k);
-paths(data.dashed,L.dashed*k,'#000',{'stroke-dasharray':L.dashArray});
 /* Beschriftungen: gleiche Schriftart, Farbe, Strichstärke und Basisgröße in allen Plänen */
 const names=S('g',{'font-family':F.family,'font-style':F.style,fill:F.color,'text-anchor':'middle'});
 data.texts.forEach(([text,x,y])=>{
