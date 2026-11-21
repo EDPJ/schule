@@ -858,11 +858,9 @@ const PLAN_STYLE={
     outer:3.5,outerColor:'#000',  /* Gebäudeumriss */
     inner:1.4,innerColor:'#222',  /* Innenwände */
     stairs:1.4,     /* Treppenlinien (falls vorhanden) */
-    dashed:1.4,dashArray:'14 8',  /* gestrichelte Terrassenränder */
-    fillOutline:0.8,fillOutlineColor:'#111', /* Kontur Treppenhäuser / Aufzug */
     join:'miter',cap:'square'
   },
-  groupScale:{main:1,mlk:1}
+  groupScale:{main:1,mlk:2.5}
 };
 
 function createPlanSvg(plan){
@@ -875,7 +873,7 @@ const st=PLAN_STYLE,L=st.lines,F=st.font;
 const k=(st.groupScale||{})[plan.group]??1;
 /* Treppenhäuser (rot) und Aufzug (blau) als Füllung unter den Wänden und Texten */
 const fills=(list,color)=>{
-const g=S('g',{fill:color,stroke:L.fillOutlineColor,'stroke-width':L.fillOutline*k});
+const g=S('g',{fill:color,stroke:L.innerColor,'stroke-width':L.inner*k,'stroke-linejoin':L.join,'stroke-linecap':L.cap});
 (list||[]).forEach(d=>g.append(S('path',{d})));
 root.append(g);
 };
