@@ -155,7 +155,8 @@ main.file-over #drop-cover{display:flex}
 #btn-info .ico{margin:0;width:18px;height:18px;vertical-align:middle}
 #info-pop{position:fixed;z-index:90;width:min(360px,calc(100vw - 24px));max-height:calc(100vh - 80px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0003;padding:14px 16px;font-size:13px;line-height:1.5}
 #info-pop[hidden]{display:none}
-#info-pop h2{margin:0 0 8px;font-size:15px}
+#info-pop .info-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px}
+#info-pop h2{margin:0;font-size:15px}
 #info-pop ul{margin:0 0 10px;padding-left:18px}
 #info-pop li{margin:3px 0}
 #info-pop .info-now{padding:8px 10px;border-radius:8px;background:var(--accent-soft);color:var(--accent-text);margin:0 0 10px}
@@ -2582,13 +2583,13 @@ async function exportPdf(){
    const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
    let orient=views.filter(v=>v[2]>=v[3]).length*2>=views.length?'landscape':'portrait';
    if(ios)orient=window.matchMedia('(orientation: landscape)').matches?'landscape':'portrait';
-   const pageRatio=orient==='landscape'?1.3:1/1.3;   /* Breite : Höhe der Nutzfläche, bewusst knapp angesetzt */
+   const pageRatio=orient==='landscape'?1.4:1/1.4;   /* Breite : Höhe der Nutzfläche, bewusst knapp angesetzt */
    let rule=document.getElementById('print-page-rule');
    if(!rule){rule=document.createElement('style');rule.id='print-page-rule';document.head.append(rule)}
    rule.textContent='@page{size:'+orient+';margin:8mm}';
    root.querySelectorAll('.print-page img').forEach((img,i)=>{
     const v=views[i],aspect=v[2]/v[3];
-    img.style.width=Math.min(100,88*aspect/pageRatio).toFixed(2)+'%';
+    img.style.width=Math.min(100,76*aspect/pageRatio).toFixed(2)+'%';
    });
   }
   window.print();
@@ -2605,13 +2606,17 @@ async function exportPdf(){
 (function(){
  const pop=$('info-pop'),btn=$('btn-info');
  const li=(ul,text)=>{const e=document.createElement('li');e.textContent=text;ul.append(e)};
+ const head=document.createElement('div');head.className='info-head';
  const title=document.createElement('h2');title.textContent='Bedienung der Karte';
+ const closeBtn=document.createElement('button');closeBtn.type='button';closeBtn.className='pp-close';closeBtn.title='Schließen (Esc)';closeBtn.setAttribute('aria-label','Schließen');closeBtn.append(iconSvg('close'));
+ closeBtn.onclick=()=>window.setInfo(false);
+ head.append(title,closeBtn);
  const now=document.createElement('p');now.className='info-now';now.id='info-now';
  const ul=document.createElement('ul');
  ['Zoom: Mausrad, zwei Finger (Pinch), Doppelklick oder die Knöpfe + / −','Verschieben: Ziehen (oder Pfeiltasten, wenn die Planfläche den Fokus hat)','Details: Klick bzw. Tippen auf ein Objekt','Ganzen Plan anzeigen: „Zoom zurücksetzen“ oder Taste 0','Plan wechseln: Ziffern 1–9 oder Schaltflächen links'].forEach(t=>li(ul,t));
  const note=document.createElement('p');note.className='info-note';
  note.textContent='Die Koordinaten unten links (x · y) gehören zum Punkt unter der Maus bzw. zum zuletzt angeklickten oder berührten Punkt. Sie gelten für den angezeigten Plan und können so in die JS-Datei eingetragen werden.';
- pop.append(title,now,ul,note);
+ pop.append(head,now,ul,note);
  function place(){const r=btn.getBoundingClientRect();pop.style.top=Math.round(r.bottom+8)+'px';pop.style.right=Math.max(12,Math.round(window.innerWidth-r.right))+'px'}
  window.setInfo=open=>{pop.hidden=!open;btn.setAttribute('aria-expanded',String(open));if(open){place();updateInfo()}};
  window.updateInfo=()=>{if(!pop.hidden)now.textContent='Aktuell: '+instructionText()};
