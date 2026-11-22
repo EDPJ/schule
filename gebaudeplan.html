@@ -193,6 +193,7 @@ body>*:not(#print-root){display:none!important}
 .print-page img{display:block;width:100%;height:auto;max-width:100%;object-fit:contain;object-position:center top;margin:0 auto}
 /* Legende: auf jeder Seite identisch, am unteren Seitenrand, über die volle Breite (position:fixed wird beim Druck auf jeder Seite wiederholt) */
 .print-legend{position:fixed;left:0;right:0;bottom:0;box-sizing:border-box;width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:1mm 6mm;border-top:1px solid #999;padding-top:1.5mm;background:#fff;font-family:system-ui,Arial,sans-serif;font-size:9pt;color:#111}
+.print-legend.in-page{position:absolute}
 .print-legend strong{font-size:9pt}
 .print-legend .pl-item{display:inline-flex;align-items:center;gap:2mm;white-space:nowrap}
 .print-legend .pl-line{display:inline-block;width:10mm;height:1.6mm;border-radius:1mm;box-shadow:0 0 0 .4mm rgba(0,0,0,.4)}
@@ -2595,6 +2596,16 @@ async function exportPdf(){
     const v=views[i],aspect=v[2]/v[3];
     img.style.width=Math.min(100,76*aspect/pageRatio).toFixed(2)+'%';
    });
+   /* iOS wiederholt position:fixed beim Drucken nicht auf jeder Seite. Dort bekommt jede Seite ihre eigene Legende; die Seite erhält
+      eine feste Höhe (aus der Breite berechnet, knapp unter der Nutzfläche), und die Legende sitzt an ihrem unteren Rand. */
+   if(ios&&legend){
+    legend.remove();
+    const pageAspect=orient==='landscape'?1.5:0.72;
+    root.querySelectorAll('.print-page').forEach(p=>{
+     p.style.position='relative';p.style.aspectRatio=String(pageAspect);
+     const copy=legend.cloneNode(true);copy.classList.add('in-page');p.append(copy);
+    });
+   }
   }
   window.print();
  }catch(error){
