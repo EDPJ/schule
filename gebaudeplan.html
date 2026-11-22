@@ -176,27 +176,16 @@ aside section:first-child{min-width:280px}
 .tools #zreset{max-width:120px;min-height:38px}
 .status{left:20px;bottom:20px}
 }
-/* Druck: Papiergröße und Ausrichtung kommen aus dem Druckdialog (A4, A3, …). Es gibt bewusst KEINE festen Millimeter-Maße:
-   Jede Seite füllt die verfügbare Breite, die Höhe wird über 100vh begrenzt (Seitenhöhe beim Druck). Dadurch passt jeder Plan
-   auf genau eine Seite und wird bei größerem Papier automatisch hochskaliert. Die Ausrichtung (size) setzt exportPdf() per Skript. */
+/* Druck: Papiergröße (A4, A3, …) wählt der Druckdialog, die Ausrichtung setzt exportPdf() automatisch. Jede Seite ist ein einziges Bild in voller Breite. */
 @page{margin:8mm}
 @media print{
 html,body{height:auto!important;background:var(--surface)!important;display:block!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body>*:not(#print-root){display:none!important}
 #print-root{display:block!important}
-.print-page{width:100%;box-sizing:border-box;height:auto;padding:0;margin:0;display:block;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;overflow:hidden;font-family:system-ui,Arial,sans-serif}
+.print-page{width:100%;box-sizing:border-box;padding:0;margin:0;display:block;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;overflow:hidden}
 .print-page:last-child{page-break-after:auto;break-after:auto}
-.print-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #999;padding-bottom:1mm;margin-bottom:1.5mm;font-size:11pt;box-sizing:border-box;overflow:hidden}
-.print-head strong{font-size:13pt}
-.print-head span{color:#555;font-size:9pt}
-/* Bild: Breite als Prozentwert der Seitenbreite (setzt exportPdf() passend zur Planform und Ausrichtung) – skaliert bei größerem Papier automatisch mit */
-.print-page img{display:block;width:100%;height:auto;max-width:100%;object-fit:contain;object-position:center top;margin:0 auto}
-/* Legende: auf jeder Seite identisch, am unteren Seitenrand, über die volle Breite (position:fixed wird beim Druck auf jeder Seite wiederholt) */
-.print-legend{position:fixed;left:0;right:0;bottom:0;box-sizing:border-box;width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:1mm 6mm;border-top:1px solid #999;padding-top:1.5mm;background:#fff;font-family:system-ui,Arial,sans-serif;font-size:9pt;color:#111}
-.print-legend.in-page{position:absolute}
-.print-legend strong{font-size:9pt}
-.print-legend .pl-item{display:inline-flex;align-items:center;gap:2mm;white-space:nowrap}
-.print-legend .pl-line{display:inline-block;width:10mm;height:1.6mm;border-radius:1mm;box-shadow:0 0 0 .4mm rgba(0,0,0,.4)}
+/* Jede Seite ist EIN Bild (Titel, Plan und Legende sind fest darin angeordnet). Es füllt die Breite, hat ein festes Seitenverhältnis und skaliert so bei jedem Papier und auf jedem Gerät gleich mit. */
+.print-page img{display:block;width:100%;height:auto;margin:0}
 }
 
 
@@ -2501,21 +2490,41 @@ window.addEventListener('dragend',clearDrop);
 /* ---------- PDF-Druck ---------- */
 /* Legende der Verbindungstypen als eigener Streifen UNTER dem Plan (liegt im Bild, daher auch in der PDF-Ausgabe).
    Sie verdeckt dadurch nie Gebäudeteile. Liefert den um den Streifen erweiterten Bildausschnitt zurück. */
-function addPrintLegend(element,view){
- return view;   /* Die Legende ist ein HTML-Element am Seitenende (siehe printLegendElement) und nicht mehr Teil des Bildes */
-}
-/* Legende der Verbindungstypen: ein einziges, auf jeder Seite gleiches Element am unteren Seitenrand */
-function printLegendElement(){
- if(!Object.values(LAYERS).some(l=>l.hasLegend&&state.visible[l.id]))return null;
- const box=document.createElement('div');box.className='print-legend';
- const title=document.createElement('strong');title.textContent='Verbindungstypen';box.append(title);
- LINE_TYPES.forEach(t=>{
-  const item=document.createElement('span');item.className='pl-item';
-  const line=document.createElement('span');line.className='pl-line';line.style.background=t.color;
-  const label=document.createElement('span');label.textContent=t.label;
-  item.append(line,label);box.append(item);
- });
- return box;
+/* Eine komplette Druckseite als SVG: Kopfzeile oben, Plan in der Mitte (passend eingepasst), Legende unten über die volle Breite.
+   Alle Maße in mm der Nutzfläche (sheet.w × sheet.h) – damit sieht jede Seite auf jedem Gerät und bei jedem Papier gleich aus. */
+function composePrintPage(element,view,sheet,title,subtitle,legendOn,labels){
+ const W=sheet.w,H=sheet.h,pad=3,fs=3.4;
+ if(!labels)element.querySelectorAll('text').forEach(t=>{if(!t.classList.contains('ov'))t.remove()});
+ const root=S('svg',{xmlns:NS,viewBox:'0 0 '+W+' '+H,width:W,height:H,'font-family':PLAN_STYLE.font.family});
+ root.append(S('rect',{x:0,y:0,width:W,height:H,fill:'#fff'}));
+ const head=S('text',{x:0,y:pad+5,'font-size':5,'font-weight':'bold',fill:'#111'});head.textContent=title;
+ const sub=S('text',{x:W,y:pad+5,'font-size':fs,fill:'#555','text-anchor':'end'});sub.textContent=subtitle;
+ const headLine=pad+7.5;
+ root.append(head,sub,S('line',{x1:0,y1:headLine,x2:W,y2:headLine,stroke:'#999','stroke-width':.3}));
+ let bottom=H-pad;
+ if(legendOn){
+  const rowH=5.5,gap=6,sample=9,cw=fs*.58;
+  const items=[{title:true,w:'Verbindungstypen'.length*cw*1.1+gap}].concat(LINE_TYPES.map(t=>({t,w:sample+2+t.label.length*cw+gap})));
+  let x=0,row=0;
+  items.forEach(it=>{if(x>0&&x+it.w-gap>W){row++;x=0}it.x=x;it.row=row;x+=it.w});
+  const legendH=(row+1)*rowH+2,top=H-pad-legendH;
+  root.append(S('line',{x1:0,y1:top,x2:W,y2:top,stroke:'#999','stroke-width':.3}));
+  items.forEach(it=>{
+   const ym=top+2+it.row*rowH+rowH/2;
+   if(it.title){const t=S('text',{x:it.x,y:ym+fs*.35,'font-size':fs,'font-weight':'bold',fill:'#111'});t.textContent='Verbindungstypen';root.append(t);return}
+   root.append(S('line',{x1:it.x,y1:ym,x2:it.x+sample,y2:ym,stroke:'#000','stroke-opacity':.4,'stroke-width':1.1,'stroke-linecap':'round'}));
+   root.append(S('line',{x1:it.x,y1:ym,x2:it.x+sample,y2:ym,stroke:it.t.color,'stroke-width':.8,'stroke-linecap':'round'}));
+   const t=S('text',{x:it.x+sample+2,y:ym+fs*.35,'font-size':fs,fill:'#111'});t.textContent=it.t.label;root.append(t);
+  });
+  bottom=top-2;
+ }
+ const y0=headLine+2;
+ element.setAttribute('viewBox',view.join(' '));
+ ['x','y','width','height'].forEach(k=>element.removeAttribute(k));
+ element.setAttribute('x',0);element.setAttribute('y',y0);element.setAttribute('width',W);element.setAttribute('height',Math.max(10,bottom-y0));
+ element.setAttribute('preserveAspectRatio','xMidYMid meet');
+ root.append(element);
+ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(root));
 }
 function svgUrl(element,view,labels){
  element.setAttribute('viewBox',view.join(' '));
@@ -2557,55 +2566,38 @@ async function exportPdf(){
   const mode=$('pdf-mode').value,labels=$('chk-labels').checked;
   const plans=mode==='all'?PLANS:[PLANS.find(p=>p.id===state.current)];
   $('print-root')?.remove();root=document.createElement('div');root.id='print-root';
-  const loading=[],views=[];
-  const legend=printLegendElement();if(legend)root.append(legend);   /* zuerst, damit .print-page:last-child stimmt */
+  /* Ausrichtung immer automatisch: Querformat, wenn die Mehrzahl der Pläne breiter als hoch ist (Papiergröße wählt der Druckdialog).
+     iPad/iPhone ignorieren „size“ und drucken in der Geräteausrichtung – dort gilt diese. */
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const viewOf=plan=>mode==='view'?state.vb.slice():frameBox(plan);
+  let orient=plans.filter(p=>{const v=viewOf(p);return v[2]>=v[3]}).length*2>=plans.length?'landscape':'portrait';
+  if(ios)orient=window.matchMedia('(orientation: landscape)').matches?'landscape':'portrait';
+  /* Nutzfläche in mm (A4 mit 8 mm Rand, bewusst mit Reserve in der Höhe, weil iOS mehr Rand lässt). Alle A-Formate haben dasselbe Seitenverhältnis,
+     daher skaliert die Seite bei A3 usw. von selbst mit. Das Bild füllt immer die Breite. */
+  const sheet=orient==='landscape'?{w:281,h:163}:{w:194,h:259};
+  const legendOn=Object.values(LAYERS).some(l=>l.hasLegend&&state.visible[l.id]);
+  const loading=[];
   /* Stand mit Datum und Uhrzeit, einmal für alle Seiten */
   const now=new Date(),stand=now.toLocaleDateString('de-DE')+', '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr';
   for(const plan of plans){
    const element=createPlanSvg(plan);attachOverlay(element);renderOverlay(element,plan.id,true);
-   const view=addPrintLegend(element,mode==='view'?state.vb.slice():frameBox(plan));views.push(view);
+   const composed=composePrintPage(element,viewOf(plan),sheet,'Gebäudeplan – '+plan.name,(plan.sub?plan.sub+' · ':'')+'Stand '+stand,legendOn,labels);
    const page=document.createElement('div');page.className='print-page';
-   const heading=document.createElement('div');heading.className='print-head';
-   const title=document.createElement('strong');title.textContent='Gebäudeplan – '+plan.name;
-   const subtitle=document.createElement('span');subtitle.textContent=(plan.sub?plan.sub+' · ':'')+'Stand '+stand;
-   heading.append(title,subtitle);
    const image=new Image();image.alt='Gebäudeplan '+plan.name;
-   loading.push(rasterizeSvg(svgUrl(element,view,labels),view).then(src=>new Promise((resolve,reject)=>{
+   loading.push(rasterizeSvg(composed,[0,0,sheet.w,sheet.h]).then(src=>new Promise((resolve,reject)=>{
      image.onload=resolve;image.onerror=()=>reject(new Error('Ein Planbild konnte nicht für den Druck geladen werden.'));
      image.src=src;
    })));
-   page.append(heading,image);root.append(page);
+   page.append(image);root.append(page);
   }
   document.body.append(root);await Promise.all(loading);
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   /* Wichtig für iOS: Druckvorschau wird beim Wechsel Hoch-/Querformat neu aufgebaut. Der Druckinhalt darf daher nach dem Drucken nicht sofort entfernt werden (sonst bleibt die Seite weiß). Er ist am Bildschirm ausgeblendet und wird beim nächsten Druck ersetzt. */
   await new Promise(resolve=>setTimeout(resolve,150));
-  /* Immer automatisch: Querformat, wenn die Mehrzahl der Pläne breiter als hoch ist (Papiergröße wählt der Druckdialog).
-     iPad/iPhone ignorieren „size“ und drucken in der Geräteausrichtung – dort gilt diese.
-     Alle A-Formate haben dasselbe Seitenverhältnis; daher wird die Bildbreite als Anteil der Seitenbreite berechnet,
-     so dass die Höhe sicher (mit Reserve für Ränder und Kopfzeile) auf eine Seite passt und bei A3 usw. mitwächst. */
   {
-   const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-   let orient=views.filter(v=>v[2]>=v[3]).length*2>=views.length?'landscape':'portrait';
-   if(ios)orient=window.matchMedia('(orientation: landscape)').matches?'landscape':'portrait';
-   const pageRatio=orient==='landscape'?1.4:1/1.4;   /* Breite : Höhe der Nutzfläche, bewusst knapp angesetzt */
    let rule=document.getElementById('print-page-rule');
    if(!rule){rule=document.createElement('style');rule.id='print-page-rule';document.head.append(rule)}
    rule.textContent='@page{size:'+orient+';margin:8mm}';
-   root.querySelectorAll('.print-page img').forEach((img,i)=>{
-    const v=views[i],aspect=v[2]/v[3];
-    img.style.width=Math.min(100,76*aspect/pageRatio).toFixed(2)+'%';
-   });
-   /* iOS wiederholt position:fixed beim Drucken nicht auf jeder Seite. Dort bekommt jede Seite ihre eigene Legende; die Seite erhält
-      eine feste Höhe (aus der Breite berechnet, knapp unter der Nutzfläche), und die Legende sitzt an ihrem unteren Rand. */
-   if(ios&&legend){
-    legend.remove();
-    const pageAspect=orient==='landscape'?1.5:0.72;
-    root.querySelectorAll('.print-page').forEach(p=>{
-     p.style.position='relative';p.style.aspectRatio=String(pageAspect);
-     const copy=legend.cloneNode(true);copy.classList.add('in-page');p.append(copy);
-    });
-   }
   }
   window.print();
  }catch(error){
