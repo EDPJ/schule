@@ -188,8 +188,8 @@ body>*:not(#print-root){display:none!important}
 .print-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #999;padding-bottom:1mm;margin-bottom:1.5mm;font-size:11pt;box-sizing:border-box;overflow:hidden}
 .print-head strong{font-size:13pt}
 .print-head span{color:#555;font-size:9pt}
-/* Bild: volle Breite (skaliert bei großem Papier hoch), Höhe auf die Seite begrenzt (Reserve für Kopfzeile und unterschiedliche Ränder), Seitenverhältnis bleibt erhalten */
-.print-page img{display:block;width:100%;height:auto;max-width:100%;max-height:calc(100vh - 28mm);object-fit:contain;object-position:center top;margin:0 auto}
+/* Bild: Breite als Prozentwert der Seitenbreite (setzt exportPdf() passend zur Planform und Ausrichtung) – skaliert bei größerem Papier automatisch mit */
+.print-page img{display:block;width:100%;height:auto;max-width:100%;object-fit:contain;object-position:center top;margin:0 auto}
 }
 
 
@@ -347,7 +347,6 @@ body>*:not(#print-root){display:none!important}
   <button id="print-close" class="dialog-close" type="button" aria-label="Schließen">×</button>
   <h2>Drucken / PDF</h2><p>Papiergröße (A4, A3, …) im Druckdialog wählen, dort ggf. „Als PDF speichern“. Der Plan wird automatisch auf eine Seite angepasst.</p>
   <label>Druckumfang <select id="pdf-mode" aria-label="Druckumfang"><option value="plan">Aktueller Plan</option><option value="view">Aktueller Ausschnitt (Zoom)</option><option value="all">Alle Pläne (je eine Seite)</option></select></label>
-  <label>Ausrichtung <select id="pdf-orient" aria-label="Ausrichtung"><option value="auto">Automatisch (nach Planform)</option><option value="landscape">Querformat</option><option value="portrait">Hochformat</option></select></label>
   <div class="dialog-actions"><button id="print-cancel" type="button">Abbrechen</button><button id="print-confirm" class="primary" type="button"><i data-ico="print"></i>Drucken</button></div>
  </div>
 </div>
@@ -2575,14 +2574,22 @@ async function exportPdf(){
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   /* Wichtig für iOS: Druckvorschau wird beim Wechsel Hoch-/Querformat neu aufgebaut. Der Druckinhalt darf daher nach dem Drucken nicht sofort entfernt werden (sonst bleibt die Seite weiß). Er ist am Bildschirm ausgeblendet und wird beim nächsten Druck ersetzt. */
   await new Promise(resolve=>setTimeout(resolve,150));
-  /* Ausrichtung: Automatisch = Querformat, wenn die Mehrzahl der Seiten breiter als hoch ist. Die Papiergröße bleibt Sache des Druckdialogs.
-     (iPad/iPhone ignorieren „size“ und drucken in der aktuellen Geräteausrichtung – die Seite passt sich per 100vh an.) */
+  /* Immer automatisch: Querformat, wenn die Mehrzahl der Pläne breiter als hoch ist (Papiergröße wählt der Druckdialog).
+     iPad/iPhone ignorieren „size“ und drucken in der Geräteausrichtung – dort gilt diese.
+     Alle A-Formate haben dasselbe Seitenverhältnis; daher wird die Bildbreite als Anteil der Seitenbreite berechnet,
+     so dass die Höhe sicher (mit Reserve für Ränder und Kopfzeile) auf eine Seite passt und bei A3 usw. mitwächst. */
   {
-   let orient=$('pdf-orient').value;
-   if(orient==='auto')orient=views.filter(v=>v[2]>=v[3]).length*2>=views.length?'landscape':'portrait';
+   const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+   let orient=views.filter(v=>v[2]>=v[3]).length*2>=views.length?'landscape':'portrait';
+   if(ios)orient=window.matchMedia('(orientation: landscape)').matches?'landscape':'portrait';
+   const pageRatio=orient==='landscape'?1.3:1/1.3;   /* Breite : Höhe der Nutzfläche, bewusst knapp angesetzt */
    let rule=document.getElementById('print-page-rule');
    if(!rule){rule=document.createElement('style');rule.id='print-page-rule';document.head.append(rule)}
    rule.textContent='@page{size:'+orient+';margin:8mm}';
+   root.querySelectorAll('.print-page img').forEach((img,i)=>{
+    const v=views[i],aspect=v[2]/v[3];
+    img.style.width=Math.min(100,88*aspect/pageRatio).toFixed(2)+'%';
+   });
   }
   window.print();
  }catch(error){
