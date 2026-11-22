@@ -152,6 +152,14 @@ main.file-over #drop-cover{display:flex}
 #popup .pp-edit .pp-sub{margin-top:0}
 #popup .pp-edit .hint{margin-top:4px}
 #print-root{display:none}
+#btn-info .ico{margin:0;width:18px;height:18px;vertical-align:middle}
+#info-pop{position:fixed;z-index:90;width:min(360px,calc(100vw - 24px));max-height:calc(100vh - 80px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0003;padding:14px 16px;font-size:13px;line-height:1.5}
+#info-pop[hidden]{display:none}
+#info-pop h2{margin:0 0 8px;font-size:15px}
+#info-pop ul{margin:0 0 10px;padding-left:18px}
+#info-pop li{margin:3px 0}
+#info-pop .info-now{padding:8px 10px;border-radius:8px;background:var(--accent-soft);color:var(--accent-text);margin:0 0 10px}
+#info-pop .info-note{margin:0;color:var(--muted);font-size:12px}
 #data-error{display:none;margin:0;padding:14px 18px;background:#fff0ef;border-bottom:2px solid #d73a49;color:#7a1620;font-size:14px;line-height:1.6}
 @media(max-width:760px){
 #popup{left:12px!important;right:12px;top:auto!important;bottom:12px;width:auto;max-height:55%}
@@ -167,20 +175,21 @@ aside section:first-child{min-width:280px}
 .tools #zreset{max-width:120px;min-height:38px}
 .status{left:20px;bottom:20px}
 }
-/* Druck: A4 quer. Nutzbare Fläche = 297×210 mm abzüglich 8 mm Rand = 281×194 mm. Feste Maße, keine Hoch-/Querformat-Abfrage (sie führte unter Windows zu falschen Maßen). */
-@page{size:A4 landscape;margin:8mm}
+/* Druck: Papiergröße und Ausrichtung kommen aus dem Druckdialog (A4, A3, …). Es gibt bewusst KEINE festen Millimeter-Maße:
+   Jede Seite füllt die verfügbare Breite, die Höhe wird über 100vh begrenzt (Seitenhöhe beim Druck). Dadurch passt jeder Plan
+   auf genau eine Seite und wird bei größerem Papier automatisch hochskaliert. Die Ausrichtung (size) setzt exportPdf() per Skript. */
+@page{margin:8mm}
 @media print{
-:root{--print-w:281mm;--print-h:194mm}
 html,body{height:auto!important;background:var(--surface)!important;display:block!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body>*:not(#print-root){display:none!important}
 #print-root{display:block!important}
-.print-page{width:var(--print-w);max-width:100%;box-sizing:border-box;height:auto;padding:0;margin:0;display:block;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;overflow:hidden;font-family:system-ui,Arial,sans-serif}
+.print-page{width:100%;box-sizing:border-box;height:auto;padding:0;margin:0;display:block;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;overflow:hidden;font-family:system-ui,Arial,sans-serif}
 .print-page:last-child{page-break-after:auto;break-after:auto}
 .print-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #999;padding-bottom:1mm;margin-bottom:1.5mm;font-size:11pt;box-sizing:border-box;overflow:hidden}
 .print-head strong{font-size:13pt}
 .print-head span{color:#555;font-size:9pt}
-/* Bild mit festen Maßen: füllt die Seite unter der Kopfzeile, Seitenverhältnis bleibt erhalten */
-.print-page img{display:block;width:100%;max-width:var(--print-w);height:calc(var(--print-h) - 18mm);object-fit:contain;object-position:center top;margin:0 auto}
+/* Bild: volle Breite (skaliert bei großem Papier hoch), Höhe auf die Seite begrenzt (Reserve für Kopfzeile und unterschiedliche Ränder), Seitenverhältnis bleibt erhalten */
+.print-page img{display:block;width:100%;height:auto;max-width:100%;max-height:calc(100vh - 28mm);object-fit:contain;object-position:center top;margin:0 auto}
 }
 
 
@@ -270,7 +279,8 @@ body>*:not(#print-root){display:none!important}
 <span id="dirty-badge" hidden title="Änderungen sind nur im Browser zwischengespeichert. Über „Daten als Tabelle“ → „Export“ als Excel-Datei sichern."><i data-ico="alert"></i>Nicht exportierte Änderungen</span>
 <div class="header-actions">
 <button id="btn-table" title="Daten als Tabelle bearbeiten"><i data-ico="table"></i>Daten als Tabelle</button>
-<button id="btn-pdf" title="A4 quer · im Druckdialog „Als PDF speichern“ wählen"><i data-ico="print"></i>Drucken / PDF</button>
+<button id="btn-pdf" title="Drucken · im Druckdialog „Als PDF speichern“ wählen"><i data-ico="print"></i>Drucken / PDF</button>
+<button id="btn-info" type="button" title="Bedienung der Karte" aria-label="Bedienung der Karte" aria-haspopup="dialog" aria-expanded="false"><i data-ico="info"></i></button>
 </div>
 </header>
 <div class="layout">
@@ -312,6 +322,8 @@ body>*:not(#print-root){display:none!important}
 </main>
 </div>
 
+<div id="info-pop" role="dialog" aria-label="Bedienung der Karte" hidden></div>
+
 <div id="import-popup" aria-hidden="true">
  <div class="import-dialog" tabindex="-1" role="dialog" aria-modal="true" aria-label="Excel-Import">
   <button id="import-close" class="import-close" type="button" aria-label="Schließen">×</button>
@@ -333,8 +345,9 @@ body>*:not(#print-root){display:none!important}
 <div id="print-popup" aria-hidden="true">
  <div class="dialog-box" tabindex="-1" role="dialog" aria-modal="true" aria-label="Drucken">
   <button id="print-close" class="dialog-close" type="button" aria-label="Schließen">×</button>
-  <h2>Drucken / PDF</h2><p>A4 quer · im Druckdialog „Als PDF speichern“ wählen</p>
+  <h2>Drucken / PDF</h2><p>Papiergröße (A4, A3, …) im Druckdialog wählen, dort ggf. „Als PDF speichern“. Der Plan wird automatisch auf eine Seite angepasst.</p>
   <label>Druckumfang <select id="pdf-mode" aria-label="Druckumfang"><option value="plan">Aktueller Plan</option><option value="view">Aktueller Ausschnitt (Zoom)</option><option value="all">Alle Pläne (je eine Seite)</option></select></label>
+  <label>Ausrichtung <select id="pdf-orient" aria-label="Ausrichtung"><option value="auto">Automatisch (nach Planform)</option><option value="landscape">Querformat</option><option value="portrait">Hochformat</option></select></label>
   <div class="dialog-actions"><button id="print-cancel" type="button">Abbrechen</button><button id="print-confirm" class="primary" type="button"><i data-ico="print"></i>Drucken</button></div>
  </div>
 </div>
@@ -403,7 +416,8 @@ const ICONS={
  plus:'M12 5v14M5 12h14',
  undo:'M9 14L4 9l5-5 M4 9h10a6 6 0 0 1 0 12h-3',
  redo:'M15 14l5-5-5-5 M20 9H10a6 6 0 0 0 0 12h3',
- pointer:'M5 3l14 7-6 2-2 6z'
+ pointer:'M5 3l14 7-6 2-2 6z',
+ info:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 11v6 M12 7.5v.01'
 };
 function iconSvg(name){
  const v=S('svg',{class:'ico',viewBox:'0 0 24 24',width:18,height:18,fill:'none',stroke:'currentColor','stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true'});
@@ -473,7 +487,7 @@ const DISPLAY={
  port:{x:6.5,y:3.2},                        /* Ebenenports links vom Plan (Symbolgrößen) */
  searchListMax:30,focusPad:280,focusZoom:3,   /* Trefferliste, Rand/Zoom beim Springen zu Treffern */
  keyPan:{step:.1,big:.4},                   /* Pfeiltasten: Anteil des sichtbaren Ausschnitts */
- print:{rasterWidth:3000,maxPixels:12e6},   /* Pixelbild für den Druck (iOS/Safari) */
+ print:{rasterWidth:4200,maxPixels:14e6},   /* Pixelbild für den Druck (iOS/Safari) */
  importMaxBytes:25*1024*1024,               /* größte erlaubte Excel-Datei */
  draftDelay:400                             /* ms bis zum Zwischenspeichern im Browser */
 };
@@ -903,7 +917,7 @@ const inventory=Object.fromEntries(PLANS.map(p=>[p.id,Object.fromEntries(Object.
 const eachLayer=value=>Object.fromEntries(Object.keys(LAYERS).map(k=>[k,typeof value==='function'?value():value]));
 const state={
  /* Ansicht */
- svg:null,overlay:null,base:null,vb:null,current:null,gridOn:false,lastPointer:null,
+ svg:null,overlay:null,base:null,vb:null,current:null,gridOn:false,lastPointer:null,coord:null,
  visible:eachLayer(true),                 /* Kategorie im Plan sichtbar? */
  /* Bearbeiten */
  active:null,selected:null,tool:'select',drawing:[],drawType:DEFAULT_LINE_TYPE,previewPoint:null,gesture:null,
@@ -1027,14 +1041,23 @@ function planPoint(p,planId=state.current){
 }
 function planSize(planId){return PLANS.find(p=>p.id===planId).box[2]/110}
 const percentFormat=new Intl.NumberFormat('de-DE',{maximumFractionDigits:1});
+/* Bedienhinweis: steht im Info-Fenster (Knopf oben rechts), nicht mehr auf der Karte */
+function instructionText(){
+ if(state.active&&isDrawTool()){
+  if(state.tool==='drawline')return state.drawing.length?('Start: Netzwerkschrank '+state.drawing[0].id+' ('+((PLANS.find(p=>p.id===state.drawing[0].plan)||{}).name||'anderer Plan')+') – Ziel auswählen · Esc: abbrechen'):'Klicken: erst Start-Netzwerkschrank, dann Ziel-Netzwerkschrank · Esc: abbrechen';
+  return 'Klicken: Objekt setzen';
+ }
+ if(state.active&&state.tool==='place')return 'Klicken: Objekt hier platzieren · Esc: abbrechen';
+ return 'Mausrad / zwei Finger: Zoom · Ziehen: Verschieben · Klick auf Objekt: Details';
+}
+/* Unten links: Koordinaten des Punkts unter der Maus bzw. des zuletzt berührten Punkts (Plankoordinaten wie in gebaudedaten.js) und Zoom */
 function updateStatus(){
  if(!state.vb||!state.base)return;
  const zoom=state.base[2]/state.vb[2]*100;
- const coordinates=state.lastPointer?'x: '+Math.round(state.lastPointer.x)+' · y: '+Math.round(state.lastPointer.y)+' | ':'';
- let instruction=state.active&&isDrawTool()
- ?(state.tool==='drawline'?(state.drawing.length?('Start: Netzwerkschrank '+state.drawing[0].id+' ('+((PLANS.find(p=>p.id===state.drawing[0].plan)||{}).name||'anderer Plan')+') – Ziel auswählen · Esc: abbrechen'):'Klicken: erst Start-Netzwerkschrank, dann Ziel-Netzwerkschrank · Esc: abbrechen'):'Klicken: Objekt setzen')
- :(state.active&&state.tool==='place'?'Klicken: Objekt hier platzieren · Esc: abbrechen':'Mausrad / zwei Finger: Zoom · Ziehen: Verschieben · Klick auf Objekt: Details');
- $('status').textContent=coordinates+'Zoom: '+percentFormat.format(zoom)+' % | '+instruction;
+ const plan=PLANS.find(p=>p.id===state.current),c=state.coord;
+ const coordinates=(plan?planCode(plan)+' · ':'')+(c?'x: '+Math.round(c.x)+' · y: '+Math.round(c.y):'x: – · y: –');
+ $('status').textContent=coordinates+' | Zoom: '+percentFormat.format(zoom)+' %';
+ updateInfo();
 }
 /* Größe eines Bildschirmpixels in Planeinheiten – damit Trefferflächen und Anfasser bei jedem Zoom (auch auf dem iPad mit dem Finger) gut treffbar bleiben */
 function uiUnit(){
@@ -1172,7 +1195,7 @@ function loadPlan(id){closePopup(false);
  finishGesture(true);
  state.current=id;state.selected=null;/* Eine begonnene Verbindung bleibt bewusst über Planwechsel erhalten. */
  if(!(state.active&&state.tool==='drawline'&&state.drawing.length)){state.drawing=[];state.previewPoint=null;}
- state.lastPointer=null;
+ state.lastPointer=null;state.coord=null;
  const p=PLANS.find(p=>p.id===id);
  /* Grundansicht mit weißem Rand um den Plan (mit Raster: um das komplette Raster) */
  state.base=paddedBox(frameBox(p));state.vb=state.base.slice();
@@ -1748,6 +1771,7 @@ function placeAt(p){
  const plan=PLANS.find(x=>x.id===target);
  toast('„'+(String(o.name??'').trim()||o.id)+'“ auf Plan „'+plan.name+'“ platziert: '+planCode(plan)+'('+q.x+'/'+q.y+').','success');
 }
+stage.addEventListener('pointerdown',event=>{if(state.svg&&event.button<=0){state.coord=toSvg(event.clientX,event.clientY);updateStatus()}},true);
 stage.addEventListener('pointerdown',event=>{
  if(event.pointerType==='touch'){
   if(event.isPrimary)state.pointers.clear();
@@ -1795,6 +1819,7 @@ stage.addEventListener('pointermove',event=>{
  if(!state.svg)return;
  if(state.pointers.has(event.pointerId))state.pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
  const p=toSvg(event.clientX,event.clientY);state.lastPointer=p;
+ if(!state.gesture)state.coord=p;
  const g=state.gesture;
  if(g&&g.type==='pinch'){movePinch(g);return}
  if(g&&event.pointerId===g.pointerId){
@@ -1842,7 +1867,7 @@ stage.addEventListener('pointerup',event=>{
 stage.addEventListener('pointercancel',event=>{if(releasePointer(event))return;if(state.gesture?.pointerId===event.pointerId)finishGesture(true)});
 stage.addEventListener('lostpointercapture',event=>{state.pointers.delete(event.pointerId);if(state.gesture?.pointerId===event.pointerId&&state.gesture.type!=='pinch')finishGesture(true)});
 window.addEventListener('blur',()=>finishGesture(true));
-stage.addEventListener('pointerleave',()=>{if(!state.gesture){state.lastPointer=null;updateStatus()}});
+stage.addEventListener('pointerleave',()=>{if(!state.gesture){state.lastPointer=null;updateStatus()}});   /* state.coord bleibt stehen (zum Abschreiben) */
 stage.addEventListener('wheel',event=>{
  event.preventDefault();
  if(state.gesture)return;
@@ -2528,12 +2553,12 @@ async function exportPdf(){
   const mode=$('pdf-mode').value,labels=$('chk-labels').checked;
   const plans=mode==='all'?PLANS:[PLANS.find(p=>p.id===state.current)];
   $('print-root')?.remove();root=document.createElement('div');root.id='print-root';
-  const loading=[];
+  const loading=[],views=[];
   /* Stand mit Datum und Uhrzeit, einmal für alle Seiten */
   const now=new Date(),stand=now.toLocaleDateString('de-DE')+', '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr';
   for(const plan of plans){
    const element=createPlanSvg(plan);attachOverlay(element);renderOverlay(element,plan.id,true);
-   const view=addPrintLegend(element,mode==='view'?state.vb.slice():frameBox(plan));
+   const view=addPrintLegend(element,mode==='view'?state.vb.slice():frameBox(plan));views.push(view);
    const page=document.createElement('div');page.className='print-page';
    const heading=document.createElement('div');heading.className='print-head';
    const title=document.createElement('strong');title.textContent='Gebäudeplan – '+plan.name;
@@ -2550,6 +2575,15 @@ async function exportPdf(){
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   /* Wichtig für iOS: Druckvorschau wird beim Wechsel Hoch-/Querformat neu aufgebaut. Der Druckinhalt darf daher nach dem Drucken nicht sofort entfernt werden (sonst bleibt die Seite weiß). Er ist am Bildschirm ausgeblendet und wird beim nächsten Druck ersetzt. */
   await new Promise(resolve=>setTimeout(resolve,150));
+  /* Ausrichtung: Automatisch = Querformat, wenn die Mehrzahl der Seiten breiter als hoch ist. Die Papiergröße bleibt Sache des Druckdialogs.
+     (iPad/iPhone ignorieren „size“ und drucken in der aktuellen Geräteausrichtung – die Seite passt sich per 100vh an.) */
+  {
+   let orient=$('pdf-orient').value;
+   if(orient==='auto')orient=views.filter(v=>v[2]>=v[3]).length*2>=views.length?'landscape':'portrait';
+   let rule=document.getElementById('print-page-rule');
+   if(!rule){rule=document.createElement('style');rule.id='print-page-rule';document.head.append(rule)}
+   rule.textContent='@page{size:'+orient+';margin:8mm}';
+  }
   window.print();
  }catch(error){
   root?.remove();
@@ -2560,6 +2594,24 @@ async function exportPdf(){
   setTimeout(()=>{err.style.display='none'},TOAST.long);
  }finally{button.disabled=false}
 }
+/* ---------- Info-Fenster: Bedienung der Karte ---------- */
+(function(){
+ const pop=$('info-pop'),btn=$('btn-info');
+ const li=(ul,text)=>{const e=document.createElement('li');e.textContent=text;ul.append(e)};
+ const title=document.createElement('h2');title.textContent='Bedienung der Karte';
+ const now=document.createElement('p');now.className='info-now';now.id='info-now';
+ const ul=document.createElement('ul');
+ ['Zoom: Mausrad, zwei Finger (Pinch), Doppelklick oder die Knöpfe + / −','Verschieben: Ziehen (oder Pfeiltasten, wenn die Planfläche den Fokus hat)','Details: Klick bzw. Tippen auf ein Objekt','Ganzen Plan anzeigen: „Zoom zurücksetzen“ oder Taste 0','Plan wechseln: Ziffern 1–9 oder Schaltflächen links'].forEach(t=>li(ul,t));
+ const note=document.createElement('p');note.className='info-note';
+ note.textContent='Die Koordinaten unten links (x · y) gehören zum Punkt unter der Maus bzw. zum zuletzt angeklickten oder berührten Punkt. Sie gelten für den angezeigten Plan und können so in die JS-Datei eingetragen werden.';
+ pop.append(title,now,ul,note);
+ function place(){const r=btn.getBoundingClientRect();pop.style.top=Math.round(r.bottom+8)+'px';pop.style.right=Math.max(12,Math.round(window.innerWidth-r.right))+'px'}
+ window.setInfo=open=>{pop.hidden=!open;btn.setAttribute('aria-expanded',String(open));if(open){place();updateInfo()}};
+ window.updateInfo=()=>{if(!pop.hidden)now.textContent='Aktuell: '+instructionText()};
+ btn.onclick=event=>{event.stopPropagation();window.setInfo(pop.hidden)};
+ document.addEventListener('pointerdown',event=>{if(!pop.hidden&&!event.target.closest('#info-pop,#btn-info'))window.setInfo(false)},true);
+ window.addEventListener('resize',()=>{if(!pop.hidden)place()});
+})();
 function openPrintPopup(){openModal($('print-popup'))}
 function closePrintPopup(){closeModal($('print-popup'))}
 $('btn-pdf').onclick=openPrintPopup;
@@ -2744,6 +2796,7 @@ function handleEscape(inField){
  if(shown('print-popup')){closePrintPopup();return true}
  if(shown('import-popup')){closeImportPopup();return true}
  if(shown('table-screen')){$('tbl-close').click();return true}
+ if(!$('info-pop').hidden){window.setInfo(false);return true}
  if(inField)return false;
  if(state.tool==='place'){cancelPlace('Platzierung abgebrochen.','warn');return true}
  closePopup(false);finishGesture(true);resetTool();mode();refreshUI();
