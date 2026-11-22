@@ -191,6 +191,11 @@ body>*:not(#print-root){display:none!important}
 .print-head span{color:#555;font-size:9pt}
 /* Bild: Breite als Prozentwert der Seitenbreite (setzt exportPdf() passend zur Planform und Ausrichtung) – skaliert bei größerem Papier automatisch mit */
 .print-page img{display:block;width:100%;height:auto;max-width:100%;object-fit:contain;object-position:center top;margin:0 auto}
+/* Legende: auf jeder Seite identisch, am unteren Seitenrand, über die volle Breite (position:fixed wird beim Druck auf jeder Seite wiederholt) */
+.print-legend{position:fixed;left:0;right:0;bottom:0;box-sizing:border-box;width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:1mm 6mm;border-top:1px solid #999;padding-top:1.5mm;background:#fff;font-family:system-ui,Arial,sans-serif;font-size:9pt;color:#111}
+.print-legend strong{font-size:9pt}
+.print-legend .pl-item{display:inline-flex;align-items:center;gap:2mm;white-space:nowrap}
+.print-legend .pl-line{display:inline-block;width:10mm;height:1.6mm;border-radius:1mm;box-shadow:0 0 0 .4mm rgba(0,0,0,.4)}
 }
 
 
@@ -2496,22 +2501,20 @@ window.addEventListener('dragend',clearDrop);
 /* Legende der Verbindungstypen als eigener Streifen UNTER dem Plan (liegt im Bild, daher auch in der PDF-Ausgabe).
    Sie verdeckt dadurch nie Gebäudeteile. Liefert den um den Streifen erweiterten Bildausschnitt zurück. */
 function addPrintLegend(element,view){
- if(!Object.values(LAYERS).some(l=>l.hasLegend&&state.visible[l.id]))return view;
- const u=view[2]/90,strip=u*4,top=view[1]+view[3],mid=top+strip/2;
- const g=S('g',{'font-family':PLAN_STYLE.font.family});
- g.append(S('rect',{x:view[0],y:top,width:view[2],height:strip,fill:'#fff'}));
- g.append(S('line',{x1:view[0],y1:top,x2:view[0]+view[2],y2:top,stroke:'#999','stroke-width':u*.12}));
- let x=view[0]+u;
- const title=S('text',{x,y:mid+u*.5,'font-size':u*1.4,'font-weight':'bold',fill:'#111',class:'ov'});title.textContent='Verbindungstypen';g.append(title);
- x+=u*16;
+ return view;   /* Die Legende ist ein HTML-Element am Seitenende (siehe printLegendElement) und nicht mehr Teil des Bildes */
+}
+/* Legende der Verbindungstypen: ein einziges, auf jeder Seite gleiches Element am unteren Seitenrand */
+function printLegendElement(){
+ if(!Object.values(LAYERS).some(l=>l.hasLegend&&state.visible[l.id]))return null;
+ const box=document.createElement('div');box.className='print-legend';
+ const title=document.createElement('strong');title.textContent='Verbindungstypen';box.append(title);
  LINE_TYPES.forEach(t=>{
-  g.append(S('line',{x1:x,y1:mid,x2:x+u*3.6,y2:mid,stroke:'#000','stroke-opacity':.4,'stroke-width':u*.75,'stroke-linecap':'round'}));
-  g.append(S('line',{x1:x,y1:mid,x2:x+u*3.6,y2:mid,stroke:t.color,'stroke-width':u*.55,'stroke-linecap':'round'}));
-  const label=S('text',{x:x+u*4.6,y:mid+u*.5,'font-size':u*1.3,fill:'#111',class:'ov'});label.textContent=t.label;g.append(label);
-  x+=u*(4.6+t.label.length*.8+3);
+  const item=document.createElement('span');item.className='pl-item';
+  const line=document.createElement('span');line.className='pl-line';line.style.background=t.color;
+  const label=document.createElement('span');label.textContent=t.label;
+  item.append(line,label);box.append(item);
  });
- element.append(g);
- return [view[0],view[1],view[2],view[3]+strip];
+ return box;
 }
 function svgUrl(element,view,labels){
  element.setAttribute('viewBox',view.join(' '));
@@ -2554,6 +2557,7 @@ async function exportPdf(){
   const plans=mode==='all'?PLANS:[PLANS.find(p=>p.id===state.current)];
   $('print-root')?.remove();root=document.createElement('div');root.id='print-root';
   const loading=[],views=[];
+  const legend=printLegendElement();if(legend)root.append(legend);   /* zuerst, damit .print-page:last-child stimmt */
   /* Stand mit Datum und Uhrzeit, einmal für alle Seiten */
   const now=new Date(),stand=now.toLocaleDateString('de-DE')+', '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr';
   for(const plan of plans){
