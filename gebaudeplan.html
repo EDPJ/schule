@@ -14,6 +14,8 @@
   --cur-moving:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 2l5 6h-3.5v6.5H24V11l6 5-6 5v-3.5h-6.5V24H21l-5 6-5-6h3.5v-6.5H8V21l-6-5 6-5v3.5h6.5V8H11z%22 fill=%22%231f6feb%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 10 10, grabbing;
   --cur-cross:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%225%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M16 3v10M16 19v10M3 16h10M19 16h10%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 10 10, crosshair;
   --cur-arrow:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 3 2, pointer;
+  --cur-default:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%23111%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 3 2, default;
+  --cur-text:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M11 4h10M11 28h10M16 4v24%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%225.5%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M11 4h10M11 28h10M16 4v24%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%222.4%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 10 10, text;
   --cur-copy:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M5 3v19l5-5 3.5 7.5 3-1.4L13 16.6h7z%22 fill=%22%232e9e5b%22 stroke=%22%23fff%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") 3 2, copy;}
 *{box-sizing:border-box}
 html{-webkit-tap-highlight-color:transparent}
@@ -245,12 +247,27 @@ body>*:not(#print-root){display:none!important}
 .tbl-head button{cursor:pointer}
 .tbl-head button.active{background:var(--accent-soft);border-color:var(--accent)}
 .tbl-status{font-size:13px;color:#556272;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tbl-wrap{overflow:auto;flex:1;padding:12px 16px}
-.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:var(--surface);border:1px solid var(--line);font-size:13px}
-.data-table th{position:sticky;top:0;z-index:2;background:var(--head-bg);text-align:left;padding:8px;border-bottom:1px solid var(--head-line);white-space:nowrap}
+/* Kein Innenabstand oben, sonst sitzt die klebende Kopfzeile beim Scrollen zu tief */
+.tbl-wrap{overflow:auto;flex:1;padding:0 16px 12px;scroll-padding-top:0}
+.data-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;background:var(--surface);border:1px solid var(--line);border-top:0;font-size:13px}
+.data-table th{position:sticky;top:0;z-index:2;background:var(--head-bg);text-align:left;padding:8px;border-top:1px solid var(--line);border-bottom:1px solid var(--head-line);white-space:nowrap}
 .data-table td{padding:5px;border-bottom:1px solid var(--row-line);vertical-align:top}
-.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid var(--field-border);border-radius:4px;background:var(--surface);font:inherit}
+/* Aktionsspalte (Platzieren / Löschen) bleibt beim horizontalen Scrollen rechts sichtbar */
+.data-table th:last-child,.data-table td:last-child{position:sticky;right:0;box-shadow:-6px 0 8px -6px #0003}
+.data-table td:last-child{z-index:1;background:var(--surface)}
+.data-table th:last-child{z-index:3}
+.data-table input,.data-table select{min-width:105px;max-width:190px;width:100%;padding:6px;border:1px solid var(--field-border);border-radius:4px;background:var(--surface);color:var(--text);caret-color:#111;font:inherit}
 .data-table input[readonly]{background:var(--bg);color:#5d6877}
+/* ID-Spalte schmal */
+.data-table th:first-child,.data-table td:first-child{width:62px;min-width:62px;max-width:62px}
+.data-table td:first-child input{min-width:0;max-width:100%}
+/* Gut sichtbare Mauszeiger in der Tabelle (dunkel mit weißem Rand) */
+#table-screen{cursor:var(--cur-default)}
+#table-screen input:not([readonly]){cursor:var(--cur-text)}
+#table-screen input[readonly],#table-screen th,#table-screen td{cursor:var(--cur-default)}
+#table-screen select,#table-screen button{cursor:var(--cur-arrow)}
+#table-screen button:disabled{cursor:not-allowed}
+.tbl-head input,.tbl-head select{color:var(--text);caret-color:#111}
 .data-table .missing{border:2px solid var(--warn-border)!important;background:var(--warn-field)!important}
 .table-place{white-space:nowrap;padding:6px;border:1px solid var(--accent);border-radius:5px;background:var(--accent-soft);cursor:pointer}
 .table-actions{display:flex;gap:6px;align-items:center}
@@ -393,7 +410,7 @@ const PLANS = [
   { id: 'ebene2', name: 'Ebene 2', group: 'main', sub: 'Hauptgebäude', box: [177, 109.2, 943.6, 508.7], gbox: [177.4, 112.2, 920.8, 508.7] },
   { id: 'ebene3', name: 'Ebene 3', group: 'main', sub: 'Hauptgebäude', box: [209.8, 325.4, 716.1, 379], gbox: [213.1, 328.6, 716.1, 379] },
   { id: 'ebene4', name: 'Ebene 4', group: 'main', sub: 'Hauptgebäude', box: [87.6, 439.1, 836, 262.8], gbox: [85.5, 436.6, 836, 262.8] },
-  { id: 'mlk', name: 'MLK', group: 'mlk', sub: 'Nebengebäude', box: [74.5, 51.5, 1160, 825.8] }
+  { id: 'mlk', name: 'MLK', group: 'mlk', sub: 'Nebengebäude', box: [29.8, 20.6, 464, 330.32] }
 ];
 
 const geometry = {
@@ -693,52 +710,52 @@ const geometry = {
       'M754.9 523.5 L768.3 523.5 L768.3 541.4 L754.9 541.4 Z'
     ],
     texts: [
-      ["Treppenhaus 1", 373.3, 471.7],
-      ["Treppenhaus 2", 857.8, 472.4],
-      ["Treppenhaus 3", 761.5, 561.1],
-      ["Strom", 1007.5, 252.6],
-      ["Heizungszentrale", 1150, 252.6],
+      ["Treppenhaus 1", 375.3, 471.5],
+      ["Treppenhaus 2", 857.8, 472.2],
+      ["Treppenhaus 3", 755.7, 560.9],
+      ["Strom", 1007.5, 252.4],
+      ["Heizungszentrale", 1156.5, 265.6],
       ["Kriechkeller 1", 276.9, 316.7],
       ["Kriechkeller 2", 511.4, 316.7],
       ["Kriechkeller 3", 727.1, 316.7],
-      ["Technik", 590.2, 390.1],
-      ["Theaterraum", 246.8, 367.7],
-      ["Holzraum", 330.4, 367.7],
-      ["Material", 405.9, 367.7],
-      ["E 02", 1073.3, 411],
-      ["E 00", 1013.6, 362.9],
-      ["E 01", 1073.3, 366],
-      ["Werkhalle", 331, 408.4],
-      ["Fahrradkeller", 744.5, 421.1],
-      ["E 03", 1073.3, 459.3],
-      ["Disko", 467.9, 464.5],
-      ["Teestube", 540.7, 464.5],
-      ["Billiard", 592.1, 464.5],
-      ["Kino", 641.6, 467.7],
-      ["Musik", 688.1, 467.7],
-      ["Cafeteria", 275.6, 516.3],
-      ["Spielezentrale", 330, 516.3],
-      ["Kiosk ULI", 1108, 533.8],
-      ["Bibliothek", 948.5, 535.7],
-      ["Treppenhaus C", 268.2, 561.2],
-      ["Flur", 482.1, 695],
-      ["Kleiner Konferenzraum", 733.8, 701.6, 0.75],
-      ["Flügelraum", 541.5, 716.2],
-      ["Lichtenbergsaal", 790.6, 744.4],
-      ["Stabspielraum", 458, 779.4],
-      ["Lehrer", 499.6, 787.9],
-      ["Klavierraum", 541.5, 779.4],
-      ["Büro Sek II", 612.1, 822.1],
-      ["Schulleitung", 784.6, 813.4],
-      ["Hausmeister", 631.8, 701.6],
-      ["Archiv", 693.7, 701.6],
-      ["Sek. I", 669.5, 822.1],
-      ["Mulde", 488.3, 638.6],
-      ["Sporthalle Geimsar II", 252, 778],
-      ["Büro KSL 2", 790.6, 784.1],
-      ["Sek. II", 643.1, 822.1],
-      ["Sek. KSL", 705.4, 822.1],
-      ["Büro KSL 1", 743.3, 822.1]
+      ["Technik", 590.2, 389.9],
+      ["Theaterraum", 246.8, 367.5],
+      ["Holzraum", 330.4, 367.5],
+      ["Material", 405.9, 367.5],
+      ["E 02", 1073.3, 407.1],
+      ["E 00", 1013.6, 362.7],
+      ["E 01", 1067.2, 369.1],
+      ["Werkhalle", 336.5, 423.7],
+      ["Fahrradkeller", 744.5, 420.9],
+      ["E 03", 1073.3, 457.7],
+      ["Disko", 467.9, 464.3],
+      ["Teestube", 540.7, 464.3],
+      ["Billiard", 592.1, 464.3],
+      ["Kino", 641.6, 467.5],
+      ["Musik", 688.1, 467.5],
+      ["Cafeteria", 275.6, 516.1],
+      ["Spielezentrale", 331.7, 506.7],
+      ["Kiosk ULI", 1108, 533.6],
+      ["Bibliothek", 948.5, 531.2],
+      ["Treppenhaus C", 274, 561],
+      ["Flur", 493.7, 694.1],
+      ["Kleiner Konferenzraum", 733.8, 701, 0.75],
+      ["Flügelraum", 541.5, 716.5],
+      ["Lichtenbergsaal", 794.3, 739.6],
+      ["Stabspielraum", 458, 779.2],
+      ["Lehrer", 499.6, 787.7],
+      ["Klavierraum", 541.5, 779.2],
+      ["Büro Sek II", 609.6, 814.7],
+      ["Schulleitung", 784.4, 812.9],
+      ["Hausmeister", 631.8, 701.2],
+      ["Archiv", 693.7, 701.4],
+      ["Sek. I", 669.5, 821.9],
+      ["Mulde", 488.3, 638.4],
+      ["Sporthalle Geimsar II", 254.7, 787.2],
+      ["Büro KSL 2", 793.6, 783.9],
+      ["Sek. II", 643.1, 821.9],
+      ["Sek. KSL", 705.4, 821.9],
+      ["Büro KSL 1", 743.3, 821.9]
     ]
   },
   ebene2: {
@@ -1052,55 +1069,55 @@ const geometry = {
       'M756.6 524 L770.4 524 L770.4 541.9 L756.6 541.9 Z'
     ],
     texts: [
-      ["Treppenhaus 2", 855.5, 472],
-      ["Treppenhaus 1", 375.2, 472],
-      ["Treppenhaus 3", 267.9, 559.8],
-      ["Treppenhaus 4", 759.6, 561.6],
-      ["NW 10", 662.2, 167],
-      ["Lehrer", 726.5, 152.5, 0.85],
-      ["NW 06", 791, 167],
-      ["NW 09", 662.2, 218.5],
-      ["NW 05", 791, 218.5],
-      ["Kunst 1", 432.7, 271.7],
-      ["Kunst 2", 485.2, 271.7],
-      ["Kunst 3", 538.3, 271.7],
-      ["Elektrotechnik", 591.3, 271.7],
-      ["NW 08", 662.2, 269.5],
-      ["NW 04", 791, 269.5],
-      ["Lehrer", 528, 331.1],
-      ["NW 03", 791, 320.5],
-      ["Maschinen", 429.2, 334.2],
-      ["AWT 01", 478.7, 338.3],
-      ["NW 07", 662.2, 320.5],
-      ["M 02", 662.2, 371],
-      ["Mensa", 245.7, 371.2],
-      ["Versorgungsküche", 329.6, 371.8],
-      ["AWT 02", 478.7, 381.8],
-      ["AWT 03", 535.1, 367.3],
-      ["Berufsorientierung", 591.3, 359.8, 0.85],
-      ["NW 02", 791, 371],
-      ["Teamraum 1", 910.4, 364, 0.95],
-      ["R 01", 946.5, 359.8],
-      ["R 02", 984.6, 359.8],
-      ["R 03", 1019.3, 361],
-      ["R 04", 1074.2, 369.8],
-      ["PC 01", 865.1, 389.1],
-      ["R 05", 1079.9, 404.2],
-      ["AWT 04", 535.1, 414.7],
-      ["AWT 05", 478.7, 425.4],
-      ["NW 01", 787.5, 421.7],
-      ["Mac-Raum", 918.2, 417.7],
-      ["Mathewerkstatt", 665.7, 421.7],
-      ["Sprachlabor", 918.2, 461.5],
-      ["R 06", 1080.9, 450],
-      ["AWT 06", 482.5, 469.2],
-      ["Lehrküche", 535.1, 465.7],
-      ["Lehrküchenanbau", 591.3, 465.7],
-      ["R 07", 1079.2, 482.8],
-      ["R 09", 942.9, 515.7],
-      ["R 08", 992.3, 515.7],
-      ["Teamraum 2", 1038.6, 515.7],
-      ["Küchenleitung", 258.8, 518, 0.9, -90]
+      ["Treppenhaus 2", 855.5, 471.8],
+      ["Treppenhaus 1", 377.2, 471.8],
+      ["Treppenhaus 3", 273.8, 559.6],
+      ["Treppenhaus 4", 753.7, 561.4],
+      ["NW 10", 662.2, 166.8],
+      ["Lehrer", 726.5, 152.1, 0.85],
+      ["NW 06", 791, 166.8],
+      ["NW 09", 662.2, 218.3],
+      ["NW 05", 791, 218.3],
+      ["Kunst 1", 432.6, 271.5],
+      ["Kunst 2", 485.3, 271.5],
+      ["Kunst 3", 538.3, 271.5],
+      ["Elektrotechnik", 591.2, 271.5],
+      ["NW 08", 662.2, 269.3],
+      ["NW 04", 791, 269.3],
+      ["Lehrer", 528, 330.9],
+      ["NW 03", 791, 320.3],
+      ["Maschinen", 429.1, 334],
+      ["AWT 01", 478.6, 338.1],
+      ["NW 07", 662.2, 320.3],
+      ["M 02", 662.2, 370.8],
+      ["Mensa", 245.8, 380.5],
+      ["Versorgungsküche", 329.5, 350.4],
+      ["AWT 02", 478.6, 381.6],
+      ["AWT 03", 535, 367.1],
+      ["Berufsorientierung", 591.2, 359.4, 0.85],
+      ["NW 02", 791, 370.8],
+      ["Teamraum 1", 910.5, 363.8, 0.95],
+      ["R 01", 946.5, 359.6],
+      ["R 02", 984.5, 359.6],
+      ["R 03", 1027.8, 356.5],
+      ["R 04", 1069.9, 371.5],
+      ["PC 01", 865.1, 388.9],
+      ["R 05", 1080.9, 410.7],
+      ["AWT 04", 535, 414.5],
+      ["AWT 05", 478.6, 425.2],
+      ["NW 01", 787.5, 421.5],
+      ["Mac-Raum", 918.2, 417.5],
+      ["Mathewerkstatt", 665.7, 421.5],
+      ["Sprachlabor", 918.2, 461.3],
+      ["R 06", 1080.9, 449.8],
+      ["AWT 06", 482.1, 469],
+      ["Lehrküche", 535, 465.5],
+      ["Lehrküchenanbau", 591.2, 459],
+      ["R 07", 1074.3, 490],
+      ["R 09", 942.9, 515.5],
+      ["R 08", 992.2, 515.5],
+      ["Teamraum 2", 1042, 523.2],
+      ["Küchenleitung", 258.5, 518, 0.9, -90]
     ]
   },
   ebene3: {
@@ -1247,43 +1264,43 @@ const geometry = {
       'M753.3 523.2 L766.8 523.2 L766.8 541 L753.3 541 Z'
     ],
     texts: [
-      ["Treppenhaus 1", 380.8, 472.8],
-      ["Treppenhaus 2", 864.6, 473.2],
-      ["Treppenhaus 3", 273.8, 559.9],
-      ["Treppenhaus 4", 753.8, 560.7],
-      ["U-Raum 1", 380.5, 350.7],
-      ["U-Raum 2", 437.8, 350.8],
-      ["U-Raum 3", 492.6, 350.8],
-      ["U-Raum 4", 546.9, 351.3],
-      ["U-Raum 5", 705.7, 355.4],
-      ["U-Raum 6", 766.3, 355.4],
-      ["U-Raum 7", 810.8, 355.4],
-      ["U-Raum 8", 865.9, 355.2],
-      ["U-Raum 9", 380.9, 410.8],
-      ["U-Raum 10", 546.8, 414.7],
-      ["U-Raum 11", 698.7, 414.2],
-      ["U-Raum 12", 865.5, 414],
-      ["Teamraum", 641.5, 485.3],
-      ["Teamraum", 270.2, 506],
-      ["Computerr. 1", 329.9, 513.3],
-      ["Teamraum", 497.4, 537.9],
-      ["U-Raum 13", 269.5, 595],
-      ["U-Raum 15", 581.1, 597.4],
-      ["U-Raum 16", 763.9, 600.3],
-      ["U-Raum 17", 268.5, 655.6],
-      ["U-Raum 18", 332.6, 656.3],
-      ["U-Raum 19", 388.2, 656.6],
-      ["U-Raum 20", 440.2, 656.6],
-      ["U-Raum 21", 581.6, 659],
-      ["U-Raum 22", 638.9, 659.6],
-      ["U-Raum 23", 699.5, 659.8],
-      ["U-Raum 24", 763.6, 659.8],
-      ["U-Raum 14", 439.7, 596.6],
-      ["Cluster Bunt", 465.7, 458.8],
-      ["Cluster Blau", 775.7, 455.4],
-      ["Raum 3", 851.7, 513.8],
-      ["Cluster Grün", 355.7, 570.8],
-      ["Cluster Gelb", 675.7, 569.5]
+      ["Treppenhaus 1", 377.9, 472.7],
+      ["Treppenhaus 2", 858.8, 473.1],
+      ["Treppenhaus 3", 276.6, 559.8],
+      ["Treppenhaus 4", 754, 560.6],
+      ["U-Raum 1", 380.4, 372.4],
+      ["U-Raum 2", 437.2, 368.9],
+      ["U-Raum 3", 493.6, 368.9],
+      ["U-Raum 4", 546.4, 372.6],
+      ["U-Raum 5", 694, 372.5],
+      ["U-Raum 6", 750.6, 369],
+      ["U-Raum 7", 806.6, 368.8],
+      ["U-Raum 8", 858.8, 372.5],
+      ["U-Raum 9", 384.1, 428.9],
+      ["U-Raum 10", 542.4, 428.7],
+      ["U-Raum 11", 698.5, 428.7],
+      ["U-Raum 12", 855, 429.1],
+      ["Teamraum", 644.1, 479.2],
+      ["Teamraum", 279.5, 516.4],
+      ["Computerr. 1", 332.1, 511.8],
+      ["Teamraum", 489.4, 553.9],
+      ["U-Raum 13", 279.1, 603.3],
+      ["U-Raum 15", 593.4, 604.6],
+      ["U-Raum 16", 752, 604.3],
+      ["U-Raum 17", 275.2, 660.1],
+      ["U-Raum 18", 328.1, 664.1],
+      ["U-Raum 19", 380.8, 664.3],
+      ["U-Raum 20", 437, 660.7],
+      ["U-Raum 21", 589.8, 660],
+      ["U-Raum 22", 642.1, 663.6],
+      ["U-Raum 23", 698.2, 663.5],
+      ["U-Raum 24", 755.8, 660],
+      ["U-Raum 14", 437, 604.3],
+      ["Cluster Bunt", 467.3, 463.8],
+      ["Cluster Blau", 769.5, 463.9],
+      ["Raum 3", 854.8, 517.2],
+      ["Cluster Grün", 359.9, 578.6],
+      ["Cluster Gelb", 668.5, 568.7]
     ]
   },
   ebene4: {
@@ -1371,78 +1388,77 @@ const geometry = {
       'M752.4 524 L765.8 524 L765.8 541.9 L752.4 541.9 Z'
     ],
     texts: [
-      ["Treppenhaus 1", 273.9, 560.6],
-      ["Treppenhaus 2", 752.7, 561.5],
-      ["Computerraum 1", 849.9, 462.5],
-      ["Lila 7", 391, 471],
-      ["Teamraum", 600.2, 510.1],
-      ["Teamraum", 270.7, 506.5],
-      ["Computerraum 2", 160.6, 548.7],
-      ["Ebene 5", 147.3, 568.5],
-      ["U-Raum 3", 440.7, 597],
-      ["U-Raum 4", 594.9, 598.4],
-      ["U-Raum 5", 751.9, 598.9],
-      ["U-Raum 2", 273.2, 600.3],
-      ["U-Raum 6", 273.6, 666.5],
-      ["U-Raum 7", 333.9, 666.6],
-      ["U-Raum 8", 389.3, 666.9],
-      ["U-Raum 9", 441.3, 666.9],
-      ["U-Raum 10", 595.2, 667],
-      ["U-Raum 11", 649.5, 667],
-      ["U-Raum 12", 699.5, 667.1],
-      ["U-Raum 13", 752.3, 667],
-      ["Raum 1", 451.1, 507],
-      ["Cluster Lila", 359.1, 566.5],
-      ["Diff Lila", 484.4, 561.5],
-      ["Diff Rot", 537.6, 561.5],
-      ["Cluster Rot", 674.6, 571.5]
+      ["Treppenhaus 1", 276.7, 560.5],
+      ["Treppenhaus 2", 752.9, 561.4],
+      ["Computerraum 1", 848.2, 473.6],
+      ["Lila 7", 379.3, 473.2],
+      ["Teamraum", 619.4, 504.5],
+      ["Teamraum", 279.9, 515.8],
+      ["Ebene 5: Computerraum 2", 162.1, 560.5],
+      ["U-Raum 3", 437.4, 605.3],
+      ["U-Raum 4", 593.5, 605.4],
+      ["U-Raum 5", 749.8, 604.8],
+      ["U-Raum 2", 280.6, 604.1],
+      ["U-Raum 6", 276.1, 659.3],
+      ["U-Raum 7", 328.6, 663],
+      ["U-Raum 8", 381.4, 663.1],
+      ["U-Raum 9", 437.4, 659.5],
+      ["U-Raum 10", 589.7, 659.6],
+      ["U-Raum 11", 641.5, 663.2],
+      ["U-Raum 12", 697.2, 663.3],
+      ["U-Raum 13", 753.4, 659.6],
+      ["Raum 1", 441.4, 510],
+      ["Cluster Lila", 379.7, 569.3],
+      ["Diff Lila", 489.6, 561.5],
+      ["Diff Rot", 537.9, 561.5],
+      ["Cluster Rot", 650.7, 574]
     ]
   },
   mlk: {
     inner: [
-      'M397.5 66.5 L397.5 862.2',
-      'M89.5 728 L1219.5 728',
-      'M89.5 199.8 L1219.5 199.8',
-      'M1029 459 L1219.5 459',
-      'M708.5 585.8 L897 585.8',
-      'M1029 585.8 L1219.5 585.8',
-      'M1029 332.2 L1219.5 332.2',
-      'M708.5 462 L897 462',
-      'M708.5 324.8 L897 324.8',
-      'M397.5 332.2 L571.2 332.2',
-      'M397.5 595.8 L571.2 595.8',
-      'M397.5 468 L571.2 468',
-      'M397.5 502.8 L571.2 502.8',
-      'M571.2 396.5 L708.5 396.5',
-      'M571.2 637 L708.5 637',
-      'M571.2 531.5 L708.5 531.5',
-      'M571.2 282.8 L708.5 282.8',
-      'M897 282.8 L1029 282.8',
-      'M647.3 728 L647.3 862.2',
-      'M321.8 728 L321.8 862.2',
-      'M864 728 L864 862.2',
-      'M512 728 L512 862.2',
-      'M775 728 L775 862.2',
-      'M237.3 728 L237.3 862.2',
-      'M992.8 728 L992.8 862.2',
-      'M259.8 66.5 L259.8 199.8',
-      'M522.5 66.5 L522.5 199.8',
-      'M325.2 66.5 L325.2 199.8',
-      'M931.8 66.5 L931.8 199.8',
-      'M740 66.5 L740 199.8',
-      'M1053.5 66.5 L1053.5 199.8',
-      'M226 66.5 L226 199.8',
-      'M591.8 66.5 L591.8 199.8',
-      'M897 624 L1029 624',
-      'M897 392 L1029 392',
-      'M897 521.5 L1029 521.5',
-      'M708.5 282.8 L708.5 637',
-      'M571.2 282.8 L571.2 637',
-      'M897 282.8 L897 624',
-      'M1029 282.8 L1029 624'
+      'M159 26.6 L159 344.88',
+      'M35.8 291.2 L487.8 291.2',
+      'M35.8 79.92 L487.8 79.92',
+      'M411.6 183.6 L487.8 183.6',
+      'M283.4 234.32 L358.8 234.32',
+      'M411.6 234.32 L487.8 234.32',
+      'M411.6 132.88 L487.8 132.88',
+      'M283.4 184.8 L358.8 184.8',
+      'M283.4 129.92 L358.8 129.92',
+      'M159 132.88 L228.48 132.88',
+      'M159 238.32 L228.48 238.32',
+      'M159 187.2 L228.48 187.2',
+      'M159 201.12 L228.48 201.12',
+      'M228.48 158.6 L283.4 158.6',
+      'M228.48 254.8 L283.4 254.8',
+      'M228.48 212.6 L283.4 212.6',
+      'M228.48 113.12 L283.4 113.12',
+      'M358.8 113.12 L411.6 113.12',
+      'M258.92 291.2 L258.92 344.88',
+      'M128.72 291.2 L128.72 344.88',
+      'M345.6 291.2 L345.6 344.88',
+      'M204.8 291.2 L204.8 344.88',
+      'M310 291.2 L310 344.88',
+      'M94.92 291.2 L94.92 344.88',
+      'M397.12 291.2 L397.12 344.88',
+      'M103.92 26.6 L103.92 79.92',
+      'M209 26.6 L209 79.92',
+      'M130.08 26.6 L130.08 79.92',
+      'M372.72 26.6 L372.72 79.92',
+      'M296 26.6 L296 79.92',
+      'M421.4 26.6 L421.4 79.92',
+      'M90.4 26.6 L90.4 79.92',
+      'M236.72 26.6 L236.72 79.92',
+      'M358.8 249.6 L411.6 249.6',
+      'M358.8 156.8 L411.6 156.8',
+      'M358.8 208.6 L411.6 208.6',
+      'M283.4 113.12 L283.4 254.8',
+      'M228.48 113.12 L228.48 254.8',
+      'M358.8 113.12 L358.8 249.6',
+      'M411.6 113.12 L411.6 249.6'
     ],
     outer: [
-      'M89.5 66.5 L89.5 862.2 L1219.5 862.2 L1219.5 66.5 Z'
+      'M35.8 26.6 L35.8 344.88 L487.8 344.88 L487.8 26.6 Z'
     ],
     stairwells: [
 
@@ -1451,38 +1467,38 @@ const geometry = {
 
     ],
     texts: [
-      ["Eingang 1", 157.8, 138.1],
-      ["HM", 242.9, 138.1],
-      ["WC M 1", 292.5, 138.1],
-      ["WC J 1", 361.4, 138.1],
-      ["B 00", 460, 138.1],
-      ["Gruppen 1", 557.1, 138.1, 0.95],
-      ["B 01", 665.9, 138.1],
-      ["B 02", 835.9, 138.1],
-      ["B 03", 992.6, 138.1],
-      ["B 04", 1136.5, 138.1],
-      ["Teamraum", 639.9, 344.5],
-      ["B 06", 963, 342.3],
-      ["B 07", 802.8, 398.3],
-      ["B 05", 1124.2, 400.5],
-      ["Disco", 484.4, 405],
-      ["Lichthof 2", 963, 461.6],
-      ["Lichthof 1", 639.9, 468.9],
-      ["Lager 1", 484.4, 490.3],
-      ["B 14", 802.8, 528.8],
-      ["B 13", 1124.2, 527.3],
-      ["Lager 2", 484.4, 554.2],
-      ["Gruppen 2", 963, 577.6],
-      ["AG RobotIGS", 639.9, 589.1],
-      ["Eingang 2", 163.4, 800],
-      ["WC J 2", 279.6, 800],
-      ["WC M 2", 359.6, 800],
-      ["MLK 1", 454.8, 800],
-      ["MLK 2", 579.6, 800],
-      ["B 10", 711.1, 800],
-      ["Gruppen 3", 819.5, 800],
-      ["B 11", 928.4, 800],
-      ["B 12 - Raum der Stille", 1106.2, 800]
+      ["Eingang 1", 63.1, 55.1],
+      ["HM", 97.2, 55.1],
+      ["WC M 1", 117, 55.1],
+      ["WC J 1", 144.5, 55.1],
+      ["B 00", 184, 55.1],
+      ["Gruppen 1", 222.9, 54.8, 0.88],
+      ["B 01", 266.4, 55.1],
+      ["B 02", 334.4, 55.1],
+      ["B 03", 397.1, 55.1],
+      ["B 04", 454.6, 55.1],
+      ["Teamraum", 255.9, 137.7],
+      ["B 06", 385.2, 136.8],
+      ["B 07", 321.1, 159.2],
+      ["B 05", 449.7, 160],
+      ["Disco", 193.7, 161.8],
+      ["Lichthof 2", 385.2, 184.5],
+      ["Lichthof 1", 255.9, 187.4],
+      ["Lager 1", 193.7, 196],
+      ["B 14", 321.1, 211.4],
+      ["B 13", 449.7, 210.8],
+      ["Lager 2", 193.7, 221.5],
+      ["Gruppen 2", 385.2, 230.9],
+      ["AG RobotIGS", 255.9, 235.5],
+      ["Eingang 2", 65.4, 319.8],
+      ["WC J 2", 111.8, 319.8],
+      ["WC M 2", 143.9, 319.8],
+      ["MLK 1", 181.9, 319.8],
+      ["MLK 2", 231.9, 319.8],
+      ["B 10", 284.5, 319.8],
+      ["Gruppen 3", 327.8, 319.8],
+      ["B 11", 371.4, 319.8],
+      ["B 12 - Raum der Stille", 442.5, 319.8]
     ]
   }
 };
@@ -1609,7 +1625,7 @@ const DISPLAY={
  pickTol:{touch:24,pen:20,mouse:16},        /* px: nächste Verbindung beim Antippen */
  slop:{touch:10,pen:6,mouse:4},             /* px: ab hier wird aus Antippen ein Ziehen */
  zoom:{button:1.4,wheel:1.15,dblclick:1.8,min:2/3,max:25},
- port:{x:6.5,y:3.2},                        /* Ebenenports links vom Plan (Symbolgrößen) */
+ port:{x:.45,y:.4},                        /* Ebenenports: Abstand links vom Raster bzw. vom oberen/unteren Rasterrand (Rasterkästchen) */
  searchListMax:30,focusPad:280,focusZoom:3,   /* Trefferliste, Rand/Zoom beim Springen zu Treffern */
  keyPan:{step:.1,big:.4},                   /* Pfeiltasten: Anteil des sichtbaren Ausschnitts */
  print:{rasterWidth:4200,maxPixels:14e6},   /* Pixelbild für den Druck (iOS/Safari) */
@@ -1748,8 +1764,10 @@ function prepareLocation(layerId,o,text){
 /* Verbindungen werden dem Plan ihres „Von“-Schranks zugeordnet. Zwischen den Ebenen
    führen sie über die festen Ebenenports links im Plan (alle Pläne bilden eine Kette, MLK ist die letzte Ebene). */
 function planIndex(planId){return PLANS.findIndex(p=>p.id===planId)}
-function portPoint(planId,dir){const p=PLANS.find(x=>x.id===planId),s=planSize(planId),left=Math.min(p.box[0],gridRef(planId).box[0]); /* unabhängig vom Raster, damit die Kästen beim Umschalten nicht springen */
-  const x=left-s*DISPLAY.port.x;return dir==='up'?{x:x,y:p.box[1]+s*DISPLAY.port.y}:{x:x,y:p.box[1]+p.box[3]-s*DISPLAY.port.y}}
+function portPoint(planId,dir){
+  /* Lage relativ zum Planquadrat-Raster der Gruppe (auch bei ausgeblendetem Raster): in jedem Plan an derselben Stelle des Rasters */
+  const g=gridRef(planId),x=g.x0-g.cell*DISPLAY.port.x;
+  return dir==='up'?{x:x,y:g.y0+g.cell*DISPLAY.port.y}:{x:x,y:g.y0+g.rows*g.cell-g.cell*DISPLAY.port.y}}
 function connectionPlanText(a,b){
  if(!a||!b)return 'Keine Linie im Plan (Netzwerkschränke fehlen oder haben keinen gültigen Ort)';
  return a.id===b.id?a.name+(a.sub?' – '+a.sub:''):a.name+' → '+b.name+' (über Ebenenport)';
@@ -1983,7 +2001,7 @@ function frameBox(plan){
  return [x0,y0,x1-x0,y1-y0];
 }
 function frameBoxOne(plan){
- const box=(state.gridOn?gridRef(plan.id).box:plan.box).slice(),i=planIndex(plan.id),size=planSize(plan.id);
+ const box=(state.gridOn?gridRef(plan.id).box:plan.box).slice(),i=planIndex(plan.id),size=portSize(plan.id);
  let x0=box[0],y0=box[1],x1=x0+box[2],y1=y0+box[3];
  ['up','down'].forEach(dir=>{
   const j=i+(dir==='up'?-1:1);if(j<0||j>=PLANS.length)return;
@@ -2007,7 +2025,7 @@ const PLAN_STYLE={
     inner:1.4,innerColor:'#222',  /* Innenwände, Treppenhäuser, Aufzug */
     join:'miter',cap:'square'
   },
-  groupScale:{main:1,mlk:2.5}
+  groupScale:{main:1,mlk:1}
 };
 
 function createPlanSvg(plan){
@@ -2173,7 +2191,26 @@ function planPoint(p,planId=state.current){
  const b=PLANS.find(p=>p.id===planId).box;
  return {x:Math.round(clamp(p.x,b[0],b[0]+b[2])),y:Math.round(clamp(p.y,b[1],b[1]+b[3]))};
 }
-function planSize(planId){return PLANS.find(p=>p.id===planId).box[2]/110}
+/* Einheitliche Größe aller Technikelemente (Symbole, Beschriftungen, Verbindungen) auf ALLEN Plänen (Planeinheiten) */
+const TECH_SIZE=10;
+function planSize(planId){return TECH_SIZE}
+/* Ebenen-Buttons (Ports): feste Bildschirmgröße bei Standard-Zoom, unabhängig vom Plan.
+   portSize() = Planeinheiten je Symbolgröße, so dass 1 Symbolgröße = PORT_PX Bildschirmpixel in der Grundansicht ist. */
+const PORT_PX=5,PORT_S={};
+function portSize(planId){const p=PLANS.find(x=>x.id===planId);return (p&&PORT_S[p.group])||planSize(planId)}
+function updatePortSize(plan){
+ const host=state.svg||stage,sr=host.getBoundingClientRect();
+ if(!sr.width||!sr.height)return false;
+ const fr=freePlanRect(),before=PORT_S[plan.group];let s=before||TECH_SIZE;
+ for(let i=0;i<10;i++){
+  PORT_S[plan.group]=s;
+  const c=paddedBox(frameBox(plan)),sc=Math.min((fr.right-fr.left)/c[2],(fr.bottom-fr.top)/c[3]),n=PORT_PX/sc;
+  if(Math.abs(n-s)<.002){s=n;break}
+  s=n;
+ }
+ PORT_S[plan.group]=s;
+ return before===undefined||Math.abs(before-s)>.002;
+}
 const percentFormat=new Intl.NumberFormat('de-DE',{maximumFractionDigits:1});
 /* Bedienhinweis: steht im Info-Fenster (Knopf oben rechts), nicht mehr auf der Karte */
 function instructionText(){
@@ -2230,7 +2267,7 @@ function visiblePlanOverlays(){
  });
 }
 function freePlanRect(){
- const sr=state.svg.getBoundingClientRect(),full={left:sr.left,top:sr.top,right:sr.right,bottom:sr.bottom};
+ const sr=(state.svg||stage).getBoundingClientRect(),full={left:sr.left,top:sr.top,right:sr.right,bottom:sr.bottom};
  const blocked=visiblePlanOverlays().map(el=>el.getBoundingClientRect()).map(r=>({
   left:Math.max(full.left,r.left),top:Math.max(full.top,r.top),right:Math.min(full.right,r.right),bottom:Math.min(full.bottom,r.bottom)
  })).filter(r=>r.right>r.left&&r.bottom>r.top);
@@ -2254,7 +2291,7 @@ function baseForVisibleArea(content){
  return [cx-((free.left+free.right)/2-sr.left)/sr.width*w,cy-((free.top+free.bottom)/2-sr.top)/sr.height*h,w,h];
 }
 function resetBase(){
- const plan=PLANS.find(p=>p.id===state.current);state.base=baseForVisibleArea(paddedBox(frameBox(plan)));
+ const plan=PLANS.find(p=>p.id===state.current);if(updatePortSize(plan))state.portChanged=true;state.base=baseForVisibleArea(paddedBox(frameBox(plan)));
 }
 /* Grundansicht neu berechnen (Raster ein/aus, Fenstergröße, Drehen des Geräts).
    Gesamtansicht bleibt Gesamtansicht. Sonst: keep='region' behält den Ausschnitt exakt, keep='zoom' behält Mittelpunkt und Zoomstufe. */
@@ -2266,10 +2303,12 @@ function rebaseView(keep){
  if(wasFit)state.vb=state.base.slice();
  else if(keep==='zoom'){const w=state.base[2]/zoom,h=w*state.base[3]/state.base[2];state.vb=[cx-w/2,cy-h/2,w,h]}
  applyVB();
+ if(state.portChanged){state.portChanged=false;renderOverlay()}
 }
 function fit(){
  finishGesture(true);
  resetBase();state.vb=state.base.slice();state.lastPointer=null;applyVB();
+ if(state.portChanged){state.portChanged=false;renderOverlay()}
 }
 function buildButtons(){
  PLANS.forEach(p=>{
@@ -2304,7 +2343,7 @@ function layerList(){
   const text=document.createElement('div');
   const name=document.createElement('span');name.className='lname';name.textContent=l.label;
   const count=document.createElement('span');count.className='lcount';
-  const list=itemsOnPlan(state.current,l.id).filter(o=>!o._seg);
+  const list=layerAll(l.id);   /* Gesamtanzahl über alle Pläne */
   if(l.kind==='mixed'){
    const cabinets=countOf(list,false),lines=countOf(list,true);
    {const a=document.createElement('span'),b=document.createElement('span');a.textContent=cabinets+(cabinets===1?' Netzwerkschrank':' Netzwerkschränke');b.textContent=lines+(lines===1?' Verbindung':' Verbindungen');count.append(a,b)}
@@ -2331,6 +2370,7 @@ function loadPlan(id){closePopup(false);
  if(!(state.active&&state.tool==='drawline'&&state.drawing.length)){state.drawing=[];state.previewPoint=null;}
  state.lastPointer=null;state.coord=null;
  const p=PLANS.find(p=>p.id===id);
+ updatePortSize(p);
  /* Grundansicht mit weißem Rand um den Plan (mit Raster: um das komplette Raster) */
  state.base=paddedBox(frameBox(p));state.vb=state.base.slice();
  state.svg=createPlanSvg(p);state.overlay=attachOverlay(state.svg);
@@ -2431,8 +2471,11 @@ function drawGrid(target,planId){
 }
 const SYMBOLS={
  ap(g,x,y,size,color){
-  g.append(S('circle',{cx:x,cy:y,r:size*.65,fill:color,stroke:'#fff','stroke-width':size*.18}));
-  g.append(S('path',{d:`M ${x-size*.3} ${y+size*.1} q ${size*.3} ${-size*.5} ${size*.6} 0 M ${x-size*.43} ${y+size*.33} q ${size*.43} ${-size*.75} ${size*.86} 0`,fill:'none',stroke:'#fff','stroke-width':size*.1}));
+  /* Rundes Symbol mit klassischem WLAN-Zeichen: Punkt unten, zwei Bögen darüber, optisch mittig */
+  g.append(S('circle',{cx:x,cy:y,r:size*.7,fill:color,stroke:'#fff','stroke-width':size*.16}));
+  const cy=y+size*.24,arc=r=>{const d=r*Math.SQRT1_2;return `M ${x-d} ${cy-d} A ${r} ${r} 0 0 1 ${x+d} ${cy-d}`};
+  g.append(S('path',{d:arc(size*.3)+' '+arc(size*.55),fill:'none',stroke:'#fff','stroke-width':size*.1,'stroke-linecap':'round'}));
+  g.append(S('circle',{cx:x,cy:cy,r:size*.075,fill:'#fff'}));
  },
  cabinet(g,x,y,size,color){
   g.append(S('rect',{x:x-size*.55,y:y-size*.55,width:size*1.1,height:size*1.1,rx:size*.08,fill:color,stroke:'#fff','stroke-width':size*.15}));
@@ -2502,7 +2545,7 @@ function placeLabels(L){
  });
 }
 function draw(layer,o,size,editing,hl=null,hit=editing,dispPts=null){
- const g=S('g',{'data-id':uid(o)});
+ const g=S('g',isLine(o)?{'data-id':uid(o),'data-line':'1'}:{'data-id':uid(o)});
  const title=S('title');
  title.textContent=(o.name||o.id)+(isLine(o)&&o.typ?' ('+o.typ+')':'');g.append(title);
  const color=colorFor(layer,o);
@@ -2543,14 +2586,15 @@ function draw(layer,o,size,editing,hl=null,hit=editing,dispPts=null){
  }
  return g;
 }
-function drawPorts(target,planId,size,exporting){
+function drawPorts(target,planId,size0,exporting){
+ const size=portSize(planId);
  const g=groupOf(target,'ports');if(!g)return;g.replaceChildren();g.style.display=portLayers().some(l=>state.visible[l.id])?'':'none';
  const i=planIndex(planId);if(PLANS.length<2)return;
  ['up','down'].forEach(dir=>{const j=i+(dir==='up'?-1:1);if(j<0||j>=PLANS.length)return;const other=PLANS[j],pt=portPoint(planId,dir);
   const count=portLayers().reduce((n,l)=>n+layerAll(l.id).filter(o=>{if(!isLine(o))return false;const seq=[homePlan(l.id,o),...(o.segs||[]).map(s=>s.plan)];return seq.some((x,k)=>(x===planId&&seq[k+1]===other.id)||(x===other.id&&seq[k+1]===planId))}).length,0);
   const r=S('rect',{x:pt.x-size*1.7,y:pt.y-size*1.7,width:size*3.4,height:size*3.4,rx:size*.5,fill:'transparent',stroke:'#334155','stroke-width':size*.26,'pointer-events':'all'});
   const k=dir==='up'?-1:1,a=S('path',{d:'M'+(pt.x-size*.9)+' '+(pt.y-k*size*.4)+'L'+pt.x+' '+(pt.y+k*size*.6)+'L'+(pt.x+size*.9)+' '+(pt.y-k*size*.4),fill:'none',stroke:'#334155','stroke-width':size*.34,'stroke-linecap':'round','stroke-linejoin':'round'});
-  const t=S('text',{x:pt.x,y:pt.y+size*3.3,'text-anchor':'middle','font-size':size*1.2,fill:'#334155',class:'ov'});t.textContent=other.name+(count?' · '+count:'');
+  const t=S('text',{x:pt.x,y:pt.y+size*3.5,'text-anchor':'middle','font-size':size*1.75,fill:'#334155',class:'ov'});t.textContent=other.name+(count?' · '+count:'');
   if(!exporting){
    const go=()=>{if(!isDrawTool())loadPlan(other.id)};
    [r,a,t].forEach(el=>{el.style.cursor='pointer';el.onpointerdown=e=>e.stopPropagation();el.onclick=e=>{e.stopPropagation();go()}});
@@ -2589,7 +2633,7 @@ function renderOverlay(target=state.svg,planId=state.current,exporting=false){
   const g=groupOf(target,layer.id);
   if(dragLayer&&layer.id!==dragLayer&&g.childElementCount)return;
   g.replaceChildren();
-  g.style.display=state.visible[layer.id]?'':'none';
+  g.style.display='';
   g.style.opacity=!exporting&&state.active&&state.active!==layer.id?'.3':'1';
   const editing=!exporting&&state.active===layer.id;
   const hit=editing||(!exporting&&!state.active);g.setAttribute('pointer-events',hit?'all':'none');
@@ -2600,6 +2644,8 @@ function renderOverlay(target=state.svg,planId=state.current,exporting=false){
   const lines=items.filter(isLine);
   if(layerHl)lines.sort((a,b)=>layerHl.lines.has(uid(a))-layerHl.lines.has(uid(b)));
   [...lines,...items.filter(o=>!isLine(o))].forEach(o=>g.append(draw(layer,o,size,editing,layerHl,hit,isLine(o)&&spread?spread.get(uid(o)):null)));
+  /* Haken der Technikkategorie: blendet nur Beschriftungen und Verbindungen aus – die Objekte (Symbole) bleiben sichtbar */
+  if(!state.visible[layer.id])g.querySelectorAll('[data-line],text').forEach(el=>{el.style.display='none'});
   /* Anfasser der gewählten Verbindung: im Werkzeug „Auswählen“ und direkt nach dem Zeichnen; auf jedem Plan, auf dem sie dargestellt wird */
   if(editing&&state.selected&&(state.tool==='select'||state.tool==='drawline')){
    const shownLine=items.find(o=>isLine(o)&&uid(o)===state.selected);
