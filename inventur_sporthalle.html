@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sporthalleninventur IGS Geismar</title>
+<style>
+:root{--bg:#f3f5f8;--panel:#fff;--line:#d9dee6;--text:#1c2430;--muted:#6b7686;--accent:#1f6feb;--accent-soft:#e6f0ff;--accent-text:#0b4fbf;
+--hover:#f1f4f9;--head:#eef2f7;--field:#bcc6d3;--warn-bg:#fff0d8;--warn-text:#a84c00;--warn-border:#f08a24;--danger:#b42318;--danger-bg:#fdecea;--ok:#1a7f4b;--focus:#8bbaff}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--text);background:var(--bg);display:flex;flex-direction:column;font-size:15px;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);-webkit-text-size-adjust:100%}
+header{position:relative;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top));background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:18px;margin:0;font-weight:650;letter-spacing:-.01em;min-width:0}
+.badge{font-size:12px;padding:5px 10px;border-radius:999px;background:var(--warn-bg);color:var(--warn-text);font-weight:600;white-space:nowrap}
+.badge[hidden]{display:none}
+.actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+button,select,input{font:inherit;color:inherit}
+button{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 14px;min-height:38px;border:1px solid var(--line);border-radius:9px;background:var(--panel);cursor:pointer;white-space:nowrap;touch-action:manipulation}
+button svg{width:18px;height:18px;flex:none}
+button:hover{background:var(--hover)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover{background:#1a5fd0}
+button.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--focus);outline-offset:1px}
+.ib{width:38px;height:38px;padding:0;min-height:0}
+.ib.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-text)}
+.ib.del{color:var(--danger);border-color:#f0b4ae}
+.ib.del:hover{background:var(--danger-bg)}
+#infoPop{position:absolute;top:calc(100% + 6px);right:12px;width:min(390px,calc(100vw - 24px));max-height:calc(100vh - 90px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0003;padding:14px 16px;line-height:1.5;font-size:14px}
+#infoPop[hidden]{display:none}
+#infoPop .ihead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:16px}
+#infoPop ul{margin:0;padding-left:18px}#infoPop li{margin:7px 0}
+.tools{display:flex;flex-direction:column;gap:10px;padding-block:12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.trow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.vsep{width:1px;align-self:stretch;background:var(--line);margin:0 6px}
+#reset{border-color:transparent;background:none;color:var(--muted)}#reset:hover{background:var(--hover);color:var(--text)}
+.tools input[type=search],.tools select{min-height:38px;padding:0 11px;border:1px solid var(--field);border-radius:9px;background:#fff;font-size:16px}
+.tools input[type=search]{width:260px;max-width:100%}
+.chips{display:flex;border:1px solid var(--field);border-radius:10px;overflow:hidden;background:#fff}
+.chips button{border:0;border-radius:0;border-right:1px solid var(--line);background:transparent}
+.chips button:last-child{border-right:0}
+.chips button.on{background:var(--accent-soft);color:var(--accent-text);font-weight:600}
+#count{color:var(--muted);font-size:13px}
+#fSort{display:none}
+main{flex:1;min-height:0;overflow:auto;padding:12px 16px}
+table{table-layout:fixed;border-collapse:separate;border-spacing:0;width:100%;min-width:900px;background:var(--panel);border:1px solid var(--line)}
+th{position:sticky;top:0;z-index:1;background:#f6f8fb;text-align:left;padding:10px 24px 10px 8px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;font-size:13px;font-weight:600;color:#465365;line-height:1.3;vertical-align:middle}
+.thi{display:flex;align-items:center;gap:5px;min-height:34px}
+th:hover{background:#edf1f6}
+th.noclick{cursor:default}th.noclick:hover{background:#f6f8fb}
+.thi .ar{position:absolute;right:7px;top:50%;transform:translateY(-50%);color:var(--accent);font-size:17px;font-weight:700;line-height:1}
+td{padding:7px 8px;overflow:hidden;border-bottom:1px solid #e5e9ef;vertical-align:middle;height:52px;text-align:left}
+tbody tr:hover td:not(.miss){background:#f8fafd}
+td.miss{background:var(--warn-bg);box-shadow:inset 0 0 0 1px var(--warn-border)}
+td.miss:empty::after{content:attr(data-hint);color:var(--warn-text);font-weight:400;font-style:italic}
+td input,td select{width:100%;min-height:38px;padding:0 8px;border:1px solid var(--field);border-radius:7px;background:#fff;font-size:16px;text-align:left}
+td input,td select{display:block;height:40px;min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;line-height:normal}
+td input[type=date]{width:100%;text-align:left;display:flex;align-items:center;padding-top:0;padding-bottom:0}
+td input::-webkit-date-and-time-value{text-align:left;min-height:0;margin:0}
+td input::-webkit-datetime-edit{padding:0}
+td input[type=date].isempty::-webkit-datetime-edit{color:transparent}
+td input::placeholder{color:#8a94a3;opacity:1}
+.dwrap{position:relative}
+.dph{position:absolute;left:9px;top:0;bottom:0;display:flex;align-items:center;color:#8a94a3;pointer-events:none}
+td select{padding-right:28px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7686' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 10px center}
+th:nth-child(1){width:20%}th:nth-child(2){width:14%}th:nth-child(3){width:12%}th:nth-child(4){width:14%}th:nth-child(5){width:12%}th:nth-child(6){width:13%}th:nth-child(7){width:9%}th:nth-child(8){width:116px}
+tr.editing td{background-color:var(--accent-soft)}
+tr.editing td.miss{background:var(--warn-bg)}
+.pill{display:inline-block;padding:3px 11px;border-radius:999px;font-weight:650;font-variant-numeric:tabular-nums}
+.pill.neg{background:var(--danger-bg);color:var(--danger)}.pill.pos{background:#e2f5ea;color:var(--ok)}.pill.zero{background:var(--head);color:var(--muted)}.pill.none{color:var(--muted);font-weight:400;padding-left:0}
+td.act{white-space:nowrap;width:1%}
+td.act .ib{margin-left:4px}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+dialog{border:0;border-radius:14px;padding:24px;width:min(440px,92vw);box-shadow:0 18px 55px #0005}
+dialog::backdrop{background:#16203380}
+dialog h2{margin:0 0 8px;font-size:19px}
+dialog p{margin:0 0 18px;color:var(--muted);overflow-wrap:anywhere}
+dialog input{width:100%;min-height:42px;padding:0 10px;border:1px solid var(--field);border-radius:8px;margin-bottom:18px;font-size:16px}
+.dact{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+#drop{display:none;position:fixed;inset:12px;z-index:60;border:3px dashed var(--accent);border-radius:12px;background:#e6f0fff2;align-items:center;justify-content:center;font-size:18px;font-weight:650;pointer-events:none}
+#drop.show{display:flex}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,8px);background:var(--text);color:#fff;padding:11px 16px;border-radius:10px;border-left:5px solid var(--accent);box-shadow:0 8px 24px #0004;opacity:0;transition:.2s;pointer-events:none;width:max-content;max-width:min(420px,90vw);z-index:70}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.err{border-left-color:#d64545}
+header,.tools,main{padding-inline:max(16px,calc((100% - 1400px)/2))}
+main>table{border-radius:12px;box-shadow:0 1px 3px #1c24300f}
+th:first-child{border-top-left-radius:11px}th:last-child{border-top-right-radius:11px}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:last-child td:first-child{border-bottom-left-radius:11px}tbody tr:last-child td:last-child{border-bottom-right-radius:11px}
+td:nth-child(1){font-weight:600}
+td input,td select{font-weight:400}
+.fgroup{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--bg);border:1px solid var(--line);border-radius:12px}
+.flabel{font-size:13px;font-weight:650;color:var(--muted);margin:0 4px 0 2px}
+.tools button,.tools select,.tools input[type=search]{min-height:40px}
+.tools select{font-size:15px;padding:0 10px}
+.chips button{font-size:14px;padding:0 12px}
+.fgroup .vsep{margin:0 2px}
+@media(pointer:coarse){button{min-height:44px}.ib{width:44px;height:44px;min-height:0}td input,td select,.tools input[type=search],.tools select{min-height:44px}}
+@media(max-width:900px){
+ html,body{height:auto}body{display:block}
+ header{position:sticky;top:0}
+ main{overflow:visible;padding:12px 12px 100px}
+ table,thead,tbody,tr,td{display:block}
+ table{min-width:0;border:0;background:none}
+ thead{display:none}
+ tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+ tr{display:grid;grid-template-columns:1fr 1fr;align-content:start;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 4px 8px}
+ tr.editing{background:var(--accent-soft);border-color:var(--accent)}
+ tr.editing td{background-color:transparent}tr.editing td.miss{background:var(--warn-bg)}
+ tbody tr:hover td:not(.miss){background:none}
+ td{height:auto;border:0;padding:6px 10px;min-width:0}
+ td::before{content:attr(data-label);display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+ td.miss{margin:3px 6px;padding:4px 6px;border-radius:7px}
+ td.act::before{display:none}
+ td:nth-child(1){grid-column:1/-1;font-size:17px;font-weight:650}
+ td:nth-child(1)::before{font-weight:400}
+ td:nth-child(5){order:3}td:nth-child(6){order:4}td:nth-child(4){order:5}td.diff{order:6}
+ td.act{order:7;grid-column:1/-1;display:flex;justify-content:flex-end;width:auto;padding-top:2px}
+ .tools{padding:10px 12px}
+ .tools input[type=search]{flex:1 1 100%;width:100%}
+ .tools select{flex:1 1 130px;min-width:0}
+ #fSort{display:block}
+ .chips{flex:1 1 100%;overflow-x:auto;padding-bottom:2px}.chips button{flex:none}
+ #count{flex:1 1 100%}
+ .vsep,.sp{display:none}
+ td:nth-child(1) input{font-weight:400}
+ #add{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:40;min-height:54px;border-radius:27px;padding:0 22px;box-shadow:0 6px 18px #1f6feb66}
+}
+@media(max-width:560px){header h1{font-size:16px;flex:1}.actions{margin-left:0}.actions .lbl{display:none}.actions button:not(.ib){width:38px;padding:0}}
+</style>
+</head>
+<body>
+<header>
+ <h1>Sporthalleninventur IGS Geismar</h1>
+ <span class="badge" id="dirty" hidden title="Änderungen sind nur im Browser gespeichert. Mit „Export“ als Excel-Datei sichern.">Nicht exportiert</span>
+ <div class="actions">
+  <button id="imp" data-ico="upload" aria-label="Excel-Import"><span class="lbl">Import</span></button>
+  <button id="exp" data-ico="download" aria-label="Excel-Export"><span class="lbl">Export</span></button>
+  <button id="info" class="ib" data-ico="info" aria-label="Info" title="Info" aria-haspopup="dialog" aria-expanded="false"></button>
+ </div>
+ <div id="infoPop" role="dialog" aria-label="Info" hidden>
+  <div class="ihead"><strong>So funktioniert’s</strong><button id="infoClose" class="ib" data-ico="close" aria-label="Schließen"></button></div>
+  <ul>
+   <li><b>Zählen:</b> Stift antippen, die tatsächliche Anzahl eintragen, mit dem Häkchen beenden. Das Kontrolldatum wird dabei automatisch auf heute gesetzt.</li>
+   <li><b>Orange Felder</b> sind leer.</li>
+   <li><b>Differenz</b> = tatsächlich − theoretisch. Grün: Überschuss, rot: es fehlt etwas, grau: stimmt.</li>
+   <li><b>Löschen:</b> Papierkorb antippen und bestätigen.</li>
+   <li><b>Excel:</b> Der Import erwartet die Spalten Name, Ort, Halle, Datum letzte Kontrolle, Theoretische Anzahl, Tatsächliche Anzahl und ersetzt oder ergänzt die Daten. Der Export erzeugt eine .xlsx-Datei.</li>
+   <li><b>Speicherung:</b> Die Daten liegen nur in diesem Browser. Bitte regelmäßig exportieren.</li>
+  </ul>
+ </div>
+</header>
+<div class="tools">
+ <div class="trow">
+  <input type="search" id="q" placeholder="Suchen (Name, Ort, Halle) …" aria-label="Suchen" autocomplete="off">
+  <span class="sp"></span>
+  <span id="count"></span>
+  <button id="add" class="primary" data-ico="plus"><span class="lbl">Eintrag</span></button>
+ </div>
+ <div class="fgroup" role="group" aria-label="Filter">
+  <span class="flabel">Filter</span>
+  <select id="fHalle" aria-label="Halle filtern"></select>
+  <select id="fOrt" aria-label="Ort filtern"></select>
+  <select id="fSort" aria-label="Sortieren">
+   <option value="name:1">Sortiert nach Name</option><option value="ort:1">Sortiert nach Ort</option><option value="halle:1">Sortiert nach Halle</option>
+   <option value="datum:-1">Kontrolle: neueste zuerst</option><option value="datum:1">Kontrolle: älteste zuerst</option>
+   <option value="soll:1">Theoretische Anzahl</option><option value="ist:1">Tatsächliche Anzahl</option><option value="diff:1">Differenz</option>
+  </select>
+  <span class="vsep"></span>
+  <div class="chips" id="chips">
+   <button data-f="all" class="on">Alle</button>
+   <button data-f="dev">Abweichungen</button>
+   <button data-f="open">Nicht gezählt</button>
+  </div>
+  <span class="sp"></span>
+  <button id="reset">Zurücksetzen</button>
+ </div>
+</div>
+<main>
+ <table>
+  <thead><tr id="head"></tr></thead>
+  <tbody id="body"></tbody>
+ </table>
+ <div class="empty" id="empty" hidden>Keine Einträge. Mit „+ Eintrag“ einen neuen Eintrag anlegen, eine Excel-Datei importieren oder die Filter zurücksetzen.</div>
+</main>
+<div id="drop">Excel-Datei hier ablegen</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+
+<dialog id="dlg">
+ <h2>Excel-Import</h2>
+ <p id="dlgText"></p>
+ <div class="dact"><button id="dCancel">Abbrechen</button><button id="dAppend">Anhängen</button><button id="dReplace" class="primary">Ersetzen</button></div>
+</dialog>
+<dialog id="delDlg">
+ <h2>Eintrag löschen?</h2>
+ <p id="delText"></p>
+ <div class="dact"><button id="delNo">Abbrechen</button><button id="delYes" class="danger">Löschen</button></div>
+</dialog>
+<dialog id="ortDlg">
+ <h2>Neuer Ort</h2>
+ <input id="ortIn" placeholder="z. B. Geräteraum 1" autocomplete="off">
+ <div class="dact"><button id="ortNo">Abbrechen</button><button id="ortYes" class="primary">Übernehmen</button></div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const KEY='inventur-geismar-v2';
+const BASE_HALLEN=['Geismar 1','Geismar 2'];
+const COLS=[
+ {k:'name',l:'Name',t:'text'},
+ {k:'ort',l:'Ort',t:'select'},
+ {k:'halle',l:'Halle',t:'select'},
+ {k:'datum',l:'Datum letzte Kontrolle',t:'date'},
+ {k:'soll',l:'Theoretische Anzahl',t:'num'},
+ {k:'ist',l:'Tatsächliche Anzahl',t:'num'}
+];
+const HINT={name:'Name eingeben',ort:'Ort wählen',halle:'Halle wählen',datum:'Datum wählen',soll:'Anzahl eingeben',ist:'Anzahl eingeben'};
+const ICON={
+ edit:'M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z',
+ done:'M5 13.5l4 4L19 7.5',
+ trash:'M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14 M10 10v6 M14 10v6',info:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 11v6 M12 7.5v.01',upload:'M12 16V4 M7 9l5-5 5 5 M4 20h16',download:'M12 4v12 M7 11l5 5 5-5 M4 20h16',plus:'M12 5v14M5 12h14',minus:'M5 12h14',close:'M6 6l12 12M18 6L6 18'
+};
+let items=[],nextId=1,dirty=false,sort={k:'name',dir:1},filter='all',pending=null,delTarget=null,ortTarget=null;
+
+/* ---------- Speichern im Browser ---------- */
+const clean=o=>Object.fromEntries(Object.entries(o).filter(([k])=>k[0]!=='_'));
+function save(){try{localStorage.setItem(KEY,JSON.stringify({items:items.map(clean),dirty}))}catch{}}
+function load(){
+ try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&Array.isArray(d.items)){items=d.items;dirty=!!d.dirty}}catch{}
+ items.forEach(o=>o._id=nextId++);
+}
+function setDirty(v=true){dirty=v;$('dirty').hidden=!dirty;save()}
+
+/* ---------- Hilfsfunktionen ---------- */
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const isNum=v=>v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v));
+const diffOf=o=>isNum(o.ist)&&isNum(o.soll)?Number(o.ist)-Number(o.soll):null;
+const isEmpty=v=>String(v??'').trim()==='';
+const hasMissing=o=>COLS.some(c=>isEmpty(o[c.k]));
+const norm=s=>String(s??'').toLowerCase();
+const collator=(a,b)=>a.localeCompare(b,'de',{numeric:true,sensitivity:'base'});
+const hallen=()=>[...BASE_HALLEN,...[...new Set(items.map(o=>o.halle).filter(h=>h&&!BASE_HALLEN.includes(h)))].sort(collator)];
+const orte=()=>[...new Set(items.map(o=>o.ort).filter(Boolean))].sort(collator);
+function toast(msg,err){const t=$('toast');t.textContent=msg;t.className='show'+(err?' err':'');clearTimeout(toast.t);toast.t=setTimeout(()=>t.className='',err?6000:3000)}
+function fmtDate(iso){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');return m?m[3]+'.'+m[2]+'.'+m[1]:(iso||'')}
+function parseDate(v){
+ if(v instanceof Date&&!isNaN(v)){const d=new Date(v.getTime()+6*3600e3);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+ const s=String(v??'').trim();if(!s)return '';
+ let m=/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/.exec(s);
+ if(m){const y=m[3].length===2?'20'+m[3]:m[3];return y+'-'+pad(m[2])+'-'+pad(m[1])}
+ m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+ return m?m[1]+'-'+pad(m[2])+'-'+pad(m[3]):'';
+}
+function icon(name){
+ const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+ s.setAttribute('viewBox','0 0 24 24');s.setAttribute('fill','none');s.setAttribute('stroke','currentColor');
+ s.setAttribute('stroke-width','2');s.setAttribute('stroke-linecap','round');s.setAttribute('stroke-linejoin','round');s.setAttribute('aria-hidden','true');
+ const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',ICON[name]);s.append(p);return s;
+}
+function iconBtn(name,label,cls,fn){
+ const b=document.createElement('button');b.className='ib '+(cls||'');b.title=label;b.setAttribute('aria-label',label);b.append(icon(name));b.onclick=fn;return b;
+}
+
+/* ---------- Anzeige ---------- */
+function visible(){
+ const q=norm($('q').value).trim(),h=$('fHalle').value,ort=$('fOrt').value;
+ return items.filter(o=>{
+  if(h&&o.halle!==h)return false;
+  if(ort&&o.ort!==ort)return false;
+  if(filter==='dev'){const d=diffOf(o);if(d===null||d===0)return false}
+  if(filter==='open'&&isNum(o.ist))return false;
+  if(filter==='miss'&&!hasMissing(o))return false;
+  return !q||[o.name,o.ort,o.halle].some(v=>norm(v).includes(q));
+ }).sort((a,b)=>{
+  const k=sort.k,col=COLS.find(c=>c.k===k);
+  const numeric=k==='diff'||(col&&col.t==='num');
+  const x=k==='diff'?diffOf(a):a[k],y=k==='diff'?diffOf(b):b[k];
+  if(numeric){
+   const ax=isNum(x),ay=isNum(y);if(!ax&&!ay)return 0;if(!ax)return 1;if(!ay)return -1;
+   return (Number(x)-Number(y))*sort.dir;
+  }
+  if(k==='_new')return 0;
+  return collator(String(x??''),String(y??''))*sort.dir;
+ });
+}
+function renderHead(){
+ const h=$('head');h.innerHTML='';
+ [...COLS,{k:'diff',l:'Differenz',t:'num'}].forEach(c=>{
+  const th=document.createElement('th');const d=document.createElement('div');d.className='thi';const lb=document.createElement('span');lb.textContent=c.l;d.append(lb);th.append(d);
+  th.tabIndex=0;th.title='Sortieren';
+  if(sort.k===c.k){const s=document.createElement('span');s.className='ar';s.textContent=sort.dir>0?'↑':'↓';d.append(s);th.setAttribute('aria-sort',sort.dir>0?'ascending':'descending')}
+  const go=()=>{sort=sort.k===c.k?{k:c.k,dir:-sort.dir}:{k:c.k,dir:1};renderHead();render()};
+  th.onclick=go;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}};
+  h.append(th);
+ });
+ const a=document.createElement('th');a.className='noclick';h.append(a);
+}
+function refreshFilters(){
+ [['fHalle',hallen(),'Alle Hallen'],['fOrt',orte(),'Alle Orte']].forEach(([id,vals,label])=>{
+  const sel=$(id),cur=sel.value;
+  sel.innerHTML='';sel.append(new Option(label,''));vals.forEach(v=>sel.append(new Option(v,v)));
+  sel.value=vals.includes(cur)?cur:'';
+ });
+}
+function updateRow(tr,o){
+ const d=diffOf(o),c=tr.querySelector('.diff');
+ const p=document.createElement('span');p.className='pill '+(d===null?'none':d<0?'neg':d>0?'pos':'zero');
+ p.textContent=d===null?'–':(d>0?'+'+d:String(d));c.replaceChildren(p);
+ tr.classList.toggle('dev',d!==null&&d!==0);
+}
+function updateCount(list){
+ const dev=items.filter(o=>{const d=diffOf(o);return d!==null&&d!==0}).length;
+ const open=items.filter(o=>!isNum(o.ist)).length;
+ $('count').textContent=list.length+' von '+items.length+' Einträgen · '+dev+' Abweichungen · '+open+' nicht gezählt';
+}
+function makeCell(o,c,tr){
+ const td=document.createElement('td');td.dataset.label=c.l;td.dataset.hint=HINT[c.k];
+ const mark=()=>td.classList.toggle('miss',isEmpty(o[c.k]));
+ if(!o._edit){
+  td.textContent=c.t==='date'?fmtDate(o[c.k]):String(o[c.k]??'');mark();return td;
+ }
+ let el,ph=null;
+ if(c.t==='select'){
+  el=document.createElement('select');
+  const vals=c.k==='halle'?hallen():orte();
+  el.append(new Option(HINT[c.k],''));
+  vals.forEach(v=>el.append(new Option(v,v)));
+  if(c.k==='ort')el.append(new Option('+ Neuer Ort …','__new'));
+  el.value=vals.includes(o[c.k])?o[c.k]:'';
+  el.onchange=()=>{
+   if(el.value==='__new'){ortTarget=o;$('ortIn').value='';$('ortDlg').showModal();$('ortIn').focus();return}
+   o[c.k]=el.value;mark();setDirty();refreshFilters();
+  };
+ }else{
+  el=document.createElement('input');
+  el.type=c.t==='num'?'number':c.t;if(c.t==='num'){el.min='0';el.step='1';el.inputMode='numeric'}
+  el.placeholder=HINT[c.k];
+  el.value=o[c.k]??'';
+  el.oninput=()=>{
+   o[c.k]=el.value;mark();if(ph){ph.hidden=el.value!=='';el.classList.toggle('isempty',el.value==='')}updateRow(tr,o);updateCount(visible());setDirty();
+   if(c.k==='ist'&&el.value!==''){
+    const di=tr.querySelector('input[type=date]');
+    if(di&&di.value!==today()){di.value=today();di.dispatchEvent(new Event('input'))}
+   }
+  };
+ }
+ el.setAttribute('aria-label',c.l);
+ if(c.t==='date'){const w=document.createElement('div');w.className='dwrap';ph=document.createElement('span');ph.className='dph';ph.textContent=HINT.datum;ph.hidden=el.value!=='';el.classList.toggle('isempty',el.value==='');w.append(el,ph);td.append(w)}else td.append(el);
+ mark();return td;
+}
+function render(){
+ const list=visible(),body=$('body');body.innerHTML='';
+ list.forEach(o=>{
+  const tr=document.createElement('tr');if(o._edit)tr.className='editing';
+  COLS.forEach(c=>tr.append(makeCell(o,c,tr)));
+  const dc=document.createElement('td');dc.className='diff';dc.dataset.label='Differenz';tr.append(dc);
+  const ac=document.createElement('td');ac.className='act';
+  ac.append(
+   o._edit?iconBtn('done','Fertig','on',()=>{o._edit=false;render();refreshFilters()}):iconBtn('edit','Bearbeiten','',()=>{o._edit=true;render()}),
+   iconBtn('trash','Löschen','del',()=>{delTarget=o;$('delText').textContent='„'+(o.name||'Eintrag ohne Namen')+'“ wird unwiderruflich entfernt.';$('delDlg').showModal()})
+  );
+  tr.append(ac);updateRow(tr,o);body.append(tr);
+  if(o._focus){delete o._focus;setTimeout(()=>{tr.scrollIntoView({block:'center'});const i=tr.querySelector('input');if(i)i.focus()},0)}
+ });
+ $('empty').hidden=list.length>0;updateCount(list);
+}
+
+/* ---------- Excel ---------- */
+function exportXlsx(){
+ if(typeof XLSX==='undefined'){toast('Excel-Bibliothek nicht geladen (Internet nötig).',true);return}
+ const rows=[COLS.map(c=>c.l)];
+ items.forEach(o=>{
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(o.datum||'');
+  rows.push([o.name,o.ort,o.halle,m?new Date(+m[1],+m[2]-1,+m[3],12):'',isNum(o.soll)?Number(o.soll):'',isNum(o.ist)?Number(o.ist):'']);
+ });
+ const ws=XLSX.utils.aoa_to_sheet(rows,{cellDates:true});
+ for(let r=1;r<rows.length;r++){const c=ws[XLSX.utils.encode_cell({r,c:3})];if(c&&c.t==='d')c.z='DD.MM.YYYY'}
+ ws['!cols']=[{wch:28},{wch:20},{wch:14},{wch:22},{wch:20},{wch:20}];
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Inventur');
+ XLSX.writeFile(wb,'sporthalleninventur_geismar_'+today()+'.xlsx',{cellDates:true});
+ setDirty(false);toast('Excel-Datei exportiert.');
+}
+function colIndex(headers,keys){
+ const h=headers.map(x=>norm(x).replace(/[^a-zäöüß]/g,''));
+ for(const key of keys){const i=h.findIndex(x=>x.includes(key));if(i>=0)return i}
+ return -1;
+}
+async function readFile(file){
+ if(typeof XLSX==='undefined'){toast('Excel-Bibliothek nicht geladen (Internet nötig).',true);return}
+ try{
+  const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});
+  if(rows.length<2)throw new Error('Datei ist leer');
+  const hd=rows[0].map(String);
+  const idx={
+   name:colIndex(hd,['name','artikel','bezeichnung']),ort:colIndex(hd,['ort','lagerort']),halle:colIndex(hd,['halle']),
+   datum:colIndex(hd,['datum','kontrolle']),soll:colIndex(hd,['theor','soll']),ist:colIndex(hd,['tatsächl','tatsaechl','ist'])
+  };
+  if(idx.name<0)throw new Error('Spalte „Name“ fehlt');
+  const get=(r,k)=>idx[k]>=0?r[idx[k]]:'';
+  const list=rows.slice(1).filter(r=>String(get(r,'name')).trim()).map(r=>({
+   name:String(get(r,'name')).trim(),ort:String(get(r,'ort')).trim(),halle:String(get(r,'halle')).trim(),
+   datum:parseDate(get(r,'datum')),soll:isNum(get(r,'soll'))?Number(get(r,'soll')):'',ist:isNum(get(r,'ist'))?Number(get(r,'ist')):''
+  }));
+  if(!list.length)throw new Error('keine Zeilen mit Namen');
+  pending=list;
+  $('dlgText').textContent=list.length+' Einträge in „'+file.name+'“ gefunden. Aktuell sind '+items.length+' Einträge vorhanden. Bestehende Daten ersetzen oder die neuen anhängen?';
+  $('dlg').showModal();
+ }catch(e){toast('Import fehlgeschlagen: '+e.message+'. Erwartet: Name, Ort, Halle, Datum letzte Kontrolle, Theoretische Anzahl, Tatsächliche Anzahl.',true)}
+}
+function applyImport(replace){
+ pending.forEach(o=>o._id=nextId++);
+ items=replace?pending:items.concat(pending);
+ toast(pending.length+' Einträge '+(replace?'übernommen (ersetzt)':'angehängt')+'.');
+ pending=null;$('dlg').close();setDirty(false);refreshFilters();render();
+}
+
+/* ---------- Ereignisse ---------- */
+function resetFilters(){
+ $('q').value='';$('fHalle').value='';$('fOrt').value='';filter='all';
+ document.querySelectorAll('#chips button').forEach(b=>b.classList.toggle('on',b.dataset.f==='all'));
+}
+$('add').onclick=()=>{
+ const h=$('fHalle').value,ort=$('fOrt').value;
+ resetFilters();
+ items.push({_id:nextId++,_edit:true,_focus:true,name:'',ort,halle:h,datum:'',soll:'',ist:''});
+ sort={k:'_new',dir:1};renderHead();render();setDirty();
+};
+$('imp').onclick=()=>$('file').click();
+$('exp').onclick=exportXlsx;
+$('file').onchange=e=>{if(e.target.files[0])readFile(e.target.files[0]);e.target.value=''};
+$('dReplace').onclick=()=>applyImport(true);
+$('dAppend').onclick=()=>applyImport(false);
+$('dCancel').onclick=()=>{pending=null;$('dlg').close()};
+$('delNo').onclick=()=>{delTarget=null;$('delDlg').close()};
+$('delYes').onclick=()=>{items=items.filter(x=>x!==delTarget);delTarget=null;$('delDlg').close();setDirty();refreshFilters();render();toast('Eintrag gelöscht.')};
+const ortDone=ok=>{
+ const v=$('ortIn').value.trim();
+ if(ok&&v&&ortTarget){ortTarget.ort=v;setDirty();refreshFilters()}
+ ortTarget=null;$('ortDlg').close();render();
+};
+$('ortYes').onclick=()=>ortDone(true);
+$('ortNo').onclick=()=>ortDone(false);
+$('ortIn').onkeydown=e=>{if(e.key==='Enter')ortDone(true)};
+$('ortDlg').addEventListener('cancel',()=>{ortTarget=null;setTimeout(render,0)});
+['q','fHalle','fOrt'].forEach(id=>$(id).addEventListener('input',render));
+$('chips').onclick=e=>{
+ const b=e.target.closest('button');if(!b)return;
+ filter=b.dataset.f;document.querySelectorAll('#chips button').forEach(x=>x.classList.toggle('on',x===b));render();
+};
+$('reset').onclick=()=>{resetFilters();render()};
+let depth=0;
+addEventListener('dragenter',e=>{if([...(e.dataTransfer?.types||[])].includes('Files')){depth++;$('drop').classList.add('show')}});
+addEventListener('dragleave',()=>{depth=Math.max(0,depth-1);if(!depth)$('drop').classList.remove('show')});
+addEventListener('dragover',e=>e.preventDefault());
+addEventListener('drop',e=>{e.preventDefault();depth=0;$('drop').classList.remove('show');const f=e.dataTransfer?.files[0];if(f)readFile(f)});
+addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+
+document.querySelectorAll('[data-ico]').forEach(el=>el.prepend(icon(el.dataset.ico)));
+const pop=$('infoPop');
+const showInfo=v=>{pop.hidden=!v;$('info').setAttribute('aria-expanded',String(v))};
+$('info').onclick=e=>{e.stopPropagation();showInfo(pop.hidden)};
+$('infoClose').onclick=()=>showInfo(false);
+document.addEventListener('click',e=>{if(!pop.hidden&&!pop.contains(e.target))showInfo(false)});
+addEventListener('keydown',e=>{if(e.key==='Escape')showInfo(false)});
+$('fSort').onchange=()=>{const [k,d]=$('fSort').value.split(':');sort={k,dir:+d};renderHead();render()};
+load();refreshFilters();renderHead();render();$('dirty').hidden=!dirty;
+</script>
+</body>
+</html>
