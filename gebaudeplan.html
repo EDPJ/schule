@@ -722,7 +722,7 @@ const geometry = {
       ["Lager 1", 476.3, 526],
       ["Kiosk ULI", 1108, 533.8],
       ["Bibliothek", 948.5, 535.7],
-      ["Lager 2", 559.1, 555.3],
+      ["Lager 2", 547.1, 563.3],
       ["Treppenhaus C", 268.2, 561.2],
       ["Flur", 482.1, 695],
       ["Kleiner Konferenzraum", 733.8, 701.6, 0.75],
@@ -1270,7 +1270,7 @@ const geometry = {
       ["Teamraum", 641.5, 485.3],
       ["Teamraum", 270.2, 506],
       ["Computerr. 1", 329.9, 513.3],
-      ["Teamraum", 502.9, 537.9],
+      ["Teamraum", 497.4, 537.9],
       ["U-Raum 13", 269.5, 595],
       ["U-Raum 15", 581.1, 597.4],
       ["U-Raum 16", 763.9, 600.3],
@@ -1379,7 +1379,7 @@ const geometry = {
       ["Treppenhaus 2", 752.7, 561.5],
       ["Computerraum 1", 849.9, 462.5],
       ["Lila 7", 391, 471],
-      ["Teamraum", 600.2, 502.1],
+      ["Teamraum", 600.2, 510.1],
       ["Teamraum", 270.7, 506.5],
       ["Computerraum 2", 160.6, 548.7],
       ["Ebene 5", 147.3, 568.5],
@@ -2449,6 +2449,17 @@ const SYMBOLS={
 /* ---------- Beschriftungen ohne Überlappung ----------
    draw() meldet jedes Label mit mehreren Kandidatenpositionen an; placeLabels() wählt der Reihe nach (Schränke/Objekte vor
    Verbindungen) die erste Position, die weder andere Labels noch Symbole überdeckt. */
+function roomLabelObst(planId){
+  const p=PLANS.find(x=>x.id===planId),d=geometry[planId];
+  if(!p||!d||!Array.isArray(d.texts))return [];
+  const k=((PLAN_STYLE.groupScale||{})[p.group])??1;
+  return d.texts.map(([t,x,y,sc,rot])=>{
+    const fs=PLAN_STYLE.font.size*k*(sc||1),w=String(t).length*fs*.52,h=fs;
+    const turned=!!rot&&Math.abs(Math.sin(rot*Math.PI/180))>.5;
+    const hw=(turned?h:w)/2,hh=(turned?w:h)/2,cy=y-fs*.27;
+    return {x0:Number(x)-hw,x1:Number(x)+hw,y0:cy-hh,y1:cy+hh};
+  });
+}
 let LABELS=null;
 function pointLabelCands(x,y,s){
  return [
@@ -2561,7 +2572,7 @@ function validLineItem(o){return Array.isArray(o.points)&&o.points.length>=2&&o.
    Kategorien bleiben stehen und werden nicht neu aufgebaut (wichtig für flüssiges Ziehen auf dem iPad). */
 function renderOverlay(target=state.svg,planId=state.current,exporting=false){
  if(!target)return;
- LABELS={items:[],obst:[]};
+ LABELS={items:[],obst:roomLabelObst(planId)};
  const dragLayer=!exporting&&state.gesture&&state.gesture.type==='object'?state.gesture.layer:null;
  if(dragLayer)syncLines(dragLayer);else syncAll();
  if(!dragLayer)drawGrid(target,planId);
