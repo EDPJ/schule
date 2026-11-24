@@ -372,7 +372,7 @@ body>*:not(#print-root){display:none!important}
 <!-- Excel-Bibliothek ExcelJS (benötigt Internet): liest und schreibt auch die Zellformatierung -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
-<!-- Gebäudedaten (aus gebaudedaten.js direkt eingebettet, keine zweite Datei nötig) -->
+<!-- Gebäudedaten (direkt eingebettet) -->
 <script>
 /*
  * gebaudedaten.js - Geometrie der Gebäudepläne (gebaeudeplan.html)
@@ -1405,7 +1405,7 @@ const geometry = {
       ["U-Raum 9", 437.4, 659.5],
       ["Rot 5", 589.7, 659.6],
       ["Rot 4", 641.5, 663.2],
-      [Rot 3", 697.2, 663.3],
+      ["Rot 3", 697.2, 663.3],
       ["Rot 2", 753.4, 659.6],
       ["Diff Lila", 441.4, 510],
       ["Cluster Lila", 379.7, 569.3],
@@ -1512,10 +1512,8 @@ const geometry = {
  err.style.display='block';
  var strong=document.createElement('strong');
  if(!defined){
-  strong.textContent='Gebäudedaten nicht gefunden. ';
-  err.append(strong,'Die Datei ');
-  var code=document.createElement('code');code.textContent='gebaudedaten.js';
-  err.append(code,' muss im selben Ordner wie diese HTML-Datei liegen, genau so heißen und PLANS sowie geometry bereitstellen.');
+  strong.textContent='Gebäudedaten fehlerhaft. ';
+  err.append(strong,'PLANS und geometry konnten nicht gelesen werden (siehe Browser-Konsole).');
  }else{
   strong.textContent='Gebäudedaten unvollständig. ';
   err.append(strong,'Für diese Pläne fehlt die Geometrie (geometry[id].texts): '+missing.join(', ')+'.');
