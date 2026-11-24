@@ -2523,12 +2523,22 @@ function lineLabelCands(pts,s){
  if(!out.length){const p=labelPoint(pts);out.push({x:p.x+s*.4,y:p.y-s*.5,anchor:'start'})}
  return out;
 }
-function addLabel(el,text,size,cands,prio){
- if(LABELS)LABELS.items.push({el,w:String(text).length*size*.8*.55,h:size*.8,pad:size*.15,cands,prio});
+/* Frequenzbündel eines Accesspoints als „(2,4-GHz-Kanal/5-GHz-Kanal)“, z. B. „(1/36)“; leer bei anderen Kategorien.
+   Die Kanalspalten werden über ihre Excel-Überschriften erkannt („Kanal 2,4 GHz“ → kanal24ghz, „Kanal 5 GHz“ → kanal5ghz). */
+function freqBundle(layer,o){
+ if(!layer||layer.id!=='accesspoints'||isLine(o))return '';
+ const ex=extrasFor(layer,o).map(e=>e.key);
+ const k24=ex.find(k=>/^kanal/.test(k)&&/24/.test(k)),k5=ex.find(k=>/^kanal/.test(k)&&/(^|[^0-9])5(?![0-9])/.test(k)&&k!==k24);
+ const v=k=>k?String(o[k]??'').trim():'';
+ const a=v(k24),b=v(k5);
+ return a||b?'('+(a||'–')+'/'+(b||'–')+')':'';
+}
+function addLabel(el,text,size,cands,prio,sub){
+ if(LABELS)LABELS.items.push({el,w:Math.max(String(text).length*size*.8*.55,sub?String(sub.el.textContent).length*size*.62*.55:0),h:size*.8,extra:sub?sub.dy:0,sub,pad:size*.15,cands,prio});
 }
 function placeLabels(L){
  const placed=[];
- const box=(it,c)=>{const x0=c.anchor==='middle'?c.x-it.w/2:c.anchor==='end'?c.x-it.w:c.x;return {x0,x1:x0+it.w,y0:c.y-it.h*.85,y1:c.y+it.h*.25}};
+ const box=(it,c)=>{const x0=c.anchor==='middle'?c.x-it.w/2:c.anchor==='end'?c.x-it.w:c.x;return {x0,x1:x0+it.w,y0:c.y-it.h*.85,y1:c.y+it.h*.25+(it.extra||0)}};
  const hit=(a,b,p)=>a.x0<b.x1+p&&a.x1>b.x0-p&&a.y0<b.y1+p&&a.y1>b.y0-p;
  L.items.sort((a,b)=>a.prio-b.prio).forEach(it=>{
   let best=null,bestCost=Infinity;
@@ -2541,13 +2551,14 @@ function placeLabels(L){
   }
   if(!best)return;
   it.el.setAttribute('x',best.c.x);it.el.setAttribute('y',best.c.y);it.el.setAttribute('text-anchor',best.c.anchor);
+  if(it.sub){it.sub.el.setAttribute('x',best.c.x);it.sub.el.setAttribute('y',best.c.y+it.sub.dy);it.sub.el.setAttribute('text-anchor',best.c.anchor)}
   placed.push(best.r);
  });
 }
 function draw(layer,o,size,editing,hl=null,hit=editing,dispPts=null){
  const g=S('g',isLine(o)?{'data-id':uid(o),'data-line':'1'}:{'data-id':uid(o)});
  const title=S('title');
- title.textContent=(o.name||o.id)+(isLine(o)&&o.typ?' ('+o.typ+')':'');g.append(title);
+ title.textContent=(o.name||o.id)+(isLine(o)&&o.typ?' ('+o.typ+')':'')+(freqBundle(layer,o)?' '+freqBundle(layer,o):'');g.append(title);
  const color=colorFor(layer,o);
  if(isLine(o)){
   const shown=dispPts||o.points;
@@ -2577,7 +2588,16 @@ function draw(layer,o,size,editing,hl=null,hit=editing,dispPts=null){
   }
   const text=S('text',{x:x+size,y:y-size*.45,fill:color,'font-size':size*.8,class:'ov'});
   text.textContent=o.name||o.id;g.append(text);
-  addLabel(text,text.textContent,size,pointLabelCands(x,y,size),layer.kind==='mixed'?0:1);
+  /* Accesspoints: zweite Zeile mit dem Frequenzbündel (2,4 GHz / 5 GHz) */
+  const freq=freqBundle(layer,o);let sub=null,cands=pointLabelCands(x,y,size);
+  if(freq){
+   const dy=size*.75;
+   const ft=S('text',{x:x+size,y:y-size*.45+dy,fill:color,'font-size':size*.62,class:'ov'});ft.textContent=freq;g.append(ft);
+   sub={el:ft,dy};
+   /* Labels oberhalb des Symbols nach oben verschieben, damit die zweite Zeile nicht ins Symbol ragt */
+   cands=cands.map(c=>c.y<=Number(y)-size*1.2?{...c,y:c.y-dy}:c);
+  }
+  addLabel(text,text.textContent,size,cands,layer.kind==='mixed'?0:1,sub);
   if(LABELS){const r=size*.75;LABELS.obst.push({x0:Number(x)-r,x1:Number(x)+r,y0:Number(y)-r,y1:Number(y)+r})}
  }
  if(editing&&state.selected===uid(o)){
